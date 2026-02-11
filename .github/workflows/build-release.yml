@@ -14,6 +14,15 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - abi: all
+            label: universal
+          - abi: arm64-v8a
+            label: arm64-v8a
+          - abi: x86_64
+            label: x86_64
 
     steps:
       - name: Checkout
@@ -40,11 +49,20 @@ jobs:
           if [ -n "${{ github.event.inputs.maa_tag }}" ]; then
             TAG_ARG="--tag ${{ github.event.inputs.maa_tag }}"
           fi
-          python scripts/setup_maa_core.py --clean $TAG_ARG
+          if [ "${{ matrix.abi }}" = "all" ]; then
+            python scripts/setup_maa_core.py --clean $TAG_ARG
+          else
+            python scripts/setup_maa_core.py --clean --abi ${{ matrix.abi }} $TAG_ARG
+          fi
 
-      - name: Sync MAA resources from submodule
-        run: python scripts/sync_maa_resource.py
-        continue-on-error: true
+      - name: Override ABI filter
+        if: matrix.abi != 'all'
+        run: |
+          cat >> app/build.gradle.kts << 'EOF'
+
+          android.defaultConfig.ndk.abiFilters.clear()
+          android.defaultConfig.ndk.abiFilters += "${{ matrix.abi }}"
+          EOF
 
       - name: Decode keystore
         env:
@@ -60,8 +78,15 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease
 
+      - name: Rename APK
+        run: |
+          cd app/build/outputs/apk/release
+          for f in *.apk; do
+            mv "$f" "${f%.apk}-${{ matrix.label }}.apk"
+          done
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
+          name: release-apk-${{ matrix.label }}
           path: app/build/outputs/apk/release/*.apk
