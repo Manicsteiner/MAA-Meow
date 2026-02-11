@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-MAA Core 下载与部署脚本
-从 GitHub Release 下载预编译的 MAA Core 产物，部署 resource 到 assets、so 到 jniLibs。
+MAA Core Download & Deploy Script
+Download prebuilt MAA Core artifacts from GitHub Release,
+deploy resources to assets and shared libraries to jniLibs.
 
 usage:
-    python scripts/setup_maa_core.py                    # 下载最新 release 并部署
-    python scripts/setup_maa_core.py --tag v6.3.0       # 下载指定 tag
-    python scripts/setup_maa_core.py --clean             # 清空目标目录后部署
-    python scripts/setup_maa_core.py --skip-download     # 跳过下载，仅从缓存部署
+    python scripts/setup_maa_core.py                    # download latest release and deploy
+    python scripts/setup_maa_core.py --tag v6.3.0       # download specific tag
+    python scripts/setup_maa_core.py --clean             # clean target dirs before deploy
+    python scripts/setup_maa_core.py --skip-download     # deploy from cache only
 """
 
 import argparse
@@ -22,28 +23,28 @@ import urllib.request
 import urllib.error
 from pathlib import Path
 
-# 修复 Windows 控制台编码
+# Fix Windows console encoding
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-# ── 配置 ──────────────────────────────────────────────
+# ── Config ──────────────────────────────────────────────
 GITHUB_REPO = "Aliothmoon/MaaAssistantArknights"
 API_BASE = f"https://api.github.com/repos/{GITHUB_REPO}"
 
-# ABI 映射: release asset 关键字 -> jniLibs 子目录名
+# ABI mapping: release asset keyword -> jniLibs subdirectory
 ABI_MAP = {
     "android-arm64": "arm64-v8a",
     "android-x64": "x86_64",
 }
 
-# 需要拷贝到 jniLibs 的 so 文件 (排除 libc++_shared.so)
+# Excluded from jniLibs copy
 EXCLUDE_SO = {"libc++_shared.so"}
 
-# 忽略的文件扩展名
+# Ignored file extensions
 IGNORE_EXTENSIONS = {".h"}
 
-# 目标路径 (相对于项目根目录)
+# Target paths (relative to project root)
 ASSETS_RESOURCE_DIR = "app/src/main/assets/MaaSync/MaaResource"
 JNILIBS_DIR = "app/src/main/jniLibs"
 CACHE_DIR = ".maa-cache"
@@ -57,7 +58,7 @@ def fetch_json(url: str) -> dict:
     req = urllib.request.Request(url)
     req.add_header("Accept", "application/vnd.github.v3+json")
     req.add_header("User-Agent", "MaaMeow-Setup")
-    # 支持 GITHUB_TOKEN 环境变量 (CI 或 rate limit)
+    # Support GITHUB_TOKEN env var (CI or rate limit)
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         req.add_header("Authorization", f"token {token}")
@@ -97,11 +98,11 @@ def get_release_assets(tag: str = None) -> list:
         url = f"{API_BASE}/releases/tags/{tag}"
     else:
         url = f"{API_BASE}/releases/latest"
-    print(f"[FETCH] 获取 release 信息: {url}")
+    print(f"[FETCH] Fetching release info: {url}")
     try:
         data = fetch_json(url)
     except urllib.error.HTTPError as e:
-        print(f"[ERROR] 请求失败: {e.code} {e.reason}")
+        print(f"[ERROR] Request failed: {e.code} {e.reason}")
         sys.exit(1)
     tag_name = data.get("tag_name", "unknown")
     print(f"  Tag: {tag_name}")
@@ -109,7 +110,7 @@ def get_release_assets(tag: str = None) -> list:
 
 
 def find_android_assets(assets: list) -> dict:
-    """找到 android-arm64 和 android-x64 的 tar.gz"""
+    """Find android-arm64 and android-x64 tar.gz assets."""
     result = {}
     for asset in assets:
         name = asset["name"]
@@ -131,7 +132,7 @@ def extract_and_deploy(tarball: Path, abi: str, project_root: Path, clean: bool)
 
     if clean:
         if jnilib_dir.exists():
-            # 只删除 MAA 相关的 so，保留 libjnidispatch.so 等其他库
+            # Only delete MAA-related .so files, keep libjnidispatch.so etc.
             for f in jnilib_dir.iterdir():
                 if f.suffix == ".so" and f.name != "libjnidispatch.so":
                     f.unlink()
@@ -150,14 +151,13 @@ def extract_and_deploy(tarball: Path, abi: str, project_root: Path, clean: bool)
             name = Path(member.name).name
             parts = Path(member.name).parts
 
-            # 忽略头文件
+            # Skip header files
             if Path(name).suffix in IGNORE_EXTENSIONS:
                 stats["skipped"] += 1
                 continue
 
-            # resource 目录 -> assets (只处理第一个 ABI 避免重复)
+            # resource dir -> assets
             if "resource" in parts:
-                # 计算 resource 内的相对路径
                 res_idx = list(parts).index("resource")
                 rel_parts = parts[res_idx + 1:]
                 if not rel_parts:
@@ -169,7 +169,7 @@ def extract_and_deploy(tarball: Path, abi: str, project_root: Path, clean: bool)
                 stats["resource"] += 1
                 continue
 
-            # so 文件 -> jniLibs
+            # .so files -> jniLibs
             if name.endswith(".so"):
                 if name in EXCLUDE_SO:
                     stats["skipped"] += 1
@@ -182,31 +182,31 @@ def extract_and_deploy(tarball: Path, abi: str, project_root: Path, clean: bool)
 
             stats["skipped"] += 1
 
-    print(f"    resource: {stats['resource']} 文件, so: {stats['so']} 文件, 跳过: {stats['skipped']}")
+    print(f"    resource: {stats['resource']} files, so: {stats['so']} files, skipped: {stats['skipped']}")
     return stats
 
 
 def main():
-    parser = argparse.ArgumentParser(description="下载并部署 MAA Core 预编译产物")
-    parser.add_argument("--tag", "-t", help="指定 release tag (默认 latest)")
-    parser.add_argument("--clean", "-c", action="store_true", help="清空目标目录后部署")
-    parser.add_argument("--skip-download", "-s", action="store_true", help="跳过下载，使用缓存")
+    parser = argparse.ArgumentParser(description="Download and deploy prebuilt MAA Core artifacts")
+    parser.add_argument("--tag", "-t", help="Specify release tag (default: latest)")
+    parser.add_argument("--clean", "-c", action="store_true", help="Clean target dirs before deploy")
+    parser.add_argument("--skip-download", "-s", action="store_true", help="Skip download, use cache")
     parser.add_argument("--abi", choices=["arm64-v8a", "x86_64", "all"], default="all",
-                        help="只处理指定 ABI (默认 all)")
+                        help="Process only specified ABI (default: all)")
     args = parser.parse_args()
 
     project_root = get_project_root()
     cache_dir = project_root / CACHE_DIR
 
     print("=" * 55)
-    print("==> MAA Core 下载与部署脚本")
+    print("==> MAA Core Download & Deploy")
     print("=" * 55)
 
-    # 清空 assets resource 目录
+    # Clean assets resource dir
     if args.clean:
         assets_dir = project_root / ASSETS_RESOURCE_DIR
         if assets_dir.exists():
-            print(f"[DELETE] 清空 resource 目录: {assets_dir}")
+            print(f"[DELETE] Cleaning resource dir: {assets_dir}")
             shutil.rmtree(assets_dir)
 
     target_abis = list(ABI_MAP.values()) if args.abi == "all" else [args.abi]
@@ -216,29 +216,29 @@ def main():
         android_assets = find_android_assets(assets)
 
         if not android_assets:
-            print("[ERROR] 未找到 Android 产物，请检查 release 是否包含 android-arm64/android-x64 的 tar.gz")
+            print("[ERROR] No Android artifacts found. Check if the release contains android-arm64/android-x64 tar.gz files.")
             sys.exit(1)
 
-        print(f"\n[INFO] 找到 {len(android_assets)} 个 Android 产物:")
+        print(f"\n[INFO] Found {len(android_assets)} Android artifact(s):")
         for abi, info in android_assets.items():
             size_mb = info["size"] / (1024 * 1024)
             print(f"  {abi}: {info['name']} ({size_mb:.1f} MB)")
 
-        # 下载
-        print(f"\n[DOWNLOAD] 下载到缓存: {cache_dir}")
+        # Download
+        print(f"\n[DOWNLOAD] Downloading to cache: {cache_dir}")
         for abi, info in android_assets.items():
             if abi not in target_abis:
                 continue
             dest = cache_dir / info["name"]
             if dest.exists() and dest.stat().st_size == info["size"]:
-                print(f"  [CACHE] {info['name']} 已存在，跳过下载")
+                print(f"  [CACHE] {info['name']} already exists, skipping download")
             else:
                 download_file(info["url"], dest)
     else:
-        print("[SKIP] 跳过下载，使用缓存")
+        print("[SKIP] Skipping download, using cache")
 
-    # 部署
-    print(f"\n[DEPLOY] 部署产物...")
+    # Deploy
+    print(f"\n[DEPLOY] Deploying artifacts...")
     resource_deployed = False
     for tarball in sorted(cache_dir.glob("*.tar.gz")):
         for keyword, abi in ABI_MAP.items():
@@ -247,12 +247,12 @@ def main():
                 resource_deployed = True
 
     if not resource_deployed:
-        print("[ERROR] 缓存中未找到 tar.gz 文件，请先运行不带 --skip-download 的命令")
+        print("[ERROR] No tar.gz files found in cache. Run without --skip-download first.")
         sys.exit(1)
 
-    # 汇总
+    # Summary
     print("\n" + "=" * 55)
-    print("[DONE] 部署完成!")
+    print("[DONE] Deploy complete!")
     print("=" * 55)
     for abi in target_abis:
         jnilib_dir = project_root / JNILIBS_DIR / abi
@@ -263,7 +263,7 @@ def main():
     if assets_dir.exists():
         file_count = sum(1 for f in assets_dir.rglob("*") if f.is_file())
         total_size = sum(f.stat().st_size for f in assets_dir.rglob("*") if f.is_file())
-        print(f"  resource: {file_count} 文件, {total_size / (1024 * 1024):.1f} MB")
+        print(f"  resource: {file_count} files, {total_size / (1024 * 1024):.1f} MB")
 
 
 if __name__ == "__main__":
