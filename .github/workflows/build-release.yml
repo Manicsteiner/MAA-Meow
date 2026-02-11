@@ -22,7 +22,7 @@ jobs:
           - abi: arm64-v8a
             label: arm64-v8a
           - abi: x86_64
-            label: x86_64
+            label: x64
 
     steps:
       - name: Checkout

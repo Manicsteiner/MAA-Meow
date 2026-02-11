@@ -191,7 +191,7 @@ def main():
     parser.add_argument("--tag", "-t", help="指定 release tag (默认 latest)")
     parser.add_argument("--clean", "-c", action="store_true", help="清空目标目录后部署")
     parser.add_argument("--skip-download", "-s", action="store_true", help="跳过下载，使用缓存")
-    parser.add_argument("--abi", choices=["arm64-v8a", "x64", "all"], default="all",
+    parser.add_argument("--abi", choices=["arm64-v8a", "x86_64", "all"], default="all",
                         help="只处理指定 ABI (默认 all)")
     args = parser.parse_args()
 
