@@ -90,7 +90,7 @@ fun MallConfigPanel(config: MallConfig, onConfigChange: (MallConfig) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(PaddingValues(start = 12.dp, top = 2.dp, bottom = 4.dp)),
+            .padding(PaddingValues(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp)),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         // Tab 行（常规设置 / 高级设置）

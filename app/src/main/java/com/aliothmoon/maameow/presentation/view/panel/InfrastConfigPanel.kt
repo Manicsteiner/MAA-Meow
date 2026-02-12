@@ -83,7 +83,7 @@ fun InfrastConfigPanel(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(PaddingValues(start = 12.dp, top = 2.dp, bottom = 4.dp)),
+            .padding(PaddingValues(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp)),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         val pagerState = rememberPagerState(

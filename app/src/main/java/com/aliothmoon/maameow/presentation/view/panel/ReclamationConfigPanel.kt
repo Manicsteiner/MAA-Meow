@@ -41,13 +41,13 @@ fun ReclamationConfigPanel(config: ReclamationConfig, onConfigChange: (Reclamati
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(PaddingValues(start = 12.dp, top = 2.dp, bottom = 4.dp)),
+            .padding(PaddingValues(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp)),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         // Tab 行
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -94,8 +94,7 @@ fun ReclamationConfigPanel(config: ReclamationConfig, onConfigChange: (Reclamati
         ) { page ->
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(end = 12.dp, bottom = 8.dp)
+                modifier = Modifier.fillMaxSize()
             ) {
                 when (page) {
                     // 常规设置 Tab

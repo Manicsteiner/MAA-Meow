@@ -41,7 +41,7 @@ fun WakeUpConfigPanel(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(PaddingValues(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 4.dp)),
+            .padding(PaddingValues(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp)),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // 客户端类型选择

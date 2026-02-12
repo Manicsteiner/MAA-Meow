@@ -324,6 +324,7 @@ private fun BackgroundConfigurationPanel(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
+        Column(modifier = Modifier.padding(top = 10.dp)) {
         when (state.currentTaskType) {
             TaskType.WAKE_UP -> WakeUpConfigPanel(
                 config = wakeUpConfig,
@@ -396,6 +397,7 @@ private fun BackgroundConfigurationPanel(
                     }
                 }
             )
+        }
         }
     }
 }
