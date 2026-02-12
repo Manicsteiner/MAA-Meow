@@ -230,7 +230,7 @@ private fun InfrastModeSection(
     // 模式选项 (对应WPF的InfrastModeList)
     val modeOptions = listOf(
         "Normal" to "常规模式",
-        "Rotation" to "轮换模式（跑单）"
+        "Rotation" to "轮换模式"
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

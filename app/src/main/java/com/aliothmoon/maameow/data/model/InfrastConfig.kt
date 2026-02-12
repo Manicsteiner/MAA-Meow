@@ -28,7 +28,7 @@ data class InfrastConfig(
      * 基建切换模式
      * 对应 WPF: InfrastMode (enum)
      * - "Normal": 常规模式
-     * - "Rotation": 队列轮换模式（跑单）
+     * - "Rotation": 队列轮换模式
      * 注意: 不包含 Custom 自定义模式（该模式暂不迁移）
      */
     val mode: String = "Normal",
