@@ -37,22 +37,59 @@ class AppDownloader(
         }
 
         /**
-         * 比较语义化版本号，支持 v 前缀
-         * 例如 "1.0" vs "1.1", "v1.0.0" vs "v1.1.0"
+         * 比较语义化版本号，支持 v 前缀和 prerelease
+         * 遵循 SemVer: 1.0.0-alpha < 1.0.0-alpha.1 < 1.0.0-beta < 1.0.0-rc.1 < 1.0.0
          */
         fun compareVersions(v1: String, v2: String): Int {
-            val normalize = { v: String ->
-                v.removePrefix("v").removePrefix("V")
-                    .split(".")
-                    .map { it.toIntOrNull() ?: 0 }
-            }
-            val parts1 = normalize(v1)
-            val parts2 = normalize(v2)
+            val clean1 = v1.removePrefix("v").removePrefix("V")
+            val clean2 = v2.removePrefix("v").removePrefix("V")
+
+            val (main1, pre1) = splitVersion(clean1)
+            val (main2, pre2) = splitVersion(clean2)
+
+            val mainCompare = compareMainVersion(main1, main2)
+            if (mainCompare != 0) return mainCompare
+
+            return comparePrerelease(pre1, pre2)
+        }
+
+        private fun splitVersion(v: String): Pair<String, String?> {
+            val idx = v.indexOf('-')
+            return if (idx >= 0) v.take(idx) to v.substring(idx + 1) else v to null
+        }
+
+        private fun compareMainVersion(v1: String, v2: String): Int {
+            val parts1 = v1.split(".").map { it.toIntOrNull() ?: 0 }
+            val parts2 = v2.split(".").map { it.toIntOrNull() ?: 0 }
             val maxLen = maxOf(parts1.size, parts2.size)
             for (i in 0 until maxLen) {
                 val p1 = parts1.getOrElse(i) { 0 }
                 val p2 = parts2.getOrElse(i) { 0 }
                 if (p1 != p2) return p1.compareTo(p2)
+            }
+            return 0
+        }
+
+        private fun comparePrerelease(pre1: String?, pre2: String?): Int {
+            if (pre1 == null && pre2 == null) return 0
+            if (pre1 == null) return 1   // 1.0.0 > 1.0.0-xxx
+            if (pre2 == null) return -1  // 1.0.0-xxx < 1.0.0
+
+            val ids1 = pre1.split(".")
+            val ids2 = pre2.split(".")
+            val maxLen = maxOf(ids1.size, ids2.size)
+            for (i in 0 until maxLen) {
+                if (i >= ids1.size) return -1
+                if (i >= ids2.size) return 1
+                val n1 = ids1[i].toIntOrNull()
+                val n2 = ids2[i].toIntOrNull()
+                val cmp = when {
+                    n1 != null && n2 != null -> n1.compareTo(n2)
+                    n1 != null -> -1  // 数字 < 字符串
+                    n2 != null -> 1
+                    else -> ids1[i].compareTo(ids2[i])
+                }
+                if (cmp != 0) return cmp
             }
             return 0
         }
@@ -63,16 +100,17 @@ class AppDownloader(
      */
     suspend fun checkVersionFromGitHub(): VersionCheckResult {
         return try {
-            val response = httpClient.get(MaaApi.APP_GITHUB_RELEASE_LATEST)
+            val response = httpClient.get(MaaApi.APP_GITHUB_RELEASES)
             if (!response.isSuccessful) {
                 return VersionCheckResult.Error(response.code, "GitHub API 请求失败")
             }
 
             val release = runCatching {
-                json.decodeFromString<GitHubRelease>(response.body.string())
+                val releases = json.decodeFromString<List<GitHubRelease>>(response.body.string())
+                releases.firstOrNull()
             }.getOrElse { e ->
                 return VersionCheckResult.Error(-1, "解析响应失败: ${e.message}")
-            }
+            } ?: return VersionCheckResult.NoUpdate(BuildConfig.VERSION_NAME)
 
             val remoteVersion = release.tagName.removePrefix("v").removePrefix("V")
             val currentVersion = BuildConfig.VERSION_NAME
@@ -82,7 +120,7 @@ class AppDownloader(
             }
 
             // 查找 APK asset
-            val apkAsset = release.assets.firstOrNull { it.name.endsWith(".apk") }
+            val apkAsset = release.assets.firstOrNull { it.name.endsWith("universal.apk") }
                 ?: return VersionCheckResult.Error(-1, "Release 中未找到 APK 文件")
 
             VersionCheckResult.UpdateAvailable(
@@ -225,6 +263,7 @@ class AppDownloader(
                 "%.1f MB/s",
                 bytesPerSecond / (1024.0 * 1024)
             )
+
             bytesPerSecond >= 1024 -> String.format("%.1f KB/s", bytesPerSecond / 1024.0)
             else -> "$bytesPerSecond B/s"
         }

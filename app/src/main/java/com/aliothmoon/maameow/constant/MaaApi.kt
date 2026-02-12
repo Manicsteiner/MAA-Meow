@@ -33,11 +33,11 @@ object MaaApi {
 
     // GitHub 仓库
     const val APP_GITHUB_OWNER = "Aliothmoon"
-    const val APP_GITHUB_REPO = "MaaMeow"
+    const val APP_GITHUB_REPO = "MAA-Meow"
 
-    // GitHub Release API
-    const val APP_GITHUB_RELEASE_LATEST =
-        "https://api.github.com/repos/$APP_GITHUB_OWNER/$APP_GITHUB_REPO/releases/latest"
+    // GitHub Release API (包含 prerelease)
+    const val APP_GITHUB_RELEASES =
+        "https://api.github.com/repos/$APP_GITHUB_OWNER/$APP_GITHUB_REPO/releases?per_page=1"
 
     // MirrorChyan App 更新源
     const val MIRROR_CHYAN_APP_RESOURCE = "https://mirrorchyan.com/api/resources/MAA-Meow/latest"

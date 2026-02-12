@@ -12,8 +12,7 @@ sealed class UpdateError : Message {
         override val message: String,
         val code: Int = -1,
         val throwable: Throwable? = null
-    ) :
-        UpdateError()
+    ) : UpdateError()
 
     /** Mirrorchyan业务错误 */
     sealed class MirrorchyanBizError(
@@ -48,7 +47,6 @@ sealed class UpdateError : Message {
 
         data object InvalidChannel :
             MirrorchyanBizError("错误的更新通道参数")
-
 
     }
 
