@@ -1,6 +1,6 @@
 # MAA Meow 🐱
 
-在 Android 设备上 **原生运行 MAA** 
+在 Android 设备上 **原生运行 MAA**
 
 把明日方舟的重复操作交给手机，纯本地、无需模拟器
 
@@ -9,6 +9,7 @@
 - 基于 [MaaAssistantArknights](https://github.com/MaaAssistantArknights/MaaAssistantArknights)
 - Jetpack Compose 构建 UI
 - 后台虚拟显示运行 & 支持前台悬浮操控
+- [点击此处下载最新版本](https://github.com/Aliothmoon/MAA-Meow/releases/latest)
 
 ## 这有什么不同？
 
