@@ -8,7 +8,8 @@
 
 - 基于 [MaaAssistantArknights](https://github.com/MaaAssistantArknights/MaaAssistantArknights)
 - Jetpack Compose 构建 UI
-- 后台虚拟显示运行 & 支持前台悬浮操控
+- 后台模式: 后台运行《明日方舟》, 无需修改分辨率
+- 前台模式: 悬浮控制面板
 - [点击此处下载最新版本](https://github.com/Aliothmoon/MAA-Meow/releases/latest)
 
 ## 这有什么不同？
