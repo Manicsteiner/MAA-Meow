@@ -34,8 +34,8 @@ android {
         applicationId = "com.aliothmoon.maameow"
         minSdk = 28
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.0.4-alpha"
+        versionCode = 5
+        versionName = "0.0.7-alpha"
         ndkVersion = "29.0.13113456"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
