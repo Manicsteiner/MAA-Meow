@@ -136,3 +136,9 @@ jobs:
           draft: false
           prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
           files: apks/*.apk
+          append_body: true
+          body: |
+
+            ---
+
+            [已有 Mirror酱 CDK？前往 Mirror酱 高速下载](https://mirrorchyan.com/zh/projects?rid=MAA&os=android&source=maagh-release)
