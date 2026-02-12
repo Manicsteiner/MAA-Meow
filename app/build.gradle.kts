@@ -81,8 +81,7 @@ android {
                 signingConfig = signingConfigs.getByName("release")
                 println("[Signing] Using release keystore: $keystorePath")
             } else {
-                signingConfig = signingConfigs.getByName("debug")
-                println("[Signing] No release keystore configured, fallback to debug signing")
+                println("[Signing] No release keystore configured, release build will not be signed")
             }
         }
     }
