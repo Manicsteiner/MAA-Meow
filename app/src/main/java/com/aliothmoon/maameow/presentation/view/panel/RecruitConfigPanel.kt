@@ -4,6 +4,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -49,8 +51,6 @@ import kotlinx.coroutines.launch
 /**
  * 自动公招配置面板
  *
- * 完整迁移自 WPF RecruitSettingsUserControl.xaml
- * 包含所有常规和高级设置功能，与WPF保持100%一致
  *
  * WPF源文件: RecruitSettingsUserControl.xaml
  * WPF ViewModel: RecruitSettingsUserControlModel.cs
@@ -333,7 +333,7 @@ private fun AutoRecruitFirstListSection(
             tipText = tipText
         )
 
-        // 多选标签面板 - 使用 FlowRow 风格的紧凑布局
+        // 多选标签面板 - 使用 FlowRow 自动换行布局
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(6.dp),
@@ -344,42 +344,42 @@ private fun AutoRecruitFirstListSection(
                 modifier = Modifier.padding(8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                availableTags.chunked(4).forEach { rowTags ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        rowTags.forEach { tag ->
-                            val isSelected = config.autoRecruitFirstList.contains(tag)
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    val newList = if (isSelected) {
-                                        config.autoRecruitFirstList - tag
-                                    } else {
-                                        config.autoRecruitFirstList + tag
-                                    }
-                                    onConfigChange(config.copy(autoRecruitFirstList = newList))
-                                },
-                                label = {
-                                    Text(
-                                        text = tag,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        maxLines = 1
+                @OptIn(ExperimentalLayoutApi::class)
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    availableTags.forEach { tag ->
+                        val isSelected = config.autoRecruitFirstList.contains(tag)
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                val newList = if (isSelected) {
+                                    config.autoRecruitFirstList - tag
+                                } else {
+                                    config.autoRecruitFirstList + tag
+                                }
+                                onConfigChange(config.copy(autoRecruitFirstList = newList))
+                            },
+                            label = {
+                                Text(
+                                    text = tag,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1
+                                )
+                            },
+                            leadingIcon = if (isSelected) {
+                                {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp)
                                     )
-                                },
-                                leadingIcon = if (isSelected) {
-                                    {
-                                        Icon(
-                                            imageVector = Icons.Default.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
-                                } else null,
-                                modifier = Modifier.height(28.dp)
-                            )
-                        }
+                                }
+                            } else null,
+                            modifier = Modifier.height(28.dp)
+                        )
                     }
                 }
 
@@ -626,7 +626,6 @@ private fun TimeSelector(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp)
             .alpha(if (enabled) 1f else 0.5f),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
