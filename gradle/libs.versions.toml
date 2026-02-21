@@ -26,7 +26,7 @@ datastore = "1.2.0"
 window = "1.5.1"
 
 # Third-party libraries
-jna = "5.17.0"
+jna = "5.18.1"
 fastjson2 = "2.0.61"
 shizuku = "13.1.5"
 floatingX = "2.3.7"
