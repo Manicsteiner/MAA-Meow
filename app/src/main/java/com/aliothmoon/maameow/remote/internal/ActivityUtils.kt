@@ -8,7 +8,8 @@ import com.aliothmoon.maameow.third.wrappers.ServiceManager
 
 object ActivityUtils {
     @JvmStatic
-    fun startApp(packageName: String, displayId: Int, forceStop: Boolean = true): Boolean {
+    @JvmOverloads
+    fun startApp(packageName: String, displayId: Int, forceStop: Boolean = true, excludeFromRecents: Boolean = true): Boolean {
         val pm = FakeContext.get().packageManager
 
         val intent = pm.getLaunchIntentForPackage(packageName) ?: run {
@@ -21,6 +22,9 @@ object ActivityUtils {
         }
 
         var flag = Intent.FLAG_ACTIVITY_NEW_TASK
+        if (excludeFromRecents) {
+            flag = flag or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+        }
         if (displayId != 0) {
             flag = flag or Intent.FLAG_ACTIVITY_MULTIPLE_TASK
         }

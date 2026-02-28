@@ -2,6 +2,7 @@ package com.aliothmoon.maameow.maa;
 
 
 import com.aliothmoon.maameow.remote.internal.ActivityUtils;
+import com.aliothmoon.maameow.remote.internal.PrimaryDisplayManager;
 import com.aliothmoon.maameow.third.Ln;
 
 /**
@@ -15,7 +16,10 @@ public final class DriverClass {
     }
 
     public static boolean startApp(String packageName, int displayId, boolean forceStop) {
-        return ActivityUtils.startApp(packageName, displayId, forceStop);
+        if (displayId == PrimaryDisplayManager.DISPLAY_ID) {
+            return ActivityUtils.startApp(packageName, displayId, forceStop);
+        }
+        return ActivityUtils.startApp(packageName, displayId, forceStop, true);
     }
 
     public static boolean touchDown(int x, int y, int displayId) {
