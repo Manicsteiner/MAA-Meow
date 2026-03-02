@@ -6,7 +6,6 @@ import com.aliothmoon.maameow.data.model.activity.ClientStageActivity
 import com.aliothmoon.maameow.data.model.activity.MiniGame
 import com.aliothmoon.maameow.data.model.activity.StageActivityInfo
 import com.aliothmoon.maameow.data.model.activity.StageActivityRoot
-import com.aliothmoon.maameow.data.preferences.TaskConfigState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -29,7 +28,6 @@ import kotlin.collections.plus
  */
 class ActivityManager(
     private val maaApiService: MaaApiService,
-    private val taskConfigState: TaskConfigState,
     private val itemHelper: ItemHelper,
     private val resourceDataManager: ResourceDataManager
 ) {

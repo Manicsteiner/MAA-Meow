@@ -2,7 +2,7 @@ package com.aliothmoon.maameow.data.model
 
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
-import com.aliothmoon.maameow.maa.task.TaskParamProvider
+import com.aliothmoon.maameow.data.model.TaskParamProvider
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -295,24 +295,6 @@ data class FightConfig(
                     put(dropsItemId, dropsQuantity)
                 })
             }
-        }
-
-        return MaaTaskParams(MaaTaskType.FIGHT, paramsJson.toString())
-    }
-
-    /**
-     * 剩余理智关卡任务参数
-     * 拆分逻辑数据
-     */
-    fun toRemainingSanityParams(): MaaTaskParams? {
-        if (!useRemainingSanityStage || remainingSanityStage.isBlank()) return null
-
-        val paramsJson = buildJsonObject {
-            put("stage", remainingSanityStage)
-            put("medicine", 0)
-            put("stone", 0)
-            put("times", Int.MAX_VALUE)
-            put("series", series)
         }
 
         return MaaTaskParams(MaaTaskType.FIGHT, paramsJson.toString())

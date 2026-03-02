@@ -5,13 +5,14 @@ import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aliothmoon.maameow.data.model.LogItem
-import com.aliothmoon.maameow.data.model.TaskType
-import com.aliothmoon.maameow.data.preferences.TaskConfigState
+import com.aliothmoon.maameow.data.model.TaskTypeInfo
+import com.aliothmoon.maameow.data.preferences.TaskChainState
 import com.aliothmoon.maameow.data.resource.ResourceDataManager
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.domain.usecase.BuildTaskParamsUseCase
+import com.aliothmoon.maameow.data.model.TaskParamProvider
 import com.aliothmoon.maameow.overlay.OverlayController
 import com.aliothmoon.maameow.presentation.view.panel.FloatingPanelState
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogConfirmAction
@@ -30,7 +31,7 @@ import timber.log.Timber
 
 class ExpandedControlPanelViewModel(
     val resourceDataManager: ResourceDataManager,
-    val taskConfig: TaskConfigState,
+    val chainState: TaskChainState,
     private val application: Context,
     private val buildTaskParams: BuildTaskParamsUseCase,
     private val compositionService: MaaCompositionService,
@@ -73,34 +74,66 @@ class ExpandedControlPanelViewModel(
         }
     }
 
-
-    fun onTaskEnableChange(type: TaskType, enabled: Boolean) {
+    fun onNodeEnabledChange(nodeId: String, enabled: Boolean) {
         viewModelScope.launch {
-            taskConfig.updateTaskEnabled(type, enabled)
+            runCatching { chainState.setNodeEnabled(nodeId, enabled) }
                 .onSuccess {
-                    Timber.d("Updated %s enabled: %s", type.displayName, enabled)
+                    Timber.d("Updated node %s enabled: %s", nodeId, enabled)
                 }
                 .onFailure { e ->
-                    Timber.e(e, "Failed to update task enabled: ${e.message}")
+                    Timber.e(e, "Failed to update node enabled: ${e.message}")
                 }
         }
     }
 
-    fun onTaskMove(fromIndex: Int, toIndex: Int) {
+    fun onNodeMove(fromIndex: Int, toIndex: Int) {
         viewModelScope.launch {
-            taskConfig.reorderTasks(fromIndex, toIndex)
+            runCatching { chainState.reorderNodes(fromIndex, toIndex) }
                 .onSuccess {
-                    Timber.d("Moved task from %d to %d", fromIndex, toIndex)
+                    Timber.d("Moved node from %d to %d", fromIndex, toIndex)
                 }
                 .onFailure { e ->
-                    Timber.e(e, "Failed to reorder tasks: ${e.message}")
+                    Timber.e(e, "Failed to reorder nodes: ${e.message}")
                 }
         }
     }
 
-    fun onSelectedTaskChange(taskType: TaskType) {
-        _state.update { it.copy(currentTaskType = taskType) }
-        Timber.d("Selected task: %s", taskType.displayName)
+    fun onNodeSelected(nodeId: String) {
+        _state.update { it.copy(selectedNodeId = nodeId) }
+        Timber.d("Selected node: %s", nodeId)
+    }
+
+    fun onAddNode(typeInfo: TaskTypeInfo) {
+        viewModelScope.launch {
+            chainState.addNode(typeInfo)
+        }
+    }
+
+    fun onRemoveNode(nodeId: String) {
+        viewModelScope.launch {
+            chainState.removeNode(nodeId)
+            if (_state.value.selectedNodeId == nodeId) {
+                _state.update { it.copy(selectedNodeId = null) }
+            }
+        }
+    }
+
+    fun onDuplicateNode(nodeId: String) {
+        viewModelScope.launch {
+            chainState.duplicateNode(nodeId)
+        }
+    }
+
+    fun onRenameNode(nodeId: String, newName: String) {
+        viewModelScope.launch {
+            chainState.renameNode(nodeId, newName)
+        }
+    }
+
+    fun onNodeConfigChange(nodeId: String, config: TaskParamProvider) {
+        viewModelScope.launch {
+            chainState.updateNodeConfig(nodeId, config)
+        }
     }
 
     fun onTabChange(tab: PanelTab) {
@@ -144,11 +177,11 @@ class ExpandedControlPanelViewModel(
     }
 
     fun onStartTasks() {
-        val tasks = taskConfig.taskList.value
-            .filter { it.isEnabled }
+        val enabledNodes = chainState.chain.value
+            .filter { it.enabled }
             .sortedBy { it.order }
 
-        if (tasks.isEmpty()) {
+        if (enabledNodes.isEmpty()) {
             Timber.w("No tasks enabled")
             showDialog(
                 PanelDialogUiState(

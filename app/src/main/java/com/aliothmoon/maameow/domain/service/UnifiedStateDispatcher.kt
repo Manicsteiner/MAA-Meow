@@ -2,7 +2,8 @@ package com.aliothmoon.maameow.domain.service
 
 import com.aliothmoon.maameow.RemoteService
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
-import com.aliothmoon.maameow.data.preferences.TaskConfigState
+import com.aliothmoon.maameow.data.model.WakeUpConfig
+import com.aliothmoon.maameow.data.preferences.TaskChainState
 import com.aliothmoon.maameow.manager.PermissionManager
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import kotlinx.coroutines.CoroutineScope
@@ -24,7 +25,7 @@ class UnifiedStateDispatcher(
     private val appSettingsManager: AppSettingsManager,
     private val resourceLoader: MaaResourceLoader,
     private val permissionManager: PermissionManager,
-    private val taskConfigState: TaskConfigState,
+    private val chainState: TaskChainState,
 ) {
     private val dispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
     private val scope = CoroutineScope(SupervisorJob() + dispatcher)
@@ -73,8 +74,8 @@ class UnifiedStateDispatcher(
         Timber.i("Started observing unified state")
 
         scope.launch {
-            taskConfigState.wakeUpConfig
-                .map { it.clientType }
+            chainState.firstConfigFlow<WakeUpConfig>()
+                .map { (it ?: WakeUpConfig()).clientType }
                 .distinctUntilChanged()
                 .drop(1)
                 .collect { newClientType ->

@@ -56,7 +56,8 @@ fun ExpandedControlPanel(
     val runMode by appSettings.runMode.collectAsStateWithLifecycle()
     val logs by viewModel.runtimeLogs.collectAsStateWithLifecycle()
 
-    val tasks by viewModel.taskConfig.taskList.collectAsStateWithLifecycle()
+    val nodes by viewModel.chainState.chain.collectAsStateWithLifecycle()
+    val selectedNode = nodes.find { it.id == uiState.selectedNodeId }
 
     val pagerState = rememberPagerState(
         initialPage = uiState.currentTab.ordinal,
@@ -122,22 +123,29 @@ fun ExpandedControlPanel(
                             ) {
                                 // 左侧任务列表
                                 TaskListPanel(
-                                    tasks = tasks,
-                                    selectedTaskType = uiState.currentTaskType,
-                                    onTaskEnabledChange = viewModel::onTaskEnableChange,
-                                    onTaskSelected = viewModel::onSelectedTaskChange,
-                                    onTaskMove = viewModel::onTaskMove,
+                                    nodes = nodes,
+                                    selectedNodeId = uiState.selectedNodeId,
+                                    onNodeEnabledChange = viewModel::onNodeEnabledChange,
+                                    onNodeSelected = viewModel::onNodeSelected,
+                                    onNodeMove = viewModel::onNodeMove,
+                                    onAddNode = viewModel::onAddNode,
+                                    onRemoveNode = viewModel::onRemoveNode,
+                                    onDuplicateNode = viewModel::onDuplicateNode,
+                                    onRenameNode = viewModel::onRenameNode,
                                     modifier = Modifier
                                         .fillMaxHeight()
                                 )
 
                                 // 右侧配置区域
-                                ConfigurationPanel(
+                                TaskConfigPanel(
+                                    selectedNode = selectedNode,
+                                    onConfigChange = { config ->
+                                        val nodeId = uiState.selectedNodeId ?: return@TaskConfigPanel
+                                        viewModel.onNodeConfigChange(nodeId, config)
+                                    },
                                     modifier = Modifier
                                         .weight(1f)
-                                        .fillMaxHeight(),
-                                    state = uiState,
-                                    taskConfig = viewModel.taskConfig,
+                                        .fillMaxHeight()
                                 )
                             }
                         }

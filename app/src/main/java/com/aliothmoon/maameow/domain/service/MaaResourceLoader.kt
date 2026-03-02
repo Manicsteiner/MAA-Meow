@@ -3,7 +3,8 @@ package com.aliothmoon.maameow.domain.service
 import com.aliothmoon.maameow.MaaCoreService
 import com.aliothmoon.maameow.data.config.MaaPathConfig
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
-import com.aliothmoon.maameow.data.preferences.TaskConfigState
+import com.aliothmoon.maameow.data.model.WakeUpConfig
+import com.aliothmoon.maameow.data.preferences.TaskChainState
 import com.aliothmoon.maameow.data.resource.ActivityManager
 import com.aliothmoon.maameow.data.resource.ItemHelper
 import com.aliothmoon.maameow.data.resource.ResourceDataManager
@@ -21,7 +22,7 @@ import java.io.File
 class MaaResourceLoader(
     private val pathConfig: MaaPathConfig,
     private val appSettings: AppSettingsManager,
-    private val taskConfigState: TaskConfigState,
+    private val chainState: TaskChainState,
     private val itemHelper: ItemHelper,
     private val resourceDataManager: ResourceDataManager,
     private val activityManager: ActivityManager
@@ -38,7 +39,7 @@ class MaaResourceLoader(
     private val _state = MutableStateFlow<State>(State.NotLoaded)
     val state: StateFlow<State> = _state.asStateFlow()
 
-    suspend fun load(clientType: String = taskConfigState.wakeUpConfig.value.clientType): Result<Unit> {
+    suspend fun load(clientType: String = chainState.findFirstConfig<WakeUpConfig>()?.clientType ?: WakeUpConfig().clientType): Result<Unit> {
         _state.value = State.Loading()
         Timber.i("MaaCore resources loading, clientType=$clientType")
         loadDepsInfo(clientType)

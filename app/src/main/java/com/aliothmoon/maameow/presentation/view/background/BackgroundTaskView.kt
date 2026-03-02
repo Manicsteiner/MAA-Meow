@@ -46,12 +46,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -64,27 +64,18 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aliothmoon.maameow.constant.DefaultDisplayConfig
-import com.aliothmoon.maameow.data.model.TaskType
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.domain.service.UnifiedStateDispatcher
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.manager.PermissionManager
 import com.aliothmoon.maameow.presentation.components.PlaceholderContent
 import com.aliothmoon.maameow.presentation.components.ShizukuPermissionDialog
-import com.aliothmoon.maameow.presentation.state.BackgroundTaskState
-import com.aliothmoon.maameow.presentation.view.panel.AwardConfigPanel
-import com.aliothmoon.maameow.presentation.view.panel.InfrastConfigPanel
 import com.aliothmoon.maameow.presentation.view.panel.LogPanel
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogType
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogUiState
 import com.aliothmoon.maameow.presentation.view.panel.PanelTab
-import com.aliothmoon.maameow.presentation.view.panel.ReclamationConfigPanel
-import com.aliothmoon.maameow.presentation.view.panel.RecruitConfigPanel
+import com.aliothmoon.maameow.presentation.view.panel.TaskConfigPanel
 import com.aliothmoon.maameow.presentation.view.panel.TaskListPanel
-import com.aliothmoon.maameow.presentation.view.panel.WakeUpConfigPanel
-import com.aliothmoon.maameow.presentation.view.panel.fight.FightConfigPanel
-import com.aliothmoon.maameow.presentation.view.panel.mall.MallConfigPanel
-import com.aliothmoon.maameow.presentation.view.panel.roguelike.RoguelikeConfigPanel
 import com.aliothmoon.maameow.presentation.viewmodel.BackgroundTaskViewModel
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -109,7 +100,8 @@ fun BackgroundTaskView(
     val permissions by permissionManager.state.collectAsStateWithLifecycle()
     var isRequestingShizuku by remember { mutableStateOf(false) }
 
-    val tasks by viewModel.taskConfig.taskList.collectAsStateWithLifecycle()
+    val nodes by viewModel.chainState.chain.collectAsStateWithLifecycle()
+    val selectedNode = nodes.find { it.id == state.selectedNodeId }
 
     val pagerState = rememberPagerState(
         initialPage = state.currentTab.ordinal,
@@ -267,16 +259,28 @@ fun BackgroundTaskView(
                     0 -> {
                         Row(modifier = Modifier.fillMaxSize()) {
                             TaskListPanel(
-                                tasks = tasks,
-                                selectedTaskType = state.currentTaskType,
-                                onTaskEnabledChange = { taskType, enabled ->
-                                    viewModel.onTaskEnableChange(taskType, enabled)
+                                nodes = nodes,
+                                selectedNodeId = state.selectedNodeId,
+                                onNodeEnabledChange = { nodeId, enabled ->
+                                    viewModel.onNodeEnabledChange(nodeId, enabled)
                                 },
-                                onTaskSelected = { taskType ->
-                                    viewModel.onSelectedTaskChange(taskType)
+                                onNodeSelected = { nodeId ->
+                                    viewModel.onNodeSelected(nodeId)
                                 },
-                                onTaskMove = { fromIndex, toIndex ->
-                                    viewModel.onTaskMove(fromIndex, toIndex)
+                                onNodeMove = { fromIndex, toIndex ->
+                                    viewModel.onNodeMove(fromIndex, toIndex)
+                                },
+                                onAddNode = { typeInfo ->
+                                    viewModel.onAddNode(typeInfo)
+                                },
+                                onRemoveNode = { nodeId ->
+                                    viewModel.onRemoveNode(nodeId)
+                                },
+                                onDuplicateNode = { nodeId ->
+                                    viewModel.onDuplicateNode(nodeId)
+                                },
+                                onRenameNode = { nodeId, newName ->
+                                    viewModel.onRenameNode(nodeId, newName)
                                 },
                                 modifier = Modifier
                                     .fillMaxHeight()
@@ -284,13 +288,24 @@ fun BackgroundTaskView(
 
                             Spacer(modifier = Modifier.width(8.dp))
 
-                            BackgroundConfigurationPanel(
-                                state = state,
-                                viewModel = viewModel,
+                            Card(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight()
-                            )
+                                    .fillMaxHeight(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
+                                )
+                            ) {
+                                Column(modifier = Modifier.padding(top = 10.dp)) {
+                                    TaskConfigPanel(
+                                        selectedNode = selectedNode,
+                                        onConfigChange = { config ->
+                                            val nodeId = state.selectedNodeId ?: return@TaskConfigPanel
+                                            viewModel.onNodeConfigChange(nodeId, config)
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -478,107 +493,6 @@ private fun BackgroundPanelHeader(
                         Modifier.clickable { onTabSelected(tab) }
                     )
             )
-        }
-    }
-}
-
-@Composable
-private fun BackgroundConfigurationPanel(
-    state: BackgroundTaskState,
-    viewModel: BackgroundTaskViewModel,
-    modifier: Modifier = Modifier
-) {
-    val coroutineScope = rememberCoroutineScope()
-
-    val wakeUpConfig by viewModel.taskConfig.wakeUpConfig.collectAsStateWithLifecycle()
-    val recruitConfig by viewModel.taskConfig.recruitConfig.collectAsStateWithLifecycle()
-    val infrastConfig by viewModel.taskConfig.infrastConfig.collectAsStateWithLifecycle()
-    val fightConfig by viewModel.taskConfig.fightConfig.collectAsStateWithLifecycle()
-    val mallConfig by viewModel.taskConfig.mallConfig.collectAsStateWithLifecycle()
-    val awardConfig by viewModel.taskConfig.awardConfig.collectAsStateWithLifecycle()
-    val roguelikeConfig by viewModel.taskConfig.roguelikeConfig.collectAsStateWithLifecycle()
-    val reclamationConfig by viewModel.taskConfig.reclamationConfig.collectAsStateWithLifecycle()
-
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(modifier = Modifier.padding(top = 10.dp)) {
-            when (state.currentTaskType) {
-                TaskType.WAKE_UP -> WakeUpConfigPanel(
-                    config = wakeUpConfig,
-                    onConfigChange = {
-                        coroutineScope.launch {
-                            viewModel.taskConfig.setWakeUpConfig(it)
-                        }
-                    }
-                )
-
-                TaskType.RECRUITING -> RecruitConfigPanel(
-                    config = recruitConfig,
-                    onConfigChange = {
-                        coroutineScope.launch {
-                            viewModel.taskConfig.setRecruitConfig(it)
-                        }
-                    }
-                )
-
-                TaskType.BASE -> InfrastConfigPanel(
-                    config = infrastConfig,
-                    onConfigChange = {
-                        coroutineScope.launch {
-                            viewModel.taskConfig.setInfrastConfig(it)
-                        }
-                    }
-                )
-
-                TaskType.COMBAT -> FightConfigPanel(
-                    config = fightConfig,
-                    onConfigChange = {
-                        coroutineScope.launch {
-                            viewModel.taskConfig.setFightConfig(it)
-                        }
-                    }
-                )
-
-                TaskType.MALL -> MallConfigPanel(
-                    config = mallConfig,
-                    onConfigChange = {
-                        coroutineScope.launch {
-                            viewModel.taskConfig.setMallConfig(it)
-                        }
-                    }
-                )
-
-                TaskType.MISSION -> AwardConfigPanel(
-                    config = awardConfig,
-                    onConfigChange = {
-                        coroutineScope.launch {
-                            viewModel.taskConfig.setAwardConfig(it)
-                        }
-                    }
-                )
-
-                TaskType.AUTO_ROGUELIKE -> RoguelikeConfigPanel(
-                    config = roguelikeConfig,
-                    onConfigChange = {
-                        coroutineScope.launch {
-                            viewModel.taskConfig.setRoguelikeConfig(it)
-                        }
-                    },
-                )
-
-                TaskType.RECLAMATION -> ReclamationConfigPanel(
-                    config = reclamationConfig,
-                    onConfigChange = {
-                        coroutineScope.launch {
-                            viewModel.taskConfig.setReclamationConfig(it)
-                        }
-                    }
-                )
-            }
         }
     }
 }

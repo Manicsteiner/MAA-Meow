@@ -1,7 +1,6 @@
 package com.aliothmoon.maameow.presentation.view.panel
 
 import androidx.compose.runtime.Stable
-import com.aliothmoon.maameow.data.model.TaskType
 
 /**
  * 面板 Tab 类型
@@ -17,7 +16,7 @@ enum class PanelTab(val displayName: String) {
 data class FloatingPanelState(
     val isExpanded: Boolean = false,
     val currentTab: PanelTab = PanelTab.TASKS,
-    val currentTaskType: TaskType? = TaskType.COMBAT,
+    val selectedNodeId: String? = null,
     val dialog: PanelDialogUiState? = null
 )
 
