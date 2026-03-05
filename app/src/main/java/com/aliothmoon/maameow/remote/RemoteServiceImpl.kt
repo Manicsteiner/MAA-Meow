@@ -1,11 +1,13 @@
 package com.aliothmoon.maameow.remote
 
+import android.os.Build
 import android.os.Process
 import android.view.Display
 import android.view.Surface
 import com.aliothmoon.maameow.MaaCoreService
 import com.aliothmoon.maameow.RemoteService
 import com.aliothmoon.maameow.bridge.NativeBridgeLib
+import com.aliothmoon.maameow.constant.AndroidVersions
 import com.aliothmoon.maameow.constant.DefaultDisplayConfig
 import com.aliothmoon.maameow.constant.DisplayMode
 import com.aliothmoon.maameow.maa.InputControlUtils
@@ -14,7 +16,9 @@ import com.aliothmoon.maameow.remote.internal.PrimaryDisplayManager
 import com.aliothmoon.maameow.remote.internal.VirtualDisplayManager
 import com.aliothmoon.maameow.third.FakeContext
 import com.aliothmoon.maameow.third.Ln
+import com.aliothmoon.maameow.third.wrappers.DisplayControl
 import com.aliothmoon.maameow.third.wrappers.ServiceManager
+import com.aliothmoon.maameow.third.wrappers.SurfaceControl
 import com.sun.jna.Native
 import java.io.File
 import java.text.SimpleDateFormat
@@ -124,7 +128,6 @@ class RemoteServiceImpl : RemoteService.Stub() {
     }
 
     override fun test(map: MutableMap<String, String>) {
-
     }
 
     override fun screencap(width: Int, height: Int) {
@@ -196,6 +199,66 @@ class RemoteServiceImpl : RemoteService.Stub() {
         if (displayId != DefaultDisplayConfig.DISPLAY_NONE) {
             InputControlUtils.up(x, y, displayId)
         }
+    }
+
+    override fun setDisplayPower(on: Boolean) {
+        setDisplayPowerInternal(PrimaryDisplayManager.DISPLAY_ID, on)
+    }
+
+    private fun setDisplayPowerInternal(displayId: Int, on: Boolean): Boolean {
+
+        if (Build.VERSION.SDK_INT >= AndroidVersions.API_35_ANDROID_15) {
+            return ServiceManager.getDisplayManager().requestDisplayPower(displayId, on)
+        }
+
+        var applyToMultiPhysicalDisplays =
+            Build.VERSION.SDK_INT >= AndroidVersions.API_29_ANDROID_10
+
+        if (applyToMultiPhysicalDisplays
+            && Build.VERSION.SDK_INT >= AndroidVersions.API_34_ANDROID_14 && Build.BRAND.equals(
+                "honor",
+                ignoreCase = true
+            )
+            && SurfaceControl.hasGetBuildInDisplayMethod()
+        ) {
+            // Workaround for Honor devices with Android 14:
+            //  - <https://github.com/Genymobile/scrcpy/issues/4823>
+            //  - <https://github.com/Genymobile/scrcpy/issues/4943>
+            applyToMultiPhysicalDisplays = false
+        }
+
+        val mode: Int =
+            if (on) SurfaceControl.POWER_MODE_NORMAL else SurfaceControl.POWER_MODE_OFF
+        if (applyToMultiPhysicalDisplays) {
+            // On Android 14, these internal methods have been moved to DisplayControl
+            val useDisplayControl =
+                Build.VERSION.SDK_INT >= AndroidVersions.API_34_ANDROID_14 && !SurfaceControl.hasGetPhysicalDisplayIdsMethod()
+
+            // Change the power mode for all physical displays
+            val physicalDisplayIds =
+                if (useDisplayControl) DisplayControl.getPhysicalDisplayIds() else SurfaceControl.getPhysicalDisplayIds()
+            if (physicalDisplayIds == null) {
+                Ln.e("Could not get physical display ids")
+                return false
+            }
+
+            var allOk = true
+            for (physicalDisplayId in physicalDisplayIds) {
+                val binder = if (useDisplayControl) DisplayControl.getPhysicalDisplayToken(
+                    physicalDisplayId
+                ) else SurfaceControl.getPhysicalDisplayToken(physicalDisplayId)
+                allOk = allOk and SurfaceControl.setDisplayPowerMode(binder, mode)
+            }
+            return allOk
+        }
+
+        // Older Android versions, only 1 display
+        val d = SurfaceControl.getBuiltInDisplay()
+        if (d == null) {
+            Ln.e("Could not get built-in display")
+            return false
+        }
+        return SurfaceControl.setDisplayPowerMode(d, mode)
     }
 
     override fun startVirtualDisplay(): Int {

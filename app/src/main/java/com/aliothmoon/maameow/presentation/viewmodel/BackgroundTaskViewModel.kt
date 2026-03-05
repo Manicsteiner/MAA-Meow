@@ -129,31 +129,35 @@ class BackgroundTaskViewModel(
     }
 
     fun onTouchDown(x: Int, y: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
-            runCatching {
-                RemoteServiceManager.getInstanceOrNull()?.touchDown(x, y)
-            }
+        runCatching {
+            RemoteServiceManager.getInstanceOrNull()?.touchDown(x, y)
+        }.onFailure {
+            Timber.e(it, "touchDown failed at ($x, $y)")
         }
     }
 
     fun onTouchMove(x: Int, y: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
-            runCatching {
-                RemoteServiceManager.getInstanceOrNull()?.touchMove(x, y)
-            }
+        runCatching {
+            RemoteServiceManager.getInstanceOrNull()?.touchMove(x, y)
+        }.onFailure {
+            Timber.e(it, "touchMove failed at ($x, $y)")
         }
     }
 
     fun onTouchUp(x: Int, y: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
-            runCatching {
-                RemoteServiceManager.getInstanceOrNull()?.touchUp(x, y)
-            }
+        runCatching {
+            RemoteServiceManager.getInstanceOrNull()?.touchUp(x, y)
+        }.onFailure {
+            Timber.e(it, "touchUp failed at ($x, $y)")
         }
     }
 
-    fun isServiceConnected(): Boolean {
-        return RemoteServiceManager.state.value is RemoteServiceManager.ServiceState.Connected
+    fun onScreenOff() {
+        runCatching {
+            RemoteServiceManager.getInstanceOrNull()?.setDisplayPower(false)
+        }.onFailure {
+            Timber.e(it, "onScreenOff failed")
+        }
     }
 
     fun onToggleFullscreenMonitor() {
@@ -275,4 +279,5 @@ class BackgroundTaskViewModel(
             null -> Unit
         }
     }
+
 }

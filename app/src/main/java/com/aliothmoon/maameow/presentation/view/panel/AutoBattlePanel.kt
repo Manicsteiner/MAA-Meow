@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -160,18 +160,27 @@ fun AutoBattlePanel(
         }
 
         item {
+            val uriHandler = LocalUriHandler.current
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = viewModel::onParseSingleInput,
-                    enabled = !state.isLoading && !isStarting
+                    enabled = !state.isLoading && !isStarting,
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(if (state.isLoading) "读取中..." else "读取作业")
                 }
                 Button(
                     onClick = viewModel::onParseSetInput,
-                    enabled = !state.isLoading && !isStarting && state.tabIndex != 1
+                    enabled = !state.isLoading && !isStarting && state.tabIndex != 1,
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Text("读取作业集")
+                }
+                OutlinedButton(
+                    onClick = { uriHandler.openUri("https://zoot.plus") },
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("作业站")
                 }
             }
         }

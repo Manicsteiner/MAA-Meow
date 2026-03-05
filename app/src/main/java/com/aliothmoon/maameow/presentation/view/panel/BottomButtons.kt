@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -35,6 +36,7 @@ fun BottomButtons(
         OutlinedButton(
             onClick = onClose,
             modifier = Modifier.weight(1f).height(36.dp),
+            shape = RoundedCornerShape(8.dp),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             enabled = !isStarting,
             colors = ButtonDefaults.outlinedButtonColors(
@@ -50,6 +52,7 @@ fun BottomButtons(
         Button(
             onClick = onStart,
             modifier = Modifier.weight(1f).height(36.dp),
+            shape = RoundedCornerShape(8.dp),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             enabled = !isStarting,
             colors = ButtonDefaults.buttonColors(

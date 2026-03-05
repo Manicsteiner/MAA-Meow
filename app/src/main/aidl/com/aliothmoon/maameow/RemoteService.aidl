@@ -40,4 +40,6 @@ interface RemoteService {
     oneway void touchMove(int x, int y) = 18;
 
     oneway void touchUp(int x, int y) = 19;
+
+    oneway void setDisplayPower(boolean on) = 20;
 }

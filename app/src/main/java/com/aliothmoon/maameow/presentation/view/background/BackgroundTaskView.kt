@@ -13,8 +13,12 @@ import android.graphics.SurfaceTexture
 import android.view.TextureView
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,6 +35,8 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -318,7 +324,8 @@ fun BackgroundTaskView(
                                         TaskConfigPanel(
                                             selectedNode = selectedNode,
                                             onConfigChange = { config ->
-                                                val nodeId = state.selectedNodeId ?: return@TaskConfigPanel
+                                                val nodeId =
+                                                    state.selectedNodeId ?: return@TaskConfigPanel
                                                 viewModel.onNodeConfigChange(nodeId, config)
                                             }
                                         )
@@ -353,9 +360,12 @@ fun BackgroundTaskView(
                 if (state.currentTab == PanelTab.TASKS || state.currentTab == PanelTab.AUTO_BATTLE) {
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    var showMoreActions by remember { mutableStateOf(false) }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Button(
                             onClick = {
@@ -367,7 +377,8 @@ fun BackgroundTaskView(
                             },
                             enabled = maaState != MaaExecutionState.RUNNING
                                     && maaState != MaaExecutionState.STARTING,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp)
                         ) {
                             if (maaState == MaaExecutionState.STARTING) {
                                 CircularProgressIndicator(
@@ -390,6 +401,7 @@ fun BackgroundTaskView(
                             },
                             enabled = maaState == MaaExecutionState.RUNNING,
                             modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = MaterialTheme.colorScheme.error
                             )
@@ -397,17 +409,54 @@ fun BackgroundTaskView(
                             Text("停止任务")
                         }
 
-                        OutlinedButton(
-                            onClick = {
-                                if (maaState == MaaExecutionState.RUNNING) {
-                                    showCloseConfirm = true
-                                } else {
-                                    coroutineScope.launch { compositionService.stopVirtualDisplay() }
-                                }
-                            },
-                            modifier = Modifier.weight(1f)
+                        IconButton(
+                            onClick = { showMoreActions = !showMoreActions },
+                            modifier = Modifier.size(36.dp)
                         ) {
-                            Text("关闭应用")
+                            Icon(
+                                imageVector = if (showMoreActions)
+                                    Icons.Filled.KeyboardArrowUp
+                                else
+                                    Icons.Filled.KeyboardArrowDown,
+                                contentDescription = "更多操作"
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = showMoreActions,
+                        enter = expandVertically(),
+                        exit = shrinkVertically()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.onScreenOff()
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("熄屏挂机")
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    if (maaState == MaaExecutionState.RUNNING) {
+                                        showCloseConfirm = true
+                                    } else {
+                                        coroutineScope.launch { compositionService.stopVirtualDisplay() }
+                                    }
+                                },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("关闭应用")
+                            }
                         }
                     }
                 }
@@ -444,7 +493,8 @@ fun BackgroundTaskView(
             LaunchedEffect(Unit) {
                 val current = activity?.resources?.configuration?.orientation
                 if (current != Configuration.ORIENTATION_LANDSCAPE) {
-                    activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                    activity?.requestedOrientation =
+                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                 }
             }
 
@@ -467,13 +517,21 @@ fun BackgroundTaskView(
                                     size.width, size.height
                                 ) ?: continue
                                 when (event.type) {
-                                    PointerEventType.Press -> viewModel.onTouchDown(coords.first, coords.second)
+                                    PointerEventType.Press -> viewModel.onTouchDown(
+                                        coords.first,
+                                        coords.second
+                                    )
+
                                     PointerEventType.Move -> {
                                         if (change.pressed) {
                                             viewModel.onTouchMove(coords.first, coords.second)
                                         }
                                     }
-                                    PointerEventType.Release -> viewModel.onTouchUp(coords.first, coords.second)
+
+                                    PointerEventType.Release -> viewModel.onTouchUp(
+                                        coords.first,
+                                        coords.second
+                                    )
                                 }
                                 change.consume()
                             }
@@ -512,7 +570,12 @@ fun BackgroundTaskView(
             AlertDialog(
                 onDismissRequest = { showCloseConfirm = false },
                 title = { Text("确认关闭", style = MaterialTheme.typography.titleMedium) },
-                text = { Text("任务正在运行中，确认关闭应用吗？", style = MaterialTheme.typography.bodyMedium) },
+                text = {
+                    Text(
+                        "任务正在运行中，确认关闭应用吗？",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
                 confirmButton = {
                     Button(onClick = {
                         showCloseConfirm = false
