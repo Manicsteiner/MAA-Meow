@@ -54,7 +54,7 @@ object PermanentStages {
                 code = "PR-A-1",
                 openDays = StageOpenDays.CHIP_OPEN_DAYS["PR-A"]!!,
                 tip = StageInfo.STAGE_TIPS["PR-A-1"] ?: "",
-                dropGroups = listOf(listOf("3231", "3261"), listOf("3232", "3262"))
+                dropGroups = listOf(listOf("3261", "3231"), listOf("3262", "3232"))
             ),
             createStage(
                 code = "PR-A-2",
