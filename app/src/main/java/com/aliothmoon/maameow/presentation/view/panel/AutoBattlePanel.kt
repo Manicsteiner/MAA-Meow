@@ -1,6 +1,8 @@
 package com.aliothmoon.maameow.presentation.view.panel
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +24,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -36,14 +39,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
@@ -65,13 +72,15 @@ fun AutoBattlePanel(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val maaState by viewModel.maaState.collectAsStateWithLifecycle()
     val isStarting = maaState == MaaExecutionState.STARTING
+    var showBattleListRequirementDialog by rememberSaveable { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(PaddingValues(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp)),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(PaddingValues(start = 12.dp, end = 12.dp, top = 2.dp, bottom = 4.dp)),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
         item {
             val tabs = listOf(
                 "主线/活动",
@@ -362,15 +371,24 @@ fun AutoBattlePanel(
             }
         }
 
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (state.tabIndex != 1) {
-                    CheckBoxWithExpandableTip(
-                        checked = state.useCopilotList,
-                        onCheckedChange = viewModel::onToggleListMode,
-                        enabled = state.tabIndex == 0 || state.tabIndex == 2,
-                        label = "战斗列表",
-                        tipText = """
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (state.tabIndex != 1) {
+                        CheckBoxWithExpandableTip(
+                            checked = state.useCopilotList,
+                            onCheckedChange = { enabled ->
+                                val shouldConfirmMainBattleList = enabled &&
+                                    !state.useCopilotList &&
+                                    state.tabIndex == 0
+                                if (shouldConfirmMainBattleList) {
+                                    showBattleListRequirementDialog = true
+                                } else {
+                                    viewModel.onToggleListMode(enabled)
+                                }
+                            },
+                            enabled = state.tabIndex == 0 || state.tabIndex == 2,
+                            label = "战斗列表",
+                            tipText = """
 仅支持以下模式:
   1. 主线: 同一章节内导航
   2. SideStory: 当前页面内导航（普通/EX/S 不能互跳）
@@ -379,49 +397,50 @@ fun AutoBattlePanel(
 请在对应界面启动，不支持跨章节导航
 
 当 ｢战斗列表｣ 启用后, 选择单个作业时会自动添加到 ｢战斗列表｣
-                        """.trimIndent()
-                    )
-                }
+                            """.trimIndent()
+                        )
+                    }
 
-                if (state.useCopilotList && state.tabIndex == 0) {
-                    CheckBoxWithLabel(
-                        checked = state.config.useSanityPotion,
-                        onCheckedChange = {
-                            viewModel.onConfigChanged(state.config.copy(useSanityPotion = it))
-                        },
-                        label = "使用理智药"
-                    )
-                }
+                    if (state.useCopilotList && state.tabIndex == 0) {
+                        CheckBoxWithLabel(
+                            checked = state.config.useSanityPotion,
+                            onCheckedChange = {
+                                viewModel.onConfigChanged(state.config.copy(useSanityPotion = it))
+                            },
+                            label = "使用理智药"
+                        )
+                    }
 
-                if (!state.useCopilotList && state.tabIndex != 2) {
-                    CheckBoxWithLabel(
-                        checked = state.config.loop,
-                        onCheckedChange = {
-                            viewModel.onConfigChanged(state.config.copy(loop = it))
-                        },
-                        label = "循环次数"
-                    )
-                    if (state.config.loop) {
-                        ITextField(
-                            value = state.config.loopTimes.toString(),
-                            onValueChange = { text ->
-                                text.toIntOrNull()?.let {
-                                    viewModel.onConfigChanged(
-                                        state.config.copy(
-                                            loopTimes = it.coerceAtLeast(
-                                                1
+                    if (!state.useCopilotList && state.tabIndex != 2) {
+                        CheckBoxWithLabel(
+                            checked = state.config.loop,
+                            onCheckedChange = {
+                                viewModel.onConfigChanged(state.config.copy(loop = it))
+                            },
+                            label = "循环次数"
+                        )
+                        if (state.config.loop) {
+                            ITextField(
+                                value = state.config.loopTimes.toString(),
+                                onValueChange = { text ->
+                                    text.toIntOrNull()?.let {
+                                        viewModel.onConfigChanged(
+                                            state.config.copy(
+                                                loopTimes = it.coerceAtLeast(
+                                                    1
+                                                )
                                             )
                                         )
-                                    )
-                                }
-                            },
-                            label = "循环次数",
-                            placeholder = "1"
-                        )
+                                    }
+                                },
+                                label = "循环次数",
+                                placeholder = "1"
+                            )
+                        }
                     }
                 }
             }
-        }
+        
 
         item {
             if (state.useCopilotList && (state.tabIndex == 0 || state.tabIndex == 2)) {
@@ -541,16 +560,16 @@ fun AutoBattlePanel(
 
 
 
-        item {
-            var expanded by remember { mutableStateOf(false) }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("小提示", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    ExpandableTipIcon(expanded = expanded, onExpandedChange = { expanded = it })
-                }
-                ExpandableTipContent(
-                    visible = expanded,
-                    tipText = """
+            item {
+                var expanded by remember { mutableStateOf(false) }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("小提示", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        ExpandableTipIcon(expanded = expanded, onExpandedChange = { expanded = it })
+                    }
+                    ExpandableTipContent(
+                        visible = expanded,
+                        tipText = """
 1. 使用前请确认作业与所选的关卡类型一致。
 2. 主线、故事集、SideStory: 请在关卡界面的右下角存在 ｢开始行动｣ 按钮界面启动。
 3. 保全派驻: resource/copilot 文件夹内置多份作业。请先手动编队，在右下角存在 ｢开始部署｣ 按钮界面启动，可配合 ｢循环次数｣。
@@ -566,10 +585,102 @@ fun AutoBattlePanel(
 ● 可通过「清空列表/清除未勾选」按钮快速整理任务。
 ● 请在能看到目标关卡名的界面启动，不支持跨章节导航。
 ● 遇到理智不足、战斗失败、未能三星结算时将自动中止。
-                    """.trimIndent()
-                )
+                        """.trimIndent()
+                    )
+                }
             }
         }
 
+        BattleListRequirementDialog(
+            visible = showBattleListRequirementDialog,
+            onDismissRequest = { showBattleListRequirementDialog = false },
+            onConfirm = {
+                showBattleListRequirementDialog = false
+                viewModel.onToggleListMode(true)
+            }
+        )
+    }
+}
+
+@Composable
+private fun BattleListRequirementDialog(
+    visible: Boolean,
+    onDismissRequest: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    if (!visible) return
+
+    val interactionSource = remember { MutableInteractionSource() }
+    val message = buildAnnotatedString {
+        append("仅")
+        withStyle(
+            SpanStyle(
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+        ) {
+            append("主线/故事集/SideStory")
+        }
+        append("支持战斗列表，请确认你输入的作业属于上述内容，不然请不要使用战斗列表")
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.45f))
+            .clickable(
+                indication = null,
+                interactionSource = interactionSource,
+                onClick = onDismissRequest
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .clickable(
+                    indication = null,
+                    interactionSource = interactionSource,
+                    onClick = {}
+                ),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "提示",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("确认，我使用的作业符合要求")
+                    }
+                    OutlinedButton(
+                        onClick = onDismissRequest,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("关闭")
+                    }
+                }
+            }
+        }
     }
 }
