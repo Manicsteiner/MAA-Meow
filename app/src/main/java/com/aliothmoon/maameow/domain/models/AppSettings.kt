@@ -17,5 +17,7 @@ data class AppSettings(
 
     @PrefKey(default = "true") val autoCheckUpdate: String = "true",
 
-    @PrefKey(default = "false") val skipShizukuCheck: String = "false"
+    @PrefKey(default = "false") val skipShizukuCheck: String = "false",
+
+    @PrefKey(default = "false") val muteOnGameLaunch: String = "false"
 )

@@ -120,12 +120,12 @@ class TaskChainState(private val context: Context) {
 
     inline fun <reified T : TaskParamProvider> firstConfigFlow(): Flow<T?> {
         return chain.map { nodes ->
-            nodes.mapNotNull { it.config as? T }.firstOrNull()
+            nodes.firstNotNullOfOrNull { it.config as? T }
         }.distinctUntilChanged()
     }
 
     inline fun <reified T : TaskParamProvider> findFirstConfig(): T? {
-        return chain.value.mapNotNull { it.config as? T }.firstOrNull()
+        return chain.value.firstNotNullOfOrNull { it.config as? T }
     }
 
     private fun reindex(nodes: MutableList<TaskChainNode>) {

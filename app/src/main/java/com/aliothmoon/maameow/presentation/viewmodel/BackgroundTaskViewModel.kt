@@ -4,6 +4,7 @@ import android.graphics.SurfaceTexture
 import android.view.Surface
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aliothmoon.maameow.constant.Packages
 import com.aliothmoon.maameow.data.model.LogItem
 import com.aliothmoon.maameow.data.model.TaskTypeInfo
 import com.aliothmoon.maameow.data.preferences.TaskChainState
@@ -11,8 +12,9 @@ import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
 import com.aliothmoon.maameow.domain.usecase.BuildTaskParamsUseCase
 import com.aliothmoon.maameow.manager.RemoteServiceManager
-import com.aliothmoon.maameow.manager.RemoteServiceManager.useRemoteService
 import com.aliothmoon.maameow.data.model.TaskParamProvider
+import com.aliothmoon.maameow.data.model.WakeUpConfig
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.presentation.state.BackgroundTaskState
 
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogConfirmAction
@@ -23,7 +25,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicReference
@@ -33,6 +34,7 @@ class BackgroundTaskViewModel(
     private val buildTaskParams: BuildTaskParamsUseCase,
     private val compositionService: MaaCompositionService,
     private val runtimeLogCenter: RuntimeLogCenter,
+    private val appSettingsManager: AppSettingsManager,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(BackgroundTaskState())
@@ -190,6 +192,11 @@ class BackgroundTaskViewModel(
         val taskParams = buildTaskParams()
         viewModelScope.launch {
             val result = compositionService.start(taskParams)
+            if (result is MaaCompositionService.StartResult.Success
+                && appSettingsManager.muteOnGameLaunch.value
+            ) {
+                onMuteGameSound()
+            }
             val message = when (result) {
                 is MaaCompositionService.StartResult.Success -> null
 
@@ -245,6 +252,23 @@ class BackgroundTaskViewModel(
 
     fun onClearLogs() {
         runtimeLogCenter.clearRuntimeLogs()
+    }
+
+
+    fun onMuteGameSound() {
+        chainState.findFirstConfig<WakeUpConfig>()?.let {
+            val pkg = Packages[it.clientType] ?: return
+            RemoteServiceManager.getInstanceOrNull()
+                ?.setPlayAudioOpAllowed(pkg, false)
+        }
+    }
+
+    fun onUnmuteGameSound() {
+        chainState.findFirstConfig<WakeUpConfig>()?.let {
+            val pkg = Packages[it.clientType] ?: return
+            RemoteServiceManager.getInstanceOrNull()
+                ?.setPlayAudioOpAllowed(pkg, true)
+        }
     }
 
     // ==================== Dialog ====================

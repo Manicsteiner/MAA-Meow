@@ -161,4 +161,19 @@ class AppSettingsManager(private val context: Context) {
             context.dataStore.edit { it[skipShizukuCheck] = enabled.toString() }
         }
     }
+
+    // 游戏启动时静音
+    val muteOnGameLaunch: StateFlow<Boolean> = settings
+        .map { it.muteOnGameLaunch.toBooleanStrictOrNull() ?: false }
+        .distinctUntilChanged()
+        .stateIn(
+            scope, SharingStarted.Eagerly,
+            initialSettings.muteOnGameLaunch.toBooleanStrictOrNull() ?: false
+        )
+
+    suspend fun setMuteOnGameLaunch(enabled: Boolean) {
+        with(AppSettingsSchema) {
+            context.dataStore.edit { it[muteOnGameLaunch] = enabled.toString() }
+        }
+    }
 }
