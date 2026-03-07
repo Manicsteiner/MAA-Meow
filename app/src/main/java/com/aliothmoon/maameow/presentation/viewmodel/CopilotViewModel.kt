@@ -976,6 +976,11 @@ class CopilotViewModel(
         return tabIndex == TAB_MAIN || tabIndex == TAB_PARADOX
     }
 
+    private fun supportsLoopCount(tabIndex: Int): Boolean {
+        return tabIndex == TAB_SSS
+    }
+
+
     private fun resolveSingleTaskType(snapshot: CopilotUiState): MaaTaskType {
         if (snapshot.tabIndex == TAB_PARADOX) {
             return MaaTaskType.PARADOX_COPILOT
@@ -999,6 +1004,9 @@ class CopilotViewModel(
                 addUserAdditional = false,
                 userAdditional = ""
             )
+        }
+        if (!supportsLoopCount(snapshot.tabIndex)) {
+            config = config.copy(loop = false, loopTimes = 1)
         }
         if (!(snapshot.useCopilotList && snapshot.tabIndex == TAB_MAIN)) {
             config = config.copy(useSanityPotion = false)

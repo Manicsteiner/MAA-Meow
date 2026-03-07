@@ -134,6 +134,7 @@ fun AutoBattlePanel(
     }
     val selectedTabSpec = tabSpecs.firstOrNull { it.index == state.tabIndex } ?: tabSpecs.first()
     val regularCopilotTab = selectedTabSpec.supportsRegularOptions
+    val loopCountSupportedTab = selectedTabSpec.index == 1
     val battleListSupportedTab = selectedTabSpec.supportsBattleList
     val setImportSupported = selectedTabSpec.supportsSetImport
 
@@ -491,7 +492,7 @@ fun AutoBattlePanel(
                         )
                     }
 
-                    if (!state.useCopilotList && state.tabIndex != 2) {
+                    if (!state.useCopilotList && loopCountSupportedTab) {
                         CheckBoxWithLabel(
                             checked = state.config.loop,
                             onCheckedChange = {
