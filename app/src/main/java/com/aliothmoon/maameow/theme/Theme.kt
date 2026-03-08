@@ -1,9 +1,12 @@
 package com.aliothmoon.maameow.theme
 
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 val MaaColorScheme = lightColorScheme(
 
@@ -48,11 +51,16 @@ val MaaColorScheme = lightColorScheme(
     scrim = Color(0xFF000000)
 )
 
+val MaaShapes = Shapes(
+    extraLarge = RoundedCornerShape(8.dp)
+)
+
 @Composable
 fun MaaMeowTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = MaaColorScheme,
         typography = Typography,
+        shapes = MaaShapes,
         content = content
     )
 }

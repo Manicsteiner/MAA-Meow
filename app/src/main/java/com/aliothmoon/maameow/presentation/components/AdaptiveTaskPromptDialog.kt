@@ -234,8 +234,8 @@ private fun TaskPromptCard(
             .fillMaxWidth()
             .widthIn(max = maxWidth)
             .wrapContentHeight()
-            .shadow(8.dp, RoundedCornerShape(12.dp)),
-        shape = RoundedCornerShape(12.dp),
+            .shadow(8.dp, RoundedCornerShape(8.dp)),
+        shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(

@@ -85,12 +85,12 @@ fun OverlayDialog(
                     modifier = Modifier
                         .widthIn(max = 280.dp)
                         .wrapContentHeight()
-                        .shadow(8.dp, RoundedCornerShape(12.dp))
+                        .shadow(8.dp, RoundedCornerShape(8.dp))
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
                         ) { /* 消费点击事件，防止穿透到遮罩层 */ },
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(8.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White)
                 ) {
                     Column(

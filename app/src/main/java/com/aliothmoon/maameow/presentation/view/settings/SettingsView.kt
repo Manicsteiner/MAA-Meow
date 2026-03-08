@@ -31,7 +31,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -108,6 +110,7 @@ fun SettingsView(
     }
 
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     if (resourceInitState is ResourceInitState.Extracting) {
         ResourceInitDialog(
             state = resourceInitState,
@@ -133,34 +136,63 @@ fun SettingsView(
                 .padding(paddingValues),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
+            // 更新管理
             item {
+                val color = tertiaryContent
                 InfoCard(
                     title = "",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = tertiaryContent
+                    contentColor = color
                 ) {
                     Text(
-                        text = "资源管理",
+                        text = "更新管理",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Medium,
-                        color = tertiaryContent,
+                        color = color,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
-                    SettingClickItem("重新初始化资源", "从内置资源包重新解压", tertiaryContent) {
+                    SettingClickItem("重新初始化资源", "从内置资源包重新解压", color) {
                         showReInitConfirm = true
                     }
-                    SettingsDivider(tertiaryContent)
-                    SettingClickItem("历史日志", "查看任务执行日志", tertiaryContent) {
+                    SettingsDivider(color)
+                    SettingSwitchItem(
+                        title = "启动时检查更新",
+                        description = "启动应用时自动检查应用和资源更新",
+                        contentColor = color,
+                        checked = autoCheckUpdate,
+                        onCheckedChange = { viewModel.setAutoCheckUpdate(it) }
+                    )
+                }
+            }
+
+            // 日志
+            item {
+                val color = MaterialTheme.colorScheme.onSecondaryContainer
+                InfoCard(
+                    title = "",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = color
+                ) {
+                    Text(
+                        text = "日志",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = color,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    SettingClickItem("历史日志", "查看任务执行日志", color) {
                         navController.navigate("log_history")
                     }
-                    SettingsDivider(tertiaryContent)
-                    SettingClickItem("错误日志", "查看应用异常和错误记录", tertiaryContent) {
+                    SettingsDivider(color)
+                    SettingClickItem("错误日志", "查看应用异常和错误记录", color) {
                         navController.navigate("error_log")
                     }
-                    SettingsDivider(tertiaryContent)
-                    SettingClickItem("导出日志压缩包", "打包所有日志为 ZIP 文件分享", tertiaryContent) {
+                    SettingsDivider(color)
+                    SettingClickItem("导出日志压缩包", "打包所有日志为 ZIP 文件分享", color) {
                         coroutineScope.launch {
                             val intent = logExportService.exportAllLogs()
                             if (intent != null) {
@@ -168,19 +200,11 @@ fun SettingsView(
                             }
                         }
                     }
-                    SettingsDivider(tertiaryContent)
-                    SettingSwitchItem(
-                        title = "启动时检查更新",
-                        description = "启动应用时自动检查应用和资源更新",
-                        contentColor = tertiaryContent,
-                        checked = autoCheckUpdate,
-                        onCheckedChange = { viewModel.setAutoCheckUpdate(it) }
-                    )
-                    SettingsDivider(tertiaryContent)
+                    SettingsDivider(color)
                     SettingSwitchItem(
                         title = "调试模式",
                         description = "启用后记录详细日志信息",
-                        contentColor = tertiaryContent,
+                        contentColor = color,
                         checked = debugMode,
                         onCheckedChange = { enabled ->
                             if (enabled) {
@@ -190,17 +214,37 @@ fun SettingsView(
                             }
                         }
                     )
-                    SettingsDivider(tertiaryContent)
+                }
+            }
+
+            // 其他设置
+            item {
+                val color = MaterialTheme.colorScheme.onSurfaceVariant
+                InfoCard(
+                    title = "",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = color
+                ) {
+                    Text(
+                        text = "其他设置",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Medium,
+                        color = color,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
                     SettingSwitchItem(
                         title = "跳过 Shizuku 检查",
                         description = "启用后启动时不再弹出 Shizuku 安装/启动提示",
-                        contentColor = tertiaryContent,
+                        contentColor = color,
                         checked = skipShizukuCheck,
                         onCheckedChange = { viewModel.setSkipShizukuCheck(it) }
                     )
                 }
             }
 
+            // 关于
             item {
                 InfoCard(
                     title = "",
@@ -219,6 +263,20 @@ fun SettingsView(
                     SettingInfoRow("版本", BuildConfig.VERSION_NAME, primaryContent)
                     SettingsDivider(primaryContent)
                     SettingInfoRow("开发者", "Aliothmoon", primaryContent)
+                    SettingsDivider(primaryContent)
+                    Text(
+                        text = "⭐ 喜欢就给个 Star 吧",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = primaryContent,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                uriHandler.openUri("https://github.com/Aliothmoon/MAA-Meow")
+                            }
+                            .padding(vertical = 8.dp),
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
 
