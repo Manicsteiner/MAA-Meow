@@ -15,8 +15,20 @@ public final class InputControlUtils {
 
     private static final InputManager MANAGER = ServiceManager.getInputManager();
 
-    private static final int POINTER_ID = 0;
-    private static final int TOOL_TYPE = MotionEvent.TOOL_TYPE_FINGER;
+    private static final int DEFAULT_DEVICE_ID = 0;
+    private static final int DEFAULT_SOURCE = InputDevice.SOURCE_TOUCHSCREEN;
+
+    private static final MotionEvent.PointerProperties[] POINTER_PROPERTIES = new MotionEvent.PointerProperties[1];
+    private static final MotionEvent.PointerCoords[] POINTER_COORDS = new MotionEvent.PointerCoords[1];
+
+    static {
+        MotionEvent.PointerProperties props = new MotionEvent.PointerProperties();
+        props.id = 0;
+        props.toolType = MotionEvent.TOOL_TYPE_FINGER;
+        POINTER_PROPERTIES[0] = props;
+
+        POINTER_COORDS[0] = new MotionEvent.PointerCoords();
+    }
 
     private static long currentDownTime = 0;
     private static boolean touchSessionActive = false;
@@ -28,19 +40,43 @@ public final class InputControlUtils {
     private InputControlUtils() {
     }
 
+    private static void setPointerCoords(float x, float y, float pressure) {
+        MotionEvent.PointerCoords coords = POINTER_COORDS[0];
+        coords.x = x;
+        coords.y = y;
+        coords.pressure = pressure;
+        coords.size = 1.0f;
+    }
+
+    private static MotionEvent obtainTouchEvent(long downTime, long eventTime, int action,
+                                                 float x, float y, float pressure) {
+        setPointerCoords(x, y, pressure);
+        return MotionEvent.obtain(
+                downTime, eventTime, action,
+                1, POINTER_PROPERTIES, POINTER_COORDS,
+                0, 0,
+                1.0f, 1.0f,
+                DEFAULT_DEVICE_ID, 0, DEFAULT_SOURCE, 0
+        );
+    }
+
+    private static boolean injectAndRecycle(MotionEvent event, int displayId, int mode) {
+        try {
+            if (!setDisplayId(event, displayId)) {
+                return false;
+            }
+            return MANAGER.injectInputEvent(event, mode);
+        } finally {
+            event.recycle();
+        }
+    }
+
     private static void sendUpEventInternal(float x, float y, int displayId) {
         long eventTime = SystemClock.uptimeMillis();
-
-        MotionEvent motionEvent = MotionEvent.obtain(currentDownTime, eventTime,
-                MotionEvent.ACTION_UP, x, y,
-                0.0f, 1.0f, 0, 1.0f, 1.0f, 0, 0
-        );
-        motionEvent.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-        if (!setDisplayId(motionEvent, displayId)) {
-            return;
-        }
-
-        MANAGER.injectInputEvent(motionEvent, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
+        MotionEvent motionEvent = obtainTouchEvent(currentDownTime, eventTime,
+                MotionEvent.ACTION_UP, x, y, 0.0f);
+        // 补偿性 UP 用同步模式，确保在后续 DOWN 之前完成
+        injectAndRecycle(motionEvent, displayId, InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH);
     }
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
@@ -48,9 +84,7 @@ public final class InputControlUtils {
         return displayId == 0 || InputManager.setDisplayId(event, displayId);
     }
 
-    public static boolean down(int x, int y, int displayId) {
-        float pressure = 1.0f;
-
+    public static synchronized boolean down(int x, int y, int displayId) {
         // 上一次 DOWN 没有 UP，需要结束上一会话
         if (touchSessionActive) {
             Ln.w("TouchDown: 检测到未结束的触摸会话，自动发送 UP 事件");
@@ -58,29 +92,18 @@ public final class InputControlUtils {
         }
 
         currentDownTime = SystemClock.uptimeMillis();
-        long eventTime = currentDownTime;
         touchSessionActive = true;
 
         lastX = x;
         lastY = y;
         lastDisplayId = displayId;
 
-        MotionEvent motionEvent = MotionEvent.obtain(currentDownTime, eventTime,
-                MotionEvent.ACTION_DOWN,
-                x, y, pressure,
-                1.0f, 0, 1.0f, 1.0f, 0, 0
-        );
-        motionEvent.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-        if (!setDisplayId(motionEvent, displayId)) {
-            return false;
-        }
-
-        return MANAGER.injectInputEvent(motionEvent, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
+        MotionEvent motionEvent = obtainTouchEvent(currentDownTime, currentDownTime,
+                MotionEvent.ACTION_DOWN, x, y, 1.0f);
+        return injectAndRecycle(motionEvent, displayId, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
     }
 
-    public static boolean move(int x, int y, int displayId) {
-        float pressure = 1.0f;
-
+    public static synchronized boolean move(int x, int y, int displayId) {
         if (!touchSessionActive) {
             Ln.w("TouchMove: 没有活跃的触摸会话，忽略移动事件");
             return false;
@@ -91,43 +114,24 @@ public final class InputControlUtils {
 
         long eventTime = SystemClock.uptimeMillis();
 
-        MotionEvent motionEvent = MotionEvent.obtain(currentDownTime, eventTime,
-                MotionEvent.ACTION_MOVE, x, y,
-                pressure, 1.0f, 0, 1.0f, 1.0f, 0, 0
-        );
-        motionEvent.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-
-
-        if (!setDisplayId(motionEvent, displayId)) {
-            return false;
-        }
-
-        return MANAGER.injectInputEvent(motionEvent, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
+        MotionEvent motionEvent = obtainTouchEvent(currentDownTime, eventTime,
+                MotionEvent.ACTION_MOVE, x, y, 1.0f);
+        return injectAndRecycle(motionEvent, displayId, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
     }
 
-    public static boolean up(int x, int y, int displayId) {
+    public static synchronized boolean up(int x, int y, int displayId) {
         if (!touchSessionActive) {
-            Ln.w("TouchUp: no active session ignore this event");
+            Ln.w("TouchUp: no active session, ignore this event");
             return false;
         }
 
         long eventTime = SystemClock.uptimeMillis();
-
         touchSessionActive = false;
 
-        MotionEvent motionEvent = MotionEvent.obtain(currentDownTime, eventTime,
-                MotionEvent.ACTION_UP, x, y,
-                0.0f, 1.0f, 0, 1.0f, 1.0f, 0, 0
-        );
-        motionEvent.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-
-        if (!setDisplayId(motionEvent, displayId)) {
-            return false;
-        }
-
-        return MANAGER.injectInputEvent(motionEvent, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
+        MotionEvent motionEvent = obtainTouchEvent(currentDownTime, eventTime,
+                MotionEvent.ACTION_UP, x, y, 0.0f);
+        return injectAndRecycle(motionEvent, displayId, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
     }
-
 
     public static boolean keyDown(int keyCode, int displayId) {
         long downTime = SystemClock.uptimeMillis();
@@ -141,7 +145,6 @@ public final class InputControlUtils {
     }
 
     public static boolean keyUp(int keyCode, int displayId) {
-        // 按键事件可以使用独立的时间戳，因为它们不需要维护连续的会话
         long upTime = SystemClock.uptimeMillis();
         KeyEvent keyEvent = new KeyEvent(upTime, upTime, KeyEvent.ACTION_UP, keyCode, 0);
 
