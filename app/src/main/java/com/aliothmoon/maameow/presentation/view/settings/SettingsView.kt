@@ -279,6 +279,14 @@ fun SettingsView(
                     SettingsDivider(primaryContent)
                     SettingInfoRow("开发者", "Aliothmoon", primaryContent)
                     SettingsDivider(primaryContent)
+                    SettingClickItem(
+                        title = "问题反馈 QQ 群",
+                        description = "遇到问题或有建议？欢迎加群交流反馈",
+                        contentColor = primaryContent
+                    ) {
+                        uriHandler.openUri("https://qm.qq.com/q/j4CFbeDQXu")
+                    }
+                    SettingsDivider(primaryContent)
                     Text(
                         text = "⭐ 喜欢就给个 Star 吧",
                         style = MaterialTheme.typography.bodyMedium,
