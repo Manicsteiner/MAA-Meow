@@ -21,6 +21,7 @@ import com.aliothmoon.maameow.overlay.border.BorderOverlayManager
 import com.aliothmoon.maameow.presentation.LocalFloatingWindowContext
 import com.aliothmoon.maameow.presentation.view.panel.ExpandedControlPanel
 import com.aliothmoon.maameow.service.AccessibilityHelperService
+import com.aliothmoon.maameow.theme.MaaMeowTheme
 import com.aliothmoon.maameow.utils.Misc
 import com.petterp.floatingx.FloatingX
 import com.petterp.floatingx.assist.FxDisplayMode
@@ -184,21 +185,23 @@ class OverlayController(
                 )
             }
             setContent {
-                CompositionLocalProvider(LocalFloatingWindowContext provides true) {
-                    val isLocked by _isLocked.collectAsStateWithLifecycle()
-                    ExpandedControlPanel(
-                        onClose = ::onCloseControlPanel,
-                        onHome = { Misc.bringAppToFront(context) },
-                        isLocked = isLocked,
-                        onLockToggle = { locked ->
-                            _isLocked.value = locked
-                            if (locked) {
-                                lockMainPanelPosition()
-                            } else {
-                                unlockMainPanelPosition()
+                MaaMeowTheme {
+                    CompositionLocalProvider(LocalFloatingWindowContext provides true) {
+                        val isLocked by _isLocked.collectAsStateWithLifecycle()
+                        ExpandedControlPanel(
+                            onClose = ::onCloseControlPanel,
+                            onHome = { Misc.bringAppToFront(context) },
+                            isLocked = isLocked,
+                            onLockToggle = { locked ->
+                                _isLocked.value = locked
+                                if (locked) {
+                                    lockMainPanelPosition()
+                                } else {
+                                    unlockMainPanelPosition()
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
