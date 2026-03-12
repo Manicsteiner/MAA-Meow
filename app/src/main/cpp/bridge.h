@@ -2,8 +2,8 @@
 #define NATIVE_LIB_H
 
 #include <jni.h>
-#include <stdint.h>
-#include <stddef.h>
+#include <cstdint>
+#include <cstddef>
 
 #ifdef __cplusplus
 extern "C" {
@@ -11,44 +11,35 @@ extern "C" {
 
 #define BRIDGE_API __attribute__((visibility("default")))
 
-// Image format enum
-typedef enum {
-    IMAGE_FORMAT_UNKNOWN = 0,
-    IMAGE_FORMAT_RGBA_8888 = 2
-} ImageFormat;
-
 // Frame info structure - for MaaCore to read screen frames
 typedef struct {
-    uint32_t width;          // Width - 4 bytes
-    uint32_t height;         // Height - 4 bytes
-    uint32_t stride;         // Row stride - 4 bytes
-    uint32_t length;         // Data length - 4 bytes
-    void *data;              // Pixel data pointer - 8 bytes
-    void *frame_ref;         // FrameBuffer pointer for unlocking - 8 bytes
+    uint32_t width;
+    uint32_t height;
+    uint32_t stride;
+    uint32_t length;
+    void *data;
+    void *frame_ref;
 } FrameInfo;
-
-static_assert(sizeof(FrameInfo) == 32, "FrameInfo size should be 32 bytes");
-static_assert(alignof(FrameInfo) == 8, "FrameInfo 8-byte aligned for optimal memory access");
 
 // 帧缓冲状态
 typedef enum {
-    FRAME_STATE_FREE = 0,     // 空闲，可被写入或读取
-    FRAME_STATE_WRITING = 2   // 正在被截图线程写入
+    FRAME_STATE_FREE = 0,
+    FRAME_STATE_WRITING = 2
 } FrameBufferState;
 
-// 缓冲区数量
+// 帧缓冲数量
 #define FRAME_BUFFER_COUNT 3
 
 typedef struct {
-    uint8_t *data;           // RGBA 像素数据
-    uint8_t *bgr_data;       // BGR 像素数据
-    int width;               // 宽度
-    int height;              // 高度
-    int stride;              // RGBA 行字节数
-    size_t size;             // RGBA 数据大小
-    size_t bgr_size;         // BGR 数据大小
-    int64_t timestamp;       // 时间戳(纳秒)
-    int64_t frameCount;      // 帧计数
+    uint8_t *data;           // RGBA
+    uint8_t *bgr_data;       // BGR
+    int width;
+    int height;
+    int stride;
+    size_t size;
+    size_t bgr_size;
+    int64_t timestamp;
+    int64_t frameCount;
 } FrameBuffer;
 
 // Unified method type
@@ -69,8 +60,8 @@ typedef struct {
 } Position;
 
 typedef struct {
-    const char *package_name;   // 应用包名
-    int force_stop;             // 是否强制停止 (0=false, 1=true)
+    const char *package_name;
+    int force_stop;
 } StartGameArgs;
 
 typedef struct {
@@ -81,12 +72,10 @@ typedef struct {
     const char *text;
 } InputArgs;
 
-// Touch event parameters
 typedef struct {
     Position p;
 } TouchArgs;
 
-// Key event parameters
 typedef struct {
     int key_code;
 } KeyArgs;
@@ -105,7 +94,6 @@ typedef struct {
     ArgUnion args;
 } MethodParam;
 
-
 BRIDGE_API void *AttachThread(void);
 
 BRIDGE_API int DetachThread(void *env);
@@ -116,23 +104,19 @@ BRIDGE_API int UnlockPixels(FrameInfo info);
 
 BRIDGE_API int DispatchInputMessage(MethodParam param);
 
-// 帧缓冲管理
-BRIDGE_API void InitFrameBuffers(int width, int height);
-BRIDGE_API void ReleaseFrameBuffers(void);
+// ---------------------------------------------------------
+// 内部管理函数，通过 JNI RegisterNatives 绑定，不需要导出
+// ---------------------------------------------------------
 
-// 从 HardwareBuffer 拷贝帧数据，返回帧计数，失败返回 -1
-BRIDGE_API int64_t CopyFrameFromHardwareBuffer(void *env, void *hardwareBufferObj);
-
-BRIDGE_API void SetPreviewSurface(void *env, void *jSurface);
-
-// 获取当前帧缓冲（只读）
-BRIDGE_API const FrameBuffer *GetCurrentFrame(void);
+void InitFrameBuffers(int width, int height);
+void ReleaseFrameBuffers(void);
+int64_t CopyFrameFromHardwareBuffer(void *env, void *hardwareBufferObj, int64_t timestampNs);
 
 #ifdef __cplusplus
 }
 
 bool CheckJNIException(JNIEnv *env, const char *context);
 
-#endif // __cplusplus
+#endif
 
 #endif // NATIVE_LIB_H

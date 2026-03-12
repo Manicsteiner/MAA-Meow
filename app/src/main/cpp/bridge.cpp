@@ -26,6 +26,7 @@
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
+// --- 内部前置声明 ---
 static jstring ping(JNIEnv *env, jclass clazz);
 
 static void nativeInitFrameBuffers(JNIEnv *env, jclass clazz, jint width, jint height);
@@ -36,6 +37,8 @@ static jlong nativeCopyFrameFromHardwareBuffer(JNIEnv *env, jclass clazz, jobjec
 static void nativeReleaseFrameBuffers(JNIEnv *env, jclass clazz);
 
 static jobject nativeGetFrameBufferBitmap(JNIEnv *env, jclass clazz);
+
+static void nativeSetPreviewSurface(JNIEnv *env, jclass clazz, jobject jSurface);
 
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
@@ -99,11 +102,7 @@ static std::atomic<int> g_targetHeight{0};
 
 static void nativeSetPreviewSurface(JNIEnv *env, jclass clazz, jobject jSurface) {
     std::lock_guard<std::mutex> lock(g_previewMutex);
-
-    if (g_previewSurfaceObj && env->IsSameObject(jSurface, g_previewSurfaceObj)) {
-        return;
-    }
-
+    if (g_previewSurfaceObj && env->IsSameObject(jSurface, g_previewSurfaceObj)) return;
     if (g_previewWindow) {
         ANativeWindow_release(g_previewWindow);
         g_previewWindow = nullptr;
@@ -112,17 +111,15 @@ static void nativeSetPreviewSurface(JNIEnv *env, jclass clazz, jobject jSurface)
         env->DeleteGlobalRef(g_previewSurfaceObj);
         g_previewSurfaceObj = nullptr;
     }
-
     if (jSurface) {
         g_previewSurfaceObj = env->NewGlobalRef(jSurface);
         g_previewWindow = ANativeWindow_fromSurface(env, jSurface);
         if (g_previewWindow) {
             int w = g_targetWidth.load();
             int h = g_targetHeight.load();
-            if (w > 0 && h > 0) {
+            if (w > 0 && h > 0)
                 ANativeWindow_setBuffersGeometry(g_previewWindow, w, h,
                                                  AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM);
-            }
             LOGI("Preview connected: %p", g_previewWindow);
         }
     }
@@ -130,29 +127,24 @@ static void nativeSetPreviewSurface(JNIEnv *env, jclass clazz, jobject jSurface)
 
 static void DispatchPreview(const FrameBuffer *target) {
     if (!target || !target->data) return;
-
     std::lock_guard<std::mutex> lock(g_previewMutex);
     if (!g_previewWindow) return;
-
     static auto lastPreviewTime = std::chrono::steady_clock::now();
     auto now = std::chrono::steady_clock::now();
     if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastPreviewTime).count() <
         16)
         return;
-
     ANativeWindow_Buffer outBuffer;
     if (ANativeWindow_lock(g_previewWindow, &outBuffer, nullptr) == 0) {
         if (outBuffer.width == target->width && outBuffer.height == target->height) {
             int dstStride = outBuffer.stride * 4;
             int srcStride = target->stride;
-            if (dstStride == srcStride) {
-                memcpy(outBuffer.bits, target->data, target->size);
-            } else {
+            if (dstStride == srcStride) memcpy(outBuffer.bits, target->data, target->size);
+            else {
                 int rowBytes = target->width * 4;
-                for (int y = 0; y < target->height; ++y) {
+                for (int y = 0; y < target->height; ++y)
                     memcpy((uint8_t *) outBuffer.bits + y * dstStride, target->data + y * srcStride,
                            rowBytes);
-                }
             }
             lastPreviewTime = now;
         }
@@ -226,7 +218,8 @@ JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved) {
     if (g_previewWindow) ANativeWindow_release(g_previewWindow);
 }
 
-int UpcallInputControl(JNIEnv *env, MethodType method, int x, int y, int keyCode, int displayId) {
+static int
+UpcallInputControl(JNIEnv *env, MethodType method, int x, int y, int keyCode, int displayId) {
     if (!env) return -1;
     jmethodID targetMethod = nullptr;
     switch (method) {
@@ -254,7 +247,7 @@ int UpcallInputControl(JNIEnv *env, MethodType method, int x, int y, int keyCode
     return env->CallStaticBooleanMethod(g_driver_class, targetMethod, x, y, displayId) ? 0 : -1;
 }
 
-int UpcallStartApp(JNIEnv *env, const char *packageName, int displayId, bool forceStop) {
+static int UpcallStartApp(JNIEnv *env, const char *packageName, int displayId, bool forceStop) {
     if (!env || !packageName) return -1;
     jstring jPackageName = env->NewStringUTF(packageName);
     jboolean result = env->CallStaticBooleanMethod(g_driver_class, g_start_app_method, jPackageName,
@@ -263,7 +256,7 @@ int UpcallStartApp(JNIEnv *env, const char *packageName, int displayId, bool for
     return result ? 0 : -1;
 }
 
-int DispatchInputMessage(MethodParam param) {
+BRIDGE_API int DispatchInputMessage(MethodParam param) {
     auto *env = (JNIEnv *) AttachThread();
     if (!env) return -1;
     switch (param.method) {
@@ -289,14 +282,14 @@ int DispatchInputMessage(MethodParam param) {
     }
 }
 
-void *AttachThread() {
+BRIDGE_API void *AttachThread() {
     if (!g_jvm) return nullptr;
     JNIEnv *env = nullptr;
     if (g_jvm->GetEnv((void **) &env, JNI_VERSION_1_6) == JNI_OK) return (void *) env;
     return (g_jvm->AttachCurrentThreadAsDaemon(&env, nullptr) == JNI_OK) ? (void *) env : nullptr;
 }
 
-int DetachThread(void *env) { return g_jvm ? g_jvm->DetachCurrentThread() : -1; }
+BRIDGE_API int DetachThread(void *env) { return g_jvm ? g_jvm->DetachCurrentThread() : -1; }
 
 void InitFrameBuffers(int width, int height) {
     if (g_frameBuffersInitialized) ReleaseFrameBuffers();
@@ -371,7 +364,7 @@ static FrameBuffer *AcquireWriteBuffer() {
 }
 
 int64_t CopyFrameFromHardwareBuffer(void *env_ptr, void *hardwareBufferObj, int64_t timestampNs) {
-    JNIEnv *env = (JNIEnv *) env_ptr;
+    auto *env = (JNIEnv *) env_ptr;
     if (!env || !hardwareBufferObj || !g_frameBuffersInitialized) return -1;
     FrameBuffer *target = AcquireWriteBuffer();
     if (!target) return -1;
@@ -380,7 +373,6 @@ int64_t CopyFrameFromHardwareBuffer(void *env_ptr, void *hardwareBufferObj, int6
         g_bufferStates[GetBufferIndex(target)].store(FRAME_STATE_FREE);
         return -1;
     }
-
     AHardwareBuffer_Desc desc;
     AHardwareBuffer_describe(buffer, &desc);
     void *srcAddr = nullptr;
@@ -389,13 +381,11 @@ int64_t CopyFrameFromHardwareBuffer(void *env_ptr, void *hardwareBufferObj, int6
         g_bufferStates[GetBufferIndex(target)].store(FRAME_STATE_FREE);
         return -1;
     }
-
     bool needsPreview = false;
     {
         std::lock_guard<std::mutex> lock(g_previewMutex);
         needsPreview = (g_previewWindow != nullptr);
     }
-
     int srcStride = desc.stride * 4;
     if (needsPreview) {
         if (srcStride == target->stride) memcpy(target->data, srcAddr, target->size);
@@ -406,16 +396,13 @@ int64_t CopyFrameFromHardwareBuffer(void *env_ptr, void *hardwareBufferObj, int6
                        rowBytes);
         }
     }
-
     ConvertRGBAtoBGR((uint8_t *) srcAddr, target->bgr_data, target->width, target->height,
                      srcStride);
     AHardwareBuffer_unlock(buffer, nullptr);
-
     target->timestamp = timestampNs;
     target->frameCount = g_frameCount.fetch_add(1) + 1;
     CommitWriteBuffer(target);
     if (needsPreview) DispatchPreview(target);
-
     return target->frameCount;
 }
 
@@ -454,9 +441,9 @@ static void UnlockFrame(const FrameBuffer *frame) {
     }
 }
 
-const FrameBuffer *GetCurrentFrame(void) { return LockCurrentFrame(); }
+const FrameBuffer *GetCurrentFrame() { return LockCurrentFrame(); }
 
-FrameInfo GetLockedPixels() {
+BRIDGE_API FrameInfo GetLockedPixels() {
     FrameInfo result = {0};
     const FrameBuffer *frame = GetCurrentFrame();
     if (frame && frame->bgr_data) {
@@ -470,12 +457,14 @@ FrameInfo GetLockedPixels() {
     return result;
 }
 
-int UnlockPixels(FrameInfo info) {
+BRIDGE_API int UnlockPixels(FrameInfo info) {
     if (info.frame_ref) UnlockFrame(reinterpret_cast<const FrameBuffer *>(info.frame_ref));
     return 0;
 }
 
-static jstring ping(JNIEnv *env, jclass clazz) { return env->NewStringUTF("LibBridge Optimized"); }
+static jstring ping(JNIEnv *env, jclass clazz) {
+    return env->NewStringUTF("LibBridge Optimized v3");
+}
 
 static void nativeInitFrameBuffers(JNIEnv *env, jclass clazz, jint width, jint height) {
     InitFrameBuffers(width, height);
