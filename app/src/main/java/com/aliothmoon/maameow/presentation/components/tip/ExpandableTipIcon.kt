@@ -9,7 +9,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -22,7 +21,7 @@ fun ExpandableTipIcon(
         Icon(
             imageVector = Icons.Default.Info,
             contentDescription = "提示",
-            tint = if (expanded) MaterialTheme.colorScheme.primary else Color.Gray,
+            tint = if (expanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .size(16.dp)
                 .clickable { onExpandedChange(!expanded) }

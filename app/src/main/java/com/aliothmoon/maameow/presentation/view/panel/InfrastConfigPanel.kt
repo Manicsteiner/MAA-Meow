@@ -97,7 +97,7 @@ fun InfrastConfigPanel(
             Text(
                 text = "常规设置",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (pagerState.currentPage == 0) MaterialTheme.colorScheme.primary else Color.Gray,
+                color = if (pagerState.currentPage == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable {
                     coroutineScope.launch {
@@ -108,7 +108,7 @@ fun InfrastConfigPanel(
             Text(
                 text = "高级设置",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (pagerState.currentPage == 1) MaterialTheme.colorScheme.primary else Color.Gray,
+                color = if (pagerState.currentPage == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable {
                     coroutineScope.launch {
@@ -281,7 +281,7 @@ private fun InfrastModeSection(
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFF5F5F5),
+                color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(4.dp)
             ) {
                 Text(
@@ -291,7 +291,7 @@ private fun InfrastModeSection(
                         若需自定义轮换班次，请使用「自定义基建配置」
                     """.trimIndent(),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(12.dp)
                 )
             }
@@ -607,7 +607,7 @@ private fun PlanSelectButtonGroup(
                 Text(
                     text = desc,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -807,8 +807,8 @@ private fun FacilityList(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(4.dp),
-        color = Color(0xFFF5F5F5),
-        border = BorderStroke(1.dp, Color.LightGray)
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         ReorderableColumn(
             list = facilities,

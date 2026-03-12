@@ -38,7 +38,7 @@ fun PriorityItemRow(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (enabled) Color.White else Color(0xFFF5F5F5)
+            containerColor = if (enabled) Color.White else MaterialTheme.colorScheme.surfaceVariant
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 8.dp else 2.dp)
     ) {
@@ -51,7 +51,7 @@ fun PriorityItemRow(
             Surface(
                 modifier = Modifier.size(28.dp),
                 shape = RoundedCornerShape(14.dp),
-                color = if (enabled) MaterialTheme.colorScheme.primary else Color.Gray
+                color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Text(
@@ -66,7 +66,7 @@ fun PriorityItemRow(
             Text(
                 item,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (enabled) Color.Black else Color.Gray,
+                color = if (enabled) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f)
             )
             // 删除按钮
@@ -79,7 +79,7 @@ fun PriorityItemRow(
                     Icons.Default.Close,
                     contentDescription = "删除",
                     modifier = Modifier.size(16.dp),
-                    tint = if (enabled) MaterialTheme.colorScheme.error else Color.LightGray
+                    tint = if (enabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant
                 )
             }
             Spacer(modifier = Modifier.width(4.dp))
@@ -87,7 +87,7 @@ fun PriorityItemRow(
                 Icons.Default.Menu,
                 "拖动排序",
                 modifier = Modifier.size(20.dp),
-                tint = if (enabled) Color.Gray else Color.LightGray
+                tint = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outlineVariant
             )
         }
     }

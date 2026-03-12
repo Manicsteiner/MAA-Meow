@@ -36,7 +36,7 @@ fun ItemButtonGroup(
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -50,13 +50,15 @@ fun ItemButtonGroup(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .clickable { onItemSelected(item) },
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFE0E0E0),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary 
+                            else MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(
                         text = displayText,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isSelected) Color.White else Color.DarkGray,
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary 
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }

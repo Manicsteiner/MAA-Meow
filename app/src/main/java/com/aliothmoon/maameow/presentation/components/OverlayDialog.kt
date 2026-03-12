@@ -56,8 +56,8 @@ fun OverlayDialog(
     dismissText: String = "取消",
     onConfirm: () -> Unit,
     icon: ImageVector? = null,
-    iconTint: Color = Color(0xFFE53935),
-    confirmColor: Color = Color(0xFF2196F3),
+    iconTint: Color = MaterialTheme.colorScheme.error,
+    confirmColor: Color = MaterialTheme.colorScheme.primary,
 ) {
     AnimatedVisibility(
         visible = visible,
@@ -68,7 +68,7 @@ fun OverlayDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f))
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.45f))
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
@@ -91,7 +91,9 @@ fun OverlayDialog(
                             interactionSource = remember { MutableInteractionSource() }
                         ) { /* 消费点击事件，防止穿透到遮罩层 */ },
                     shape = RoundedCornerShape(8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -123,7 +125,8 @@ fun OverlayDialog(
                             text = title,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
@@ -132,7 +135,7 @@ fun OverlayDialog(
                         Text(
                             text = message,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center
                         )
 
@@ -151,7 +154,7 @@ fun OverlayDialog(
                                     .height(36.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
-                                    contentColor = Color.Gray
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             ) {
                                 Text(text = dismissText)
@@ -166,7 +169,7 @@ fun OverlayDialog(
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = confirmColor,
-                                    contentColor = Color.White
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
                                 )
                             ) {
                                 Text(text = confirmText)

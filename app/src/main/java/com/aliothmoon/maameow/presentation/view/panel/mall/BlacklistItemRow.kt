@@ -23,7 +23,7 @@ fun BlacklistItemRow(item: String, enabled: Boolean, onRemove: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (enabled) Color(0xFFFFEBEE) else Color(0xFFF5F5F5)
+            containerColor = if (enabled) Color(0xFFFFEBEE) else MaterialTheme.colorScheme.surfaceVariant
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
@@ -36,7 +36,7 @@ fun BlacklistItemRow(item: String, enabled: Boolean, onRemove: () -> Unit) {
             Text(
                 item,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (enabled) Color.Black else Color.Gray,
+                color = if (enabled) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f)
             )
             // 删除按钮
@@ -49,7 +49,7 @@ fun BlacklistItemRow(item: String, enabled: Boolean, onRemove: () -> Unit) {
                     Icons.Default.Close,
                     contentDescription = "删除",
                     modifier = Modifier.size(16.dp),
-                    tint = if (enabled) MaterialTheme.colorScheme.error else Color.LightGray
+                    tint = if (enabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant
                 )
             }
         }

@@ -92,7 +92,7 @@ fun LogPanel(
             Text(
                 text = "共 ${logs.size} 条日志",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             IconButton(
@@ -102,13 +102,13 @@ fun LogPanel(
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "清空日志",
-                    tint = Color.Gray,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
                 )
             }
         }
 
-        HorizontalDivider(thickness = 1.dp, color = Color.LightGray)
+        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
 
         // 日志列表
         if (logs.isEmpty()) {
@@ -119,7 +119,7 @@ fun LogPanel(
                 Text(
                     text = "暂无日志",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
@@ -191,7 +191,7 @@ private fun LogItemRow(
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp
                     ),
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.width(60.dp)
                 )
 
@@ -235,7 +235,7 @@ private fun LogItemRow(
                     imageVector = Icons.Outlined.Info,
                     contentDescription = "查看详情",
                     modifier = Modifier.size(14.dp),
-                    tint = Color.Gray
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

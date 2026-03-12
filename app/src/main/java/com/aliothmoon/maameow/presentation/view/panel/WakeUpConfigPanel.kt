@@ -76,7 +76,7 @@ fun WakeUpConfigPanel(
                     }
                     val textColor = when {
                         isSelected -> Color.White
-                        isTaskActive -> Color.Gray
+                        isTaskActive -> MaterialTheme.colorScheme.onSurfaceVariant
                         else -> Color.DarkGray
                     }
                     Surface(
@@ -113,16 +113,16 @@ fun WakeUpConfigPanel(
                 Text(
                     text = "需要切换至的账号，留空以禁用。输入登录界面显示的内容，例如 123****4567；支持部分匹配。仅支持官服、B服，不支持登录账号。",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF7F7F7), RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
                         .padding(horizontal = 10.dp, vertical = 8.dp)
                 )
             }
         }
 
-        HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
 
         // 启动游戏开关
         CheckBoxWithLabel(
@@ -140,7 +140,7 @@ fun WakeUpConfigPanel(
 //            Text(
 //                text = "服务器:",
 //                style = MaterialTheme.typography.bodySmall,
-//                color = Color.Gray
+//                color = MaterialTheme.colorScheme.onSurfaceVariant
 //            )
 //            Text(
 //                text = config.getServerType(),

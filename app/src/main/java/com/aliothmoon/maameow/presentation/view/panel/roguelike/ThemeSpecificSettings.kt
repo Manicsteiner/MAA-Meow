@@ -26,7 +26,7 @@ fun ThemeSpecificSettings(
     when (config.theme) {
         "Mizuki" -> {
             HorizontalDivider(
-                color = Color.LightGray,
+                color = MaterialTheme.colorScheme.outlineVariant,
                 thickness = 0.5.dp,
                 modifier = Modifier.padding(vertical = 4.dp)
             )
@@ -44,7 +44,7 @@ fun ThemeSpecificSettings(
 
         "Sami" -> {
             HorizontalDivider(
-                color = Color.LightGray,
+                color = MaterialTheme.colorScheme.outlineVariant,
                 thickness = 0.5.dp,
                 modifier = Modifier.padding(vertical = 4.dp)
             )
@@ -98,7 +98,7 @@ fun ThemeSpecificSettings(
 
         "JieGarden" -> {
             HorizontalDivider(
-                color = Color.LightGray,
+                color = MaterialTheme.colorScheme.outlineVariant,
                 thickness = 0.5.dp,
                 modifier = Modifier.padding(vertical = 4.dp)
             )

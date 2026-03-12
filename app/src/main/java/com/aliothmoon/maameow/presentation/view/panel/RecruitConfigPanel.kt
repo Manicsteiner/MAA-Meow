@@ -84,7 +84,7 @@ fun RecruitConfigPanel(
             Text(
                 text = "常规设置",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (pagerState.currentPage == 0) MaterialTheme.colorScheme.primary else Color.Gray,
+                color = if (pagerState.currentPage == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable {
                     coroutineScope.launch {
@@ -95,7 +95,7 @@ fun RecruitConfigPanel(
             Text(
                 text = "高级设置",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (pagerState.currentPage == 1) MaterialTheme.colorScheme.primary else Color.Gray,
+                color = if (pagerState.currentPage == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable {
                     coroutineScope.launch {
@@ -154,7 +154,7 @@ fun RecruitConfigPanel(
                                 // 手动确认1星
                                 NotChooseLevel1Section(config, onConfigChange)
 
-                                HorizontalDivider(color = Color.LightGray, thickness = 1.dp)
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
                                 // 自动选择三星
                                 ChooseLevel3Section(config, onConfigChange)
@@ -238,7 +238,7 @@ private fun RecruitMaxTimesSection(
         Text(
             text = "单次任务最多进行的公招次数（0表示不限制）",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -335,8 +335,8 @@ private fun AutoRecruitFirstListSection(
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(6.dp),
-            color = Color(0xFFF5F5F5),
-            border = BorderStroke(1.dp, Color.LightGray)
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             Column(
                 modifier = Modifier.padding(8.dp),

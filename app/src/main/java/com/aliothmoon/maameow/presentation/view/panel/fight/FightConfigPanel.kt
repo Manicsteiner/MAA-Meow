@@ -52,6 +52,7 @@ import com.aliothmoon.maameow.presentation.components.CheckBoxWithLabel
 import com.aliothmoon.maameow.presentation.components.ITextFieldWithFocus
 import com.aliothmoon.maameow.presentation.components.tip.ExpandableTipContent
 import com.aliothmoon.maameow.presentation.components.tip.ExpandableTipIcon
+import com.aliothmoon.maameow.theme.MaaThemeAlphas
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
@@ -99,7 +100,7 @@ fun FightConfigPanel(
             Text(
                 text = "常规设置",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (pagerState.currentPage == 0) MaterialTheme.colorScheme.primary else Color.Gray,
+                color = if (pagerState.currentPage == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable {
                     coroutineScope.launch {
@@ -110,7 +111,7 @@ fun FightConfigPanel(
             Text(
                 text = "高级设置",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (pagerState.currentPage == 1) MaterialTheme.colorScheme.primary else Color.Gray,
+                color = if (pagerState.currentPage == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable {
                     coroutineScope.launch {
@@ -156,7 +157,7 @@ fun FightConfigPanel(
                             MedicineAndStoneSection(config, onConfigChange)
                         }
                         item {
-                            HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
                         }
                         item {
                             // 指定材料掉落
@@ -166,7 +167,7 @@ fun FightConfigPanel(
                             )
                         }
                         item {
-                            HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
                         }
                         // 代理倍率（HideSeries=false 时显示）
                         if (!config.hideSeries) {
@@ -174,7 +175,7 @@ fun FightConfigPanel(
                                 SeriesSection(config, onConfigChange)
                             }
                             item {
-                                HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
                             }
                         }
                         item {
@@ -308,9 +309,9 @@ private fun SeriesSection(
 
 • 数值 (1~6):
 按设定倍率执行代理
-若当前理智不足完成设定倍率 (如仅够 5 次但设为 6 倍), 则无法进入战斗
+若当前理智不足完成设定倍率 (如仅够 5 次 but 设为 6 倍), 则无法进入战斗
  或者
-战斗次数不足完成设定倍率 (如仅够 5 次但设为 6 倍), 也将无法进入战斗
+战斗次数不足完成设定倍率 (如仅够 5 次 but 设为 6 倍), 也将无法进入战斗
 
 • 不切换:
 不调整游戏内代理倍率设定
@@ -514,14 +515,14 @@ private fun GroupedStageSelectionSection(
         if (!stage1Open && config.stage1.isNotBlank()) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFFFF3E0),
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
                 shape = RoundedCornerShape(4.dp)
             ) {
                 Text(
                     text = "「${config.stage1}」今日不开放" +
                             if (config.useAlternateStage) "，将使用备选关卡" else "",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFF57C00),
+                    color = MaterialTheme.colorScheme.onErrorContainer,
                     modifier = Modifier.padding(8.dp)
                 )
             }
@@ -596,7 +597,7 @@ private fun GroupedStageButtonGroup(
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         // 显示每个分组
@@ -625,8 +626,8 @@ private fun GroupedStageButtonGroup(
                             .clickable { onItemSelected(stage.code) },
                         color = when {
                             isSelected -> MaterialTheme.colorScheme.primary
-                            !isOpen -> Color(0xFFF0F0F0)
-                            else -> Color(0xFFE0E0E0)
+                            !isOpen -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            else -> MaterialTheme.colorScheme.surfaceVariant
                         },
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -638,9 +639,9 @@ private fun GroupedStageButtonGroup(
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = when {
-                                isSelected -> Color.White
-                                !isOpen -> Color.LightGray
-                                else -> Color.DarkGray
+                                isSelected -> MaterialTheme.colorScheme.onPrimary
+                                !isOpen -> MaterialTheme.colorScheme.onSurface.copy(alpha = MaaThemeAlphas.Disabled)
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
                             },
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
@@ -762,6 +763,3 @@ private fun StageInputField(
         )
     }
 }
-
-
-

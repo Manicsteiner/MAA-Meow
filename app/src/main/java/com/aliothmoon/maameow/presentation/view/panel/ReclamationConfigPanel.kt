@@ -53,7 +53,7 @@ fun ReclamationConfigPanel(config: ReclamationConfig, onConfigChange: (Reclamati
             Text(
                 text = "常规设置",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (pagerState.currentPage == 0) MaterialTheme.colorScheme.primary else Color.Gray,
+                color = if (pagerState.currentPage == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable {
                     coroutineScope.launch { pagerState.animateScrollToPage(0) }
@@ -62,7 +62,7 @@ fun ReclamationConfigPanel(config: ReclamationConfig, onConfigChange: (Reclamati
             Text(
                 text = "高级设置",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (pagerState.currentPage == 1) MaterialTheme.colorScheme.primary else Color.Gray,
+                color = if (pagerState.currentPage == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable {
                     coroutineScope.launch { pagerState.animateScrollToPage(1) }
@@ -71,7 +71,7 @@ fun ReclamationConfigPanel(config: ReclamationConfig, onConfigChange: (Reclamati
             Text(
                 text = "说明",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (pagerState.currentPage == 2) MaterialTheme.colorScheme.primary else Color.Gray,
+                color = if (pagerState.currentPage == 2) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (pagerState.currentPage == 2) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable {
                     coroutineScope.launch { pagerState.animateScrollToPage(2) }
@@ -163,7 +163,7 @@ fun ReclamationConfigPanel(config: ReclamationConfig, onConfigChange: (Reclamati
                                 Text(
                                     "多个道具用分号分隔",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -227,27 +227,27 @@ fun ReclamationConfigPanel(config: ReclamationConfig, onConfigChange: (Reclamati
                                 Text(
                                     "1. 点数刷满后会输出「任务完成」，自动停止任务",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     "2. 不要在生息演算的编队中有干员的情况下使用",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     "3. 手动确认存档情况并删除，以免 MAA 删除你的珍贵存档",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFFE65100)
+                                    color = MaterialTheme.colorScheme.error
                                 )
                                 Text(
                                     "4. 导航还没写，不能从生息演算以外的位置开始任务",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     "5. 如果任务过程中报错、点数没刷满就任务完成，请前往 GitHub 提交 Issue",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -261,17 +261,17 @@ fun ReclamationConfigPanel(config: ReclamationConfig, onConfigChange: (Reclamati
                                 Text(
                                     "1. 要求是结算后的第一天，且后续三天没有敌袭进入驻扎地",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     "2. 必须在进入大地图后的界面开始（能看到驻扎地的界面）",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Text(
                                     "3. 如果能制造的数量刚好是 99 的倍数会卡住，在存档前可以先用掉一点",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.Gray
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -314,7 +314,7 @@ private fun ReclamationButtonGroup(
                         text = displayName,
                         style = MaterialTheme.typography.bodySmall,
                         color = when {
-                            !enabled -> Color.LightGray
+                            !enabled -> MaterialTheme.colorScheme.outlineVariant
                             isSelected -> Color.White
                             else -> Color.DarkGray
                         },

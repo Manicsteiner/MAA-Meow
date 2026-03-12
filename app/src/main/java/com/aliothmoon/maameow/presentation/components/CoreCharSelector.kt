@@ -25,7 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aliothmoon.maameow.data.resource.ResourceDataManager
@@ -102,7 +101,7 @@ fun CoreCharSelector(
                 }
                 Timber.d("[CoreCharSelector] 建议列表计算完成: ${newSuggestions.size} 个结果")
 
-                // 检查输入值是否仍然匹配（防止竞态条件）
+                // 检查输入值是否仍然 match（防止竞态条件）
                 if (inputText != newValue) {
                     Timber.d("[CoreCharSelector] 输入已变化，跳过此次校验结果: 当前='$inputText', 校验='$newValue'")
                     return@launch
@@ -195,10 +194,10 @@ fun CoreCharSelector(
                     .clip(RoundedCornerShape(8.dp))
                     .border(
                         width = 1.dp,
-                        color = Color.LightGray,
+                        color = MaterialTheme.colorScheme.outlineVariant,
                         shape = RoundedCornerShape(8.dp)
                     ),
-                color = Color.White
+                color = MaterialTheme.colorScheme.surface
             ) {
                 LazyColumn {
                     items(filteredSuggestions) { charName ->
@@ -223,7 +222,7 @@ fun CoreCharSelector(
                                 color = if (charName in recommendedChars) {
                                     MaterialTheme.colorScheme.primary
                                 } else {
-                                    Color.DarkGray
+                                    MaterialTheme.colorScheme.onSurface
                                 }
                             )
                         }

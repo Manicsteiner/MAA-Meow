@@ -37,7 +37,7 @@ fun StageButtonGroup(
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -64,7 +64,7 @@ fun StageButtonGroup(
                         style = MaterialTheme.typography.bodySmall,
                         color = when {
                             isSelected -> Color.White
-                            !isOpen -> Color.LightGray
+                            !isOpen -> MaterialTheme.colorScheme.outlineVariant
                             else -> Color.DarkGray
                         },
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)

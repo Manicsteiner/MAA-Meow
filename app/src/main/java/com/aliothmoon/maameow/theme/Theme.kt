@@ -55,6 +55,12 @@ val MaaShapes = Shapes(
     extraLarge = RoundedCornerShape(8.dp)
 )
 
+object MaaThemeAlphas {
+    const val Disabled = 0.38f
+    const val Secondary = 0.60f
+    const val Medium = 0.74f
+}
+
 @Composable
 fun MaaMeowTheme(content: @Composable () -> Unit) {
     MaterialTheme(

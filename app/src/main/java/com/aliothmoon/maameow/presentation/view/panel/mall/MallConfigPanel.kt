@@ -77,7 +77,7 @@ fun MallConfigPanel(config: MallConfig, onConfigChange: (MallConfig) -> Unit) {
             Text(
                 text = "常规设置",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (pagerState.currentPage == 0) MaterialTheme.colorScheme.primary else Color.Gray,
+                color = if (pagerState.currentPage == 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable {
                     coroutineScope.launch { pagerState.animateScrollToPage(0) }
@@ -86,7 +86,7 @@ fun MallConfigPanel(config: MallConfig, onConfigChange: (MallConfig) -> Unit) {
             Text(
                 text = "高级设置",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (pagerState.currentPage == 1) MaterialTheme.colorScheme.primary else Color.Gray,
+                color = if (pagerState.currentPage == 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
                 modifier = Modifier.clickable {
                     coroutineScope.launch { pagerState.animateScrollToPage(1) }
@@ -119,7 +119,7 @@ fun MallConfigPanel(config: MallConfig, onConfigChange: (MallConfig) -> Unit) {
                             BasicMallSettings(config, onConfigChange)
                         }
                         item {
-                            HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
                         }
                         // 优先购买物品列表（可拖拽排序）
                         item {
@@ -138,7 +138,7 @@ fun MallConfigPanel(config: MallConfig, onConfigChange: (MallConfig) -> Unit) {
                             BlacklistSection(config, onConfigChange)
                         }
                         item {
-                            HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
                         }
                         // 高级选项：溢出时无视黑名单、只买打折商品、预留信用点
                         item {
@@ -322,7 +322,7 @@ private fun PriorityItemsSection(config: MallConfig, onConfigChange: (MallConfig
         Text(
             "长按拖动可调整优先级顺序，点击×删除",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (!config.shopping) {
             Surface(
@@ -388,17 +388,17 @@ private fun MallInfoText() {
         Text(
             "* 优先购买列表中的物品会按顺序优先购买",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             "* 黑名单物品不会被购买（除非信用溢出且启用强制购买）",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             "* 借助战每日可获得额外信用点，但需要消耗好友支援次数",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -433,7 +433,7 @@ private fun BlacklistSection(config: MallConfig, onConfigChange: (MallConfig) ->
         Text(
             "点击×删除物品",
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         if (!config.shopping) {
@@ -457,7 +457,7 @@ private fun BlacklistSection(config: MallConfig, onConfigChange: (MallConfig) ->
                 .fillMaxWidth()
                 .heightIn(max = 200.dp),
             shape = RoundedCornerShape(4.dp),
-            border = BorderStroke(1.dp, Color.LightGray)
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
             if (blacklistItems.isEmpty()) {
                 Box(
@@ -469,7 +469,7 @@ private fun BlacklistSection(config: MallConfig, onConfigChange: (MallConfig) ->
                     Text(
                         "暂无黑名单物品",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {

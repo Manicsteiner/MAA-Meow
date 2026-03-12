@@ -88,7 +88,7 @@ fun AdvancedRoguelikeSettings(
             }
         }
 
-        HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
 
         // 助战相关
         Text(
@@ -138,7 +138,7 @@ fun AdvancedRoguelikeSettings(
             )
         }
 
-        HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
 
         // 开局次数 - WPF: Maximum="99999" (line 142)
         ITextField(
@@ -155,7 +155,7 @@ fun AdvancedRoguelikeSettings(
             modifier = Modifier.fillMaxWidth()
         )
 
-        HorizontalDivider(color = Color.LightGray, thickness = 0.5.dp)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
 
         // 模式特殊设置
         ModeSpecificSettings(config, onConfigChange)

@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aliothmoon.maameow.presentation.components.tip.ExpandableTipContent
 import com.aliothmoon.maameow.presentation.components.tip.ExpandableTipIcon
+import com.aliothmoon.maameow.theme.MaaThemeAlphas
 
 /**
  * 带可展开提示的复选框
@@ -111,13 +112,14 @@ fun CheckBoxWithLabel(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (enabled) Color.Unspecified else Color.Gray
+                color = if (enabled) MaterialTheme.colorScheme.onSurface 
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = MaaThemeAlphas.Disabled)
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -138,7 +140,7 @@ fun EmptyConfigHint() {
         Text(
             text = "<- 请选择任务进行配置",
             style = MaterialTheme.typography.bodyLarge,
-            color = Color.Gray
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -155,7 +157,10 @@ fun PlaceholderContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5), RoundedCornerShape(8.dp)),
+            .background(
+                MaterialTheme.colorScheme.surfaceVariant, 
+                RoundedCornerShape(8.dp)
+            ),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -166,13 +171,13 @@ fun PlaceholderContent(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }

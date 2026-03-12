@@ -183,7 +183,7 @@ fun ExpandedControlPanel(
                     HorizontalDivider(
                         modifier = Modifier.padding(vertical = 6.dp),
                         thickness = 1.dp,
-                        color = Color.LightGray
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
                     BottomButtons(
                         onClose = { onClose() },

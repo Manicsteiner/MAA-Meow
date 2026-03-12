@@ -44,7 +44,7 @@ fun ReorderablePriorityList(
             .fillMaxWidth()
             .heightIn(max = 300.dp),
         shape = RoundedCornerShape(4.dp),
-        border = BorderStroke(1.dp, Color.LightGray)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         if (items.isEmpty()) {
             Box(
@@ -56,7 +56,7 @@ fun ReorderablePriorityList(
                 Text(
                     "暂无优先购买物品\n点击下方按钮添加",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
                 )
             }
