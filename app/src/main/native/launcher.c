@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #define LOG_TAG "RootLauncher"
@@ -21,7 +22,32 @@ static const char *kPackagesListPath = "/data/system/packages.list";
 static const char *kAppProcessPath = "/system/bin/app_process";
 static const uid_t kShellUid = 2000;
 static const gid_t kRequiredShellGids[] = {
-        2000, 1004, 1007, 1011, 1015, 1028, 3001, 3002, 3003, 3006, 3009, 3011
+        2000, // shell
+
+        1002, // bluetooth
+        1004, // input
+        1005, // audio
+        1007, // log
+        1011, // adb
+        1013, // media
+        1015, // sdcard_rw
+        1024, // mtp
+        1028, // sdcard_r
+        1065, // reserved_disk
+        1078, // ext_data_rw
+        1079, // ext_obb_rw
+        1096, // update_engine_log
+
+        3001, // net_bt_admin
+        3002, // net_bt
+        3003, // inet
+        3006, // net_bw_stats
+        3007, // net_bw_acct
+        3009, // readproc
+        3010, // wakelock
+        3011, // uhid
+        3012, // readtracefs
+        3013, // virtualmachine
 };
 
 typedef struct {
@@ -42,6 +68,23 @@ typedef struct {
 } GidList;
 
 typedef int (*setexeccon_fn)(const char *);
+
+typedef int (*setenforce_fn)(int);
+
+static int security_setenforce(int value) {
+    void *handle = dlopen("libselinux.so", RTLD_NOW | RTLD_LOCAL);
+    if (handle == NULL) {
+        return -1;
+    }
+    setenforce_fn fn = (setenforce_fn) dlsym(handle, "security_setenforce");
+    if (fn == NULL) {
+        dlclose(handle);
+        return -1;
+    }
+    int result = fn(value);
+    dlclose(handle);
+    return result;
+}
 
 static bool starts_with(const char *value, const char *prefix) {
     return strncmp(value, prefix, strlen(prefix)) == 0;
@@ -289,7 +332,7 @@ static char *format_arg(const char *prefix, const char *value) {
 
 static void log_shell_identity(void) {
     FILE *pipe = popen("/system/bin/sh -c 'id 2>&1'", "r");
-    char line[256];
+    char line[512];
 
     if (pipe == NULL) {
         LOGE("popen(id) failed: %s", strerror(errno));
@@ -382,6 +425,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    if (security_setenforce(0) == 0) {
+        LOGI("SELinux set to permissive");
+    } else {
+        LOGW("setenforce(0) failed: %s (continuing anyway)", strerror(errno));
+    }
+
     if (!read_shell_identity(&shell_uid, &gids)) {
         LOGI("Proceeding without packages.list static gids");
     }
@@ -397,33 +446,51 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (!prepare_shell_exec_context()) {
+    pid_t child = fork();
+    if (child < 0) {
+        LOGE("fork failed: %s", strerror(errno));
         free_gid_list(&gids);
         return 1;
     }
 
-    if (gids.count > 0 && setgroups((int) gids.count, gids.items) != 0) {
-        LOGE("setgroups failed: %s", strerror(errno));
+    if (child == 0) {
+        if (!prepare_shell_exec_context()) {
+            _exit(1);
+        }
+
+        if (gids.count > 0 && setgroups((int) gids.count, gids.items) != 0) {
+            LOGE("setgroups failed: %s", strerror(errno));
+            _exit(1);
+        }
+
+        if (setresgid(shell_uid, shell_uid, shell_uid) != 0) {
+            LOGE("setresgid(%u) failed: %s", (unsigned) shell_uid, strerror(errno));
+            _exit(1);
+        }
+
+        if (setresuid(shell_uid, shell_uid, shell_uid) != 0) {
+            LOGE("setresuid(%u) failed: %s", (unsigned) shell_uid, strerror(errno));
+            _exit(1);
+        }
+
+        LOGI("Child: switching to shell uid=%u gids=%zu and exec app_process",
+             (unsigned) shell_uid, gids.count);
+        log_shell_identity();
         free_gid_list(&gids);
-        return 1;
+        exec_app_process(&args);
+        /* exec_app_process calls exit(1) on failure, but just in case */
+        _exit(1);
     }
 
-    if (setresgid(shell_uid, shell_uid, shell_uid) != 0) {
-        LOGE("setresgid(%u) failed: %s", (unsigned) shell_uid, strerror(errno));
-        free_gid_list(&gids);
-        return 1;
-    }
-
-    if (setresuid(shell_uid, shell_uid, shell_uid) != 0) {
-        LOGE("setresuid(%u) failed: %s", (unsigned) shell_uid, strerror(errno));
-        free_gid_list(&gids);
-        return 1;
-    }
-
-    LOGI("Switching to shell uid=%u gids=%zu and exec app_process", (unsigned) shell_uid,
-         gids.count);
-    log_shell_identity();
     free_gid_list(&gids);
+    int status = 0;
+    waitpid(child, &status, 0);
+
+    if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+        return 0;
+    }
+
+    LOGW("Shell-mode exec failed (status=%d), retrying as root", status);
     exec_app_process(&args);
     return 1;
 }
