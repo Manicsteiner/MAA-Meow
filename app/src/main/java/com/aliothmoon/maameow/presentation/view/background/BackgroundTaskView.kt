@@ -136,12 +136,12 @@ fun BackgroundTaskView(
     val nodes by viewModel.chainState.chain.collectAsStateWithLifecycle()
     val selectedNode = nodes.find { it.id == state.selectedNodeId }
     val canShowTaskActions =
-        state.currentTab == PanelTab.TASKS || state.currentTab == PanelTab.AUTO_BATTLE
+        state.currentTab == PanelTab.TASKS
+                || state.currentTab == PanelTab.AUTO_BATTLE
+                || state.currentTab == PanelTab.TOOLS
 
     val pagerState = rememberPagerState(
-        initialPage = state.currentTab.ordinal,
-        pageCount = { PanelTab.entries.size }
-    )
+        initialPage = state.currentTab.ordinal, pageCount = { PanelTab.entries.size })
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.settledPage }.collect { page ->
@@ -175,12 +175,10 @@ fun BackgroundTaskView(
                             context,
                             "${permissions.remotePermissionLabel}未获取，请重试",
                             Toast.LENGTH_SHORT
-                        )
-                            .show()
+                        ).show()
                     }
                 }
-            }
-        )
+            })
     }
 
 
@@ -207,8 +205,7 @@ fun BackgroundTaskView(
     val previewContent = remember {
         movableContentOf {
             Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
             ) {
                 AndroidView(
                     factory = { ctx ->
@@ -221,17 +218,13 @@ fun BackgroundTaskView(
                                     coroutineScope.launch {
                                         delay(50)
                                         holder.setFixedSize(
-                                            DefaultDisplayConfig.WIDTH,
-                                            DefaultDisplayConfig.HEIGHT
+                                            DefaultDisplayConfig.WIDTH, DefaultDisplayConfig.HEIGHT
                                         )
                                     }
                                 }
 
                                 override fun surfaceChanged(
-                                    holder: SurfaceHolder,
-                                    format: Int,
-                                    width: Int,
-                                    height: Int
+                                    holder: SurfaceHolder, format: Int, width: Int, height: Int
                                 ) {
                                     Timber.d("Surface size changed to $width x $height")
                                     // 只有尺寸正确且 Surface 未发送过时才发送
@@ -250,8 +243,7 @@ fun BackgroundTaskView(
                                 }
                             })
                         }
-                    },
-                    modifier = Modifier.aspectRatio(DefaultDisplayConfig.ASPECT_RATIO)
+                    }, modifier = Modifier.aspectRatio(DefaultDisplayConfig.ASPECT_RATIO)
                 )
             }
         }
@@ -312,11 +304,9 @@ fun BackgroundTaskView(
                     .weight(7f)
             ) {
                 PanelHeader(
-                    selectedTab = state.currentTab,
-                    onTabSelected = { tab ->
+                    selectedTab = state.currentTab, onTabSelected = { tab ->
                         viewModel.onTabChange(tab)
-                    },
-                    showActions = false
+                    }, showActions = false
                 )
 
                 HorizontalPager(
@@ -351,8 +341,7 @@ fun BackgroundTaskView(
                                     onRenameNode = { nodeId, newName ->
                                         viewModel.onRenameNode(nodeId, newName)
                                     },
-                                    modifier = Modifier
-                                        .fillMaxHeight(),
+                                    modifier = Modifier.fillMaxHeight(),
                                     showEditButton = true,
                                 )
 
@@ -373,8 +362,7 @@ fun BackgroundTaskView(
                                                 val nodeId =
                                                     selectedNode?.id ?: return@TaskConfigPanel
                                                 viewModel.onNodeConfigChange(nodeId, config)
-                                            }
-                                        )
+                                            })
                                     }
                                 }
                             }
@@ -393,8 +381,7 @@ fun BackgroundTaskView(
                             LogPanel(
                                 logs = runtimeLogs,
                                 onClearLogs = { viewModel.onClearLogs() },
-                                onClose = { viewModel.onTabChange(PanelTab.TASKS) }
-                            )
+                                onClose = { viewModel.onTabChange(PanelTab.TASKS) })
                         }
                     }
                 }
@@ -419,8 +406,7 @@ fun BackgroundTaskView(
                                     else -> {}
                                 }
                             },
-                            enabled = maaState != MaaExecutionState.RUNNING
-                                    && maaState != MaaExecutionState.STARTING,
+                            enabled = maaState != MaaExecutionState.RUNNING && maaState != MaaExecutionState.STARTING,
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(8.dp)
                         ) {
@@ -459,8 +445,7 @@ fun BackgroundTaskView(
                             modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Filled.MoreVert,
-                                contentDescription = "更多操作"
+                                imageVector = Icons.Filled.MoreVert, contentDescription = "更多操作"
                             )
                         }
                     }
@@ -503,8 +488,7 @@ fun BackgroundTaskView(
                 } else {
                     coroutineScope.launch { compositionService.stopVirtualDisplay() }
                 }
-            }
-        )
+            })
 
         // 全屏预览
         if (state.isFullscreenMonitor) {
@@ -556,13 +540,11 @@ fun BackgroundTaskView(
                                 val event = awaitPointerEvent()
                                 val change = event.changes.firstOrNull() ?: continue
                                 val coords = viewToVirtualDisplay(
-                                    change.position.x, change.position.y,
-                                    size.width, size.height
+                                    change.position.x, change.position.y, size.width, size.height
                                 ) ?: continue
                                 when (event.type) {
                                     PointerEventType.Press -> viewModel.onTouchDown(
-                                        coords.first,
-                                        coords.second
+                                        coords.first, coords.second
                                     )
 
                                     PointerEventType.Move -> {
@@ -572,15 +554,13 @@ fun BackgroundTaskView(
                                     }
 
                                     PointerEventType.Release -> viewModel.onTouchUp(
-                                        coords.first,
-                                        coords.second
+                                        coords.first, coords.second
                                     )
                                 }
                                 change.consume()
                             }
                         }
-                    },
-                contentAlignment = Alignment.Center
+                    }, contentAlignment = Alignment.Center
             ) {
                 previewContent()
 
@@ -644,8 +624,7 @@ fun BackgroundTaskView(
 }
 
 private fun viewToVirtualDisplay(
-    viewX: Float, viewY: Float,
-    viewWidth: Int, viewHeight: Int
+    viewX: Float, viewY: Float, viewWidth: Int, viewHeight: Int
 ): Pair<Int, Int>? {
     val bufferW = DefaultDisplayConfig.WIDTH.toFloat()
     val bufferH = DefaultDisplayConfig.HEIGHT.toFloat()
@@ -694,31 +673,30 @@ private fun BackgroundMoreActionsOverlay(
         AnimatedVisibility(
             visible = visible,
             enter = fadeIn(animationSpec = tween(160)) + slideInVertically(
-                animationSpec = tween(220, easing = FastOutSlowInEasing),
-                initialOffsetY = { it / 4 }
-            ),
+                animationSpec = tween(
+                    220,
+                    easing = FastOutSlowInEasing
+                ),
+                initialOffsetY = { it / 4 }),
             exit = fadeOut(animationSpec = tween(140)) + slideOutVertically(
-                animationSpec = tween(180, easing = FastOutSlowInEasing),
-                targetOffsetY = { it / 4 }
-            ),
+                animationSpec = tween(
+                    180,
+                    easing = FastOutSlowInEasing
+                ),
+                targetOffsetY = { it / 4 }),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, bottom = 64.dp)
-        ) {
+                .padding(start = 16.dp, end = 16.dp, bottom = 64.dp)) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable(
-                        interactionSource = cardInteractionSource,
-                        indication = null,
-                        onClick = {}
-                    ),
+                        interactionSource = cardInteractionSource, indication = null, onClick = {}),
                 shape = RoundedCornerShape(8.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
+                )) {
                 Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -731,8 +709,7 @@ private fun BackgroundMoreActionsOverlay(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "游戏启动时静音",
-                            style = MaterialTheme.typography.bodySmall
+                            text = "游戏启动时静音", style = MaterialTheme.typography.bodySmall
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         FilledTonalButton(
