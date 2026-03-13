@@ -2,14 +2,19 @@ package com.aliothmoon.maameow.manager
 
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.domain.models.RemoteBackend
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 object RemoteAccessCoordinator {
 
     private val initialized = AtomicBoolean(false)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val listener = RemoteAccessStateListener { refresh() }
     private val _state = MutableStateFlow(snapshot())
     @Volatile
@@ -26,6 +31,13 @@ object RemoteAccessCoordinator {
         this.appSettings = appSettings
         if (initialized.compareAndSet(false, true)) {
             backends.values.forEach { it.addStateListener(listener) }
+            
+            scope.launch {
+                val backend = configuredBackend()
+                if (backend == RemoteBackend.ROOT) {
+                    backends.getValue(RemoteBackend.ROOT).requestPermission()
+                }
+            }
         }
         refresh()
     }
