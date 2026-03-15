@@ -15,6 +15,8 @@ import com.aliothmoon.maameow.remote.internal.ScreenManager
 import com.aliothmoon.maameow.remote.internal.VirtualDisplayManager
 import com.aliothmoon.maameow.third.Ln
 import com.aliothmoon.maameow.third.Workarounds
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.exitProcess
 
@@ -22,16 +24,24 @@ class RemoteServiceImpl : RemoteService.Stub() {
 
     companion object {
         private const val TAG = "RemoteService"
+        private val trackedAudioPackages = ConcurrentHashMap.newKeySet<String>()
 
         @JvmStatic
         fun performEmergencyCleanup() {
             Ln.i("$TAG: performEmergencyCleanup triggered")
             runCatching {
+                restoreTrackedAudioPackages()
                 PowerController.destroy()
                 ScreenManager.destroy()
                 MaaCoreManager.destroy()
             }.onFailure {
                 Ln.e("$TAG: Emergency cleanup failed: ${it.message}")
+            }
+        }
+
+        private fun restoreTrackedAudioPackages() {
+            trackedAudioPackages.forEach { packageName ->
+                AppOpsHelper.setPlayAudioOpAllowed(packageName, true)
             }
         }
     }
@@ -175,10 +185,21 @@ class RemoteServiceImpl : RemoteService.Stub() {
             DisplayMode.PRIMARY -> PrimaryDisplayManager.stop()
             DisplayMode.BACKGROUND -> VirtualDisplayManager.stop()
         }
+        restoreTrackedAudioPackages()
     }
 
     override fun setPlayAudioOpAllowed(packageName: String?, isAllowed: Boolean) {
-        AppOpsHelper.setPlayAudioOpAllowed(packageName, isAllowed)
+        if (packageName.isNullOrBlank()) return
+        val updated = AppOpsHelper.setPlayAudioOpAllowed(packageName, isAllowed)
+        if (!updated) {
+            Ln.w("$TAG: setPlayAudioOpAllowed skipped tracking update for $packageName")
+            return
+        }
+        if (isAllowed) {
+            trackedAudioPackages.remove(packageName)
+        } else {
+            trackedAudioPackages.add(packageName)
+        }
     }
 
     override fun isAppAlive(packageName: String): Int {
