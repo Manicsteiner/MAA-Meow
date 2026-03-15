@@ -48,4 +48,6 @@ interface RemoteService {
     int pid() = 22;
 
     int isAppAlive(String packageName) = 23;
+
+    oneway void heartbeat() = 24;
 }

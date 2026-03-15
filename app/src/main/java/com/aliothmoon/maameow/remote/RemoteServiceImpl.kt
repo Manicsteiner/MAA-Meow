@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow.remote
 
 import android.os.Process
+import android.os.SystemClock
 import android.view.Surface
 import com.aliothmoon.maameow.MaaCoreService
 import com.aliothmoon.maameow.RemoteService
@@ -18,12 +19,15 @@ import com.aliothmoon.maameow.third.Workarounds
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.system.exitProcess
 
 class RemoteServiceImpl : RemoteService.Stub() {
 
     companion object {
         private const val TAG = "RemoteService"
+        private const val HEARTBEAT_INTERVAL_MS = 5_000L
+        private const val HEARTBEAT_TIMEOUT_MS = 15_000L
         private val trackedAudioPackages = ConcurrentHashMap.newKeySet<String>()
 
         @JvmStatic
@@ -47,13 +51,19 @@ class RemoteServiceImpl : RemoteService.Stub() {
     }
 
     private val virtualDisplayMode = AtomicInteger(DisplayMode.PRIMARY)
+    private val lastHeartbeatAt = AtomicLong(0L)
+    private val destroyed = AtomicBoolean(false)
     private var setup = false
 
     init {
+        startHeartbeatWatchdog()
         Ln.i("$TAG: RemoteServiceImpl init, version: ${MaaCoreManager.maaService.GetVersion()}")
     }
 
     override fun destroy() {
+        if (!destroyed.compareAndSet(false, true)) {
+            return
+        }
         Ln.i("$TAG: destroy()")
         performEmergencyCleanup()
         exitProcess(0)
@@ -224,6 +234,10 @@ class RemoteServiceImpl : RemoteService.Stub() {
         }
     }
 
+    override fun heartbeat() {
+        lastHeartbeatAt.set(SystemClock.elapsedRealtime())
+    }
+
     override fun setVirtualDisplayMode(mode: Int): Boolean {
         when (mode) {
             DisplayMode.PRIMARY -> {
@@ -239,5 +253,30 @@ class RemoteServiceImpl : RemoteService.Stub() {
             }
         }
         return false
+    }
+
+    private fun startHeartbeatWatchdog() {
+        Thread {
+            while (!destroyed.get()) {
+                try {
+                    Thread.sleep(HEARTBEAT_INTERVAL_MS)
+                } catch (_: InterruptedException) {
+                    return@Thread
+                }
+                val lastBeat = lastHeartbeatAt.get()
+                if (lastBeat <= 0L) {
+                    continue
+                }
+                val elapsed = SystemClock.elapsedRealtime() - lastBeat
+                if (elapsed > HEARTBEAT_TIMEOUT_MS) {
+                    Ln.w("$TAG: app heartbeat timed out, destroying remote service")
+                    destroy()
+                    return@Thread
+                }
+            }
+        }.apply {
+            name = "remote-heartbeat-watchdog"
+            isDaemon = true
+        }.start()
     }
 }
