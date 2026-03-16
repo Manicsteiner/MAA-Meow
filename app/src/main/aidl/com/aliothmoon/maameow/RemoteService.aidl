@@ -50,4 +50,6 @@ interface RemoteService {
     int isAppAlive(String packageName) = 23;
 
     oneway void heartbeat() = 24;
+
+    void setVirtualDisplayResolution(int width, int height, int dpi) = 25;
 }

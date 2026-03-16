@@ -238,6 +238,11 @@ class RemoteServiceImpl : RemoteService.Stub() {
         lastHeartbeatAt.set(SystemClock.elapsedRealtime())
     }
 
+    override fun setVirtualDisplayResolution(width: Int, height: Int, dpi: Int) {
+        Ln.i("$TAG: setVirtualDisplayResolution(${width}x${height}, dpi=$dpi)")
+        VirtualDisplayManager.setResolution(width, height, dpi)
+    }
+
     override fun setVirtualDisplayMode(mode: Int): Boolean {
         when (mode) {
             DisplayMode.PRIMARY -> {

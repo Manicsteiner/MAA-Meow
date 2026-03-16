@@ -3,9 +3,11 @@ package com.aliothmoon.maameow.domain.service
 import android.content.Context
 import com.alibaba.fastjson2.JSON
 import com.aliothmoon.maameow.MaaCoreCallback
+import com.aliothmoon.maameow.RemoteService
 import com.aliothmoon.maameow.constant.DefaultDisplayConfig
 import com.aliothmoon.maameow.data.model.LogLevel
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.data.preferences.TaskChainState
 import com.aliothmoon.maameow.data.resource.ActivityManager
 import com.aliothmoon.maameow.domain.models.RunMode
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
@@ -40,6 +42,7 @@ class MaaCompositionService(
     private val runtimeLogCenter: RuntimeLogCenter,
     private val activityManager: ActivityManager,
     private val appWatchdog: AppWatchdog,
+    private val taskChainState: TaskChainState,
 ) : MaaExecutionStateHolder {
 
     private val _state = MutableStateFlow(MaaExecutionState.IDLE)
@@ -198,6 +201,7 @@ class MaaCompositionService(
                     runtimeLogCenter.endSessionAndWait("DISPLAY_MODE_ERROR")
                     return@useRemoteService StartResult.ConnectionError(StartResult.ConnectionError.ConnectPhase.DISPLAY_MODE)
                 }
+                val resolution = resolveAndSetResolution(it, mode)
                 val displayId = it.startVirtualDisplay()
                 if (displayId == -1) {
                     setRunState(MaaExecutionState.ERROR)
@@ -213,8 +217,8 @@ class MaaCompositionService(
 
                     RunMode.BACKGROUND -> {
                         buildConnectConfig(
-                            DefaultDisplayConfig.WIDTH,
-                            DefaultDisplayConfig.HEIGHT,
+                            resolution.width,
+                            resolution.height,
                             displayId
                         )
                     }
@@ -302,6 +306,7 @@ class MaaCompositionService(
                     runtimeLogCenter.endSessionAndWait("DISPLAY_MODE_ERROR")
                     return@useRemoteService StartResult.ConnectionError(StartResult.ConnectionError.ConnectPhase.DISPLAY_MODE)
                 }
+                val resolution = resolveAndSetResolution(it, mode)
                 val displayId = it.startVirtualDisplay()
                 if (displayId == -1) {
                     setRunState(MaaExecutionState.ERROR)
@@ -317,8 +322,8 @@ class MaaCompositionService(
 
                     RunMode.BACKGROUND -> {
                         buildConnectConfig(
-                            DefaultDisplayConfig.WIDTH,
-                            DefaultDisplayConfig.HEIGHT,
+                            resolution.width,
+                            resolution.height,
                             displayId
                         )
                     }
@@ -352,6 +357,26 @@ class MaaCompositionService(
                 return@useRemoteService StartResult.Success(maa.GetVersion())
             }
         }
+    }
+
+    private fun resolveAndSetResolution(
+        service: RemoteService,
+        mode: RunMode
+    ): DefaultDisplayConfig.Resolution {
+        val resolution = if (mode == RunMode.BACKGROUND) {
+            val clientType = taskChainState.getClientType()
+            val r = DefaultDisplayConfig.resolveResolution(clientType)
+            service.setVirtualDisplayResolution(r.width, r.height, r.dpi)
+            Timber.i("Virtual display resolution: %dx%d@%d for client=%s", r.width, r.height, r.dpi, clientType)
+            r
+        } else {
+            DefaultDisplayConfig.Resolution(
+                DefaultDisplayConfig.WIDTH,
+                DefaultDisplayConfig.HEIGHT,
+                DefaultDisplayConfig.DPI
+            )
+        }
+        return resolution
     }
 
     fun buildConnectConfig(width: Int, height: Int, displayId: Int): String {
