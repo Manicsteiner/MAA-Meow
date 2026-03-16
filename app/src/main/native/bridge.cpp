@@ -26,7 +26,7 @@
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
-#ifdef NDEBUG
+#ifndef ENABLE_FRAME_TIMING
 #define NATIVE_COPY_FRAME_TIMING_START()
 #define NATIVE_COPY_FRAME_TIMING_END() ((void) 0)
 #else
@@ -223,7 +223,7 @@ static std::atomic<FrameBuffer *> g_readBuffer{nullptr};
 static std::atomic<int64_t> g_frameCount{0};
 static bool g_frameBuffersInitialized = false;
 
-#ifndef NDEBUG
+#ifdef ENABLE_FRAME_TIMING
 static int64_t g_nativeCopyFrameWindowTotalNs = 0;
 static int g_nativeCopyFrameWindowCount = 0;
 static int64_t g_processFrameWindowTotalNs = 0;
@@ -433,7 +433,7 @@ int64_t CopyFrameFromHardwareBuffer(void *env_ptr, void *hardwareBufferObj, int6
 
     bool needsPreview = g_hasPreview.load(std::memory_order_acquire);
 
-#ifndef NDEBUG
+#ifdef ENABLE_FRAME_TIMING
     auto processFrameStart = std::chrono::steady_clock::now();
 #endif
     ProcessFrameDataV2((uint8_t *) srcAddr,
@@ -442,7 +442,7 @@ int64_t CopyFrameFromHardwareBuffer(void *env_ptr, void *hardwareBufferObj, int6
                        target->width, target->height,
                        desc.stride * 4
     );
-#ifndef NDEBUG
+#ifdef ENABLE_FRAME_TIMING
     auto processFrameElapsedNs =
             std::chrono::duration_cast<std::chrono::nanoseconds>(
                     std::chrono::steady_clock::now() - processFrameStart

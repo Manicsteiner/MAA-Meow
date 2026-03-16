@@ -10,6 +10,10 @@ add_link_options(-flto -Wl,--exclude-libs,ALL -Wl,--gc-sections -Wl,--strip-all)
 
 add_library(bridge SHARED bridge.cpp bridge.h misc.cpp)
 set_source_files_properties(bridge.cpp PROPERTIES COMPILE_OPTIONS "-O2")
+option(ENABLE_FRAME_TIMING "Enable per-frame timing logs" OFF)
+if (ENABLE_FRAME_TIMING)
+    target_compile_definitions(bridge PRIVATE ENABLE_FRAME_TIMING)
+endif ()
 add_executable(launcher launcher.c)
 set_target_properties(launcher PROPERTIES
         OUTPUT_NAME "liblauncher"
