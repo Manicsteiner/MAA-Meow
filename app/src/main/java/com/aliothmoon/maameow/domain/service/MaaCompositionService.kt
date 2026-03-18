@@ -48,6 +48,12 @@ class MaaCompositionService(
     private val _state = MutableStateFlow(MaaExecutionState.IDLE)
     val state: StateFlow<MaaExecutionState> = _state.asStateFlow()
 
+    private val defaultResolution = DefaultDisplayConfig.Resolution(
+        DefaultDisplayConfig.WIDTH, DefaultDisplayConfig.HEIGHT, DefaultDisplayConfig.DPI
+    )
+    private val _displayResolution = MutableStateFlow(defaultResolution)
+    val displayResolution: StateFlow<DefaultDisplayConfig.Resolution> = _displayResolution.asStateFlow()
+
     override fun reportRunState(state: MaaExecutionState) {
         setRunState(state)
     }
@@ -376,6 +382,7 @@ class MaaCompositionService(
                 DefaultDisplayConfig.DPI
             )
         }
+        _displayResolution.value = resolution
         return resolution
     }
 
@@ -412,6 +419,7 @@ class MaaCompositionService(
 
     suspend fun stopVirtualDisplay() {
         appWatchdog.stopWatching()
+        _displayResolution.value = defaultResolution
         useRemoteService { it.stopVirtualDisplay() }
     }
 }

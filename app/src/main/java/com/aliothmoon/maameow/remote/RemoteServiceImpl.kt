@@ -3,6 +3,7 @@ package com.aliothmoon.maameow.remote
 import android.os.Process
 import android.os.SystemClock
 import android.view.Surface
+import com.aliothmoon.maameow.ITouchEventCallback
 import com.aliothmoon.maameow.MaaCoreService
 import com.aliothmoon.maameow.RemoteService
 import com.aliothmoon.maameow.bridge.NativeBridgeLib
@@ -65,6 +66,7 @@ class RemoteServiceImpl : RemoteService.Stub() {
             return
         }
         Ln.i("$TAG: destroy()")
+        InputControlUtils.setTouchCallback(null)
         performEmergencyCleanup()
         exitProcess(0)
     }
@@ -150,6 +152,11 @@ class RemoteServiceImpl : RemoteService.Stub() {
         Ln.i("$TAG: setMonitorSurface(${surface != null})")
         VirtualDisplayManager.setMonitorSurface(surface)
         NativeBridgeLib.setPreviewSurface(surface)
+    }
+
+    override fun setTouchCallback(callback: ITouchEventCallback?) {
+        Ln.i("$TAG: setTouchCallback(${callback != null})")
+        InputControlUtils.setTouchCallback(callback)
     }
 
     override fun touchDown(x: Int, y: Int) {

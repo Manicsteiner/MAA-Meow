@@ -27,5 +27,7 @@ data class AppSettings(
 
     @PrefKey(default = "false") val useHardwareScreenOff: String = "false",
 
-    @PrefKey(default = "STABLE") val updateChannel: String = "STABLE"
+    @PrefKey(default = "STABLE") val updateChannel: String = "STABLE",
+
+    @PrefKey(default = "true") val showTouchPreview: String = "true"
 )

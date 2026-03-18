@@ -227,6 +227,21 @@ class AppSettingsManager(private val context: Context) {
         }
     }
 
+    // 触摸预览
+    val showTouchPreview: StateFlow<Boolean> = settings
+        .map { it.showTouchPreview.toBooleanStrictOrNull() ?: true }
+        .distinctUntilChanged()
+        .stateIn(
+            scope, SharingStarted.Eagerly,
+            initialSettings.showTouchPreview.toBooleanStrictOrNull() ?: true
+        )
+
+    suspend fun setShowTouchPreview(enabled: Boolean) {
+        with(AppSettingsSchema) {
+            context.dataStore.edit { it[showTouchPreview] = enabled.toString() }
+        }
+    }
+
     // 更新渠道
     val updateChannel: StateFlow<UpdateChannel> = settings
         .map {

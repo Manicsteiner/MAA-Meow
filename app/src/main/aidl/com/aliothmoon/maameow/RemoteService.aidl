@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow;
 
 import android.view.Surface;
+import com.aliothmoon.maameow.ITouchEventCallback;
 import com.aliothmoon.maameow.MaaCoreService;
 import com.aliothmoon.maameow.remote.PermissionGrantRequest;
 import com.aliothmoon.maameow.remote.PermissionStateInfo;
@@ -52,4 +53,6 @@ interface RemoteService {
     oneway void heartbeat() = 24;
 
     void setVirtualDisplayResolution(int width, int height, int dpi) = 25;
+
+    oneway void setTouchCallback(ITouchEventCallback callback) = 26;
 }

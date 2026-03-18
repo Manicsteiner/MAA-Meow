@@ -1,33 +1,38 @@
 package com.aliothmoon.maameow.presentation.viewmodel
 
-import android.graphics.SurfaceTexture
+import android.os.SystemClock
+import android.view.MotionEvent
 import android.view.Surface
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aliothmoon.maameow.ITouchEventCallback
+import com.aliothmoon.maameow.RemoteService
 import com.aliothmoon.maameow.constant.Packages
 import com.aliothmoon.maameow.data.model.LogItem
 import com.aliothmoon.maameow.data.model.TaskTypeInfo
+import com.aliothmoon.maameow.data.model.TaskParamProvider
 import com.aliothmoon.maameow.data.preferences.TaskChainState
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.domain.usecase.BuildTaskParamsUseCase
 import com.aliothmoon.maameow.manager.RemoteServiceManager
-import com.aliothmoon.maameow.data.model.TaskParamProvider
-import com.aliothmoon.maameow.data.model.WakeUpConfig
-import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.presentation.state.BackgroundTaskState
-
+import com.aliothmoon.maameow.presentation.state.PreviewTouchMarker
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogConfirmAction
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogType
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogUiState
 import com.aliothmoon.maameow.presentation.view.panel.PanelTab
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
 class BackgroundTaskViewModel(
@@ -41,24 +46,67 @@ class BackgroundTaskViewModel(
     private val _state = MutableStateFlow(BackgroundTaskState())
     val state: StateFlow<BackgroundTaskState> = _state.asStateFlow()
     val runtimeLogs: StateFlow<List<LogItem>> = runtimeLogCenter.logs
+    private val _touchMarkers = MutableStateFlow<List<PreviewTouchMarker>>(emptyList())
+    val touchMarkers: StateFlow<List<PreviewTouchMarker>> = _touchMarkers.asStateFlow()
 
     private val surfaceRef = AtomicReference<Surface>()
+    private val touchMarkerId = AtomicLong(0L)
+    private var touchCleanupJob: Job? = null
+
+    private val touchCallback = object : ITouchEventCallback.Stub() {
+        override fun onCallback(x: Int, y: Int, type: Int) {
+            if (type != MotionEvent.ACTION_DOWN
+                && type != MotionEvent.ACTION_MOVE
+                && type != MotionEvent.ACTION_UP
+            ) {
+                return
+            }
+            _touchMarkers.update { markers ->
+                (markers + PreviewTouchMarker(
+                    id = touchMarkerId.incrementAndGet(),
+                    x = x,
+                    y = y,
+                    action = type,
+                    createdAtMs = SystemClock.elapsedRealtime()
+                )).takeLast(PreviewTouchMarker.MAX_ACTIVE_MARKERS)
+            }
+            ensureTouchCleanupJob()
+        }
+    }
 
     init {
         observeServiceState()
         observeTaskEnd()
+        observeTouchPreviewToggle()
+    }
+
+    private fun observeTouchPreviewToggle() {
+        viewModelScope.launch {
+            appSettingsManager.showTouchPreview.collect {
+                onTouchPreviewStateChanged()
+            }
+        }
     }
 
     private fun observeServiceState() {
         viewModelScope.launch {
-            var wasConnected =
-                RemoteServiceManager.state.value is RemoteServiceManager.ServiceState.Connected
             RemoteServiceManager.state.collect { state ->
-                val isConnected = state is RemoteServiceManager.ServiceState.Connected
-                if (!wasConnected && isConnected) {
-                    surfaceRef.get()?.let { setRemoteSurface(it) }
+                when (state) {
+                    is RemoteServiceManager.ServiceState.Connected -> {
+                        if (surfaceRef.get() != null) {
+                            onMonitorSurfaceChanged(state.service)
+                            onTouchPreviewStateChanged(state.service)
+                        }
+                    }
+
+                    is RemoteServiceManager.ServiceState.Disconnected,
+                    is RemoteServiceManager.ServiceState.Died,
+                    is RemoteServiceManager.ServiceState.Error -> {
+                        clearTouchMarkers()
+                    }
+
+                    is RemoteServiceManager.ServiceState.Connecting -> Unit
                 }
-                wasConnected = isConnected
             }
         }
     }
@@ -79,13 +127,65 @@ class BackgroundTaskViewModel(
         }
     }
 
-    private fun setRemoteSurface(surface: Surface?) {
-        Timber.d("setRemoteSurface: %s", surface)
+    private fun onMonitorSurfaceChanged(
+        service: RemoteService? = RemoteServiceManager.getInstanceOrNull()
+    ) {
+        val remote = service ?: return
+        val surface = surfaceRef.get()
+        Timber.d("onMonitorSurfaceChanged: surface=%s", surface)
         runCatching {
-            RemoteServiceManager.getInstanceOrNull()?.setMonitorSurface(surface)
+            remote.setMonitorSurface(surface)
         }.onFailure {
             Timber.w(it, "setMonitorSurface failed")
         }
+    }
+
+    private fun onTouchPreviewStateChanged(
+        service: RemoteService? = RemoteServiceManager.getInstanceOrNull()
+    ) {
+        val remote = service ?: return
+        val enabled = surfaceRef.get() != null && appSettingsManager.showTouchPreview.value
+        runCatching {
+            if (enabled) {
+                remote.setTouchCallback(touchCallback)
+            } else {
+                remote.setTouchCallback(null)
+                clearTouchMarkers()
+            }
+        }.onFailure {
+            Timber.w(it, "setTouchCallback(null) failed")
+        }
+    }
+
+
+    private fun ensureTouchCleanupJob() {
+        if (touchCleanupJob?.isActive == true) {
+            return
+        }
+        touchCleanupJob = viewModelScope.launch {
+            while (true) {
+                delay(PreviewTouchMarker.CLEANUP_INTERVAL_MS)
+                val cutoff = SystemClock.elapsedRealtime() - PreviewTouchMarker.TTL_MS
+                _touchMarkers.update { markers ->
+                    markers.filter { it.createdAtMs > cutoff }
+                }
+                if (_touchMarkers.value.isEmpty()) {
+                    break
+                }
+            }
+        }.also { job ->
+            job.invokeOnCompletion {
+                if (touchCleanupJob === job) {
+                    touchCleanupJob = null
+                }
+            }
+        }
+    }
+
+    private fun clearTouchMarkers() {
+        touchCleanupJob?.cancel()
+        touchCleanupJob = null
+        _touchMarkers.value = emptyList()
     }
 
     fun onNodeEnabledChange(nodeId: String, enabled: Boolean) {
@@ -150,12 +250,15 @@ class BackgroundTaskViewModel(
 
     fun onSurfaceAvailable(surface: Surface) {
         surfaceRef.set(surface)
-        setRemoteSurface(surface)
+        onMonitorSurfaceChanged()
+        onTouchPreviewStateChanged()
     }
 
     fun onSurfaceDestroyed() {
-        setRemoteSurface(null)
-        surfaceRef.getAndSet(null)?.release()
+        val surface = surfaceRef.getAndSet(null)
+        onMonitorSurfaceChanged()
+        onTouchPreviewStateChanged()
+        surface?.release()
     }
 
     fun onTouchDown(x: Int, y: Int) {
@@ -332,6 +435,11 @@ class BackgroundTaskViewModel(
 
             null -> Unit
         }
+    }
+
+    override fun onCleared() {
+        clearTouchMarkers()
+        super.onCleared()
     }
 
 }

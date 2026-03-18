@@ -71,6 +71,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.movableContentOf
@@ -121,6 +122,7 @@ import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.NotificationsPaused
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.StayCurrentPortrait
+import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.ui.graphics.vector.ImageVector
 
 @Composable
@@ -144,6 +146,9 @@ fun BackgroundTaskView(
     val closeAppOnTaskEnd by appSettingsManager.closeAppOnTaskEnd.collectAsStateWithLifecycle()
     val useHardwareScreenOff by appSettingsManager.useHardwareScreenOff.collectAsStateWithLifecycle()
     val watchdogState by appWatchdog.state.collectAsStateWithLifecycle()
+    val touchMarkers by viewModel.touchMarkers.collectAsStateWithLifecycle()
+    val displayResolution by compositionService.displayResolution.collectAsStateWithLifecycle()
+    val showTouchPreview by appSettingsManager.showTouchPreview.collectAsStateWithLifecycle()
     var isRequestingRemoteAccess by remember { mutableStateOf(false) }
     var showCloseConfirm by remember { mutableStateOf(false) }
     var showMoreActions by remember { mutableStateOf(false) }
@@ -223,50 +228,59 @@ fun BackgroundTaskView(
 
     var isSurfaceAvailable by remember { mutableStateOf(false) }
     var lastSentSurface by remember { mutableStateOf<Surface?>(null) }
+    val currentTouchMarkers by rememberUpdatedState(touchMarkers)
+    val currentDisplayResolution by rememberUpdatedState(displayResolution)
 
     val previewContent = remember {
         movableContentOf {
             Box(
                 modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center
             ) {
-                AndroidView(
-                    factory = { ctx ->
-                        SurfaceView(ctx).apply {
-                            holder.setFormat(PixelFormat.RGBA_8888)
-                            holder.addCallback(object : SurfaceHolder.Callback {
-                                override fun surfaceCreated(holder: SurfaceHolder) {
-                                    isSurfaceAvailable = true
-                                    // 延迟 50ms 设置固定大小，避开系统 Transition 冲突
-                                    coroutineScope.launch {
-                                        delay(50)
-                                        holder.setFixedSize(
-                                            DefaultDisplayConfig.WIDTH, DefaultDisplayConfig.HEIGHT
-                                        )
-                                    }
-                                }
-
-                                override fun surfaceChanged(
-                                    holder: SurfaceHolder, format: Int, width: Int, height: Int
-                                ) {
-                                    Timber.d("Surface size changed to $width x $height")
-                                    // 只有尺寸正确且 Surface 未发送过时才发送
-                                    if (width == DefaultDisplayConfig.WIDTH && height == DefaultDisplayConfig.HEIGHT) {
-                                        if (lastSentSurface != holder.surface) {
-                                            lastSentSurface = holder.surface
-                                            viewModel.onSurfaceAvailable(holder.surface)
+                Box(modifier = Modifier.aspectRatio(DefaultDisplayConfig.ASPECT_RATIO)) {
+                    AndroidView(
+                        factory = { ctx ->
+                            SurfaceView(ctx).apply {
+                                holder.setFormat(PixelFormat.RGBA_8888)
+                                holder.addCallback(object : SurfaceHolder.Callback {
+                                    override fun surfaceCreated(holder: SurfaceHolder) {
+                                        isSurfaceAvailable = true
+                                        coroutineScope.launch {
+                                            delay(50)
+                                            holder.setFixedSize(
+                                                DefaultDisplayConfig.WIDTH, DefaultDisplayConfig.HEIGHT
+                                            )
                                         }
                                     }
-                                }
 
-                                override fun surfaceDestroyed(holder: SurfaceHolder) {
-                                    isSurfaceAvailable = false
-                                    lastSentSurface = null
-                                    viewModel.onSurfaceDestroyed()
-                                }
-                            })
-                        }
-                    }, modifier = Modifier.aspectRatio(DefaultDisplayConfig.ASPECT_RATIO)
-                )
+                                    override fun surfaceChanged(
+                                        holder: SurfaceHolder, format: Int, width: Int, height: Int
+                                    ) {
+                                        Timber.d("Surface size changed to $width x $height")
+                                        if (width == DefaultDisplayConfig.WIDTH && height == DefaultDisplayConfig.HEIGHT) {
+                                            if (lastSentSurface != holder.surface) {
+                                                lastSentSurface = holder.surface
+                                                viewModel.onSurfaceAvailable(holder.surface)
+                                            }
+                                        }
+                                    }
+
+                                    override fun surfaceDestroyed(holder: SurfaceHolder) {
+                                        isSurfaceAvailable = false
+                                        lastSentSurface = null
+                                        viewModel.onSurfaceDestroyed()
+                                    }
+                                })
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    TouchPreviewOverlay(
+                        markers = currentTouchMarkers,
+                        displayWidth = currentDisplayResolution.width,
+                        displayHeight = currentDisplayResolution.height,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
     }
@@ -519,6 +533,10 @@ fun BackgroundTaskView(
                 } else {
                     coroutineScope.launch { compositionService.stopVirtualDisplay() }
                 }
+            },
+            showTouchPreview = showTouchPreview,
+            onShowTouchPreviewChange = {
+                coroutineScope.launch { appSettingsManager.setShowTouchPreview(it) }
             }
         )
 
@@ -698,6 +716,8 @@ private fun BackgroundMoreActionsOverlay(
     onCloseAppOnTaskEndChange: (Boolean) -> Unit,
     useHardwareScreenOff: Boolean,
     onUseHardwareScreenOffChange: (Boolean) -> Unit,
+    showTouchPreview: Boolean,
+    onShowTouchPreviewChange: (Boolean) -> Unit,
     onMuteGameSound: () -> Unit,
     onUnmuteGameSound: () -> Unit,
     onScreenOff: () -> Unit,
@@ -841,6 +861,12 @@ private fun BackgroundMoreActionsOverlay(
                         label = "熄屏挂机时关闭屏幕",
                         checked = useHardwareScreenOff,
                         onCheckedChange = onUseHardwareScreenOffChange
+                    )
+                    SettingSwitchRow(
+                        icon = Icons.Filled.TouchApp,
+                        label = "显示触摸预览",
+                        checked = showTouchPreview,
+                        onCheckedChange = onShowTouchPreviewChange
                     )
                 }
             }
