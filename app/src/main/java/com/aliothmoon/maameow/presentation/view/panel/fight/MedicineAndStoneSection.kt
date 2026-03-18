@@ -106,13 +106,13 @@ fun MedicineAndStoneSection(
         if (showSeriesWarning) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFFFF3E0),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
                 shape = RoundedCornerShape(4.dp)
             ) {
                 Text(
                     text = "战斗次数 ${config.maxTimes} 无法被代理倍率 ${config.series} 整除，可能无法完全消耗理智",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFF57C00),
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
                     modifier = Modifier.padding(8.dp)
                 )
             }

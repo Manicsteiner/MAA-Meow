@@ -54,8 +54,8 @@ fun StageButtonGroup(
                         .clickable { onItemSelected(item) },
                     color = when {
                         isSelected -> MaterialTheme.colorScheme.primary
-                        !isOpen -> Color(0xFFF0F0F0)
-                        else -> Color(0xFFE0E0E0)
+                        !isOpen -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
+                        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                     },
                     shape = RoundedCornerShape(16.dp)
                 ) {
@@ -63,9 +63,9 @@ fun StageButtonGroup(
                         text = displayText,
                         style = MaterialTheme.typography.bodySmall,
                         color = when {
-                            isSelected -> Color.White
-                            !isOpen -> MaterialTheme.colorScheme.outlineVariant
-                            else -> Color.DarkGray
+                            isSelected -> MaterialTheme.colorScheme.onPrimary
+                            !isOpen -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+                            else -> MaterialTheme.colorScheme.onSurface
                         },
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )

@@ -68,7 +68,7 @@ fun TaskListPanel(
                 .clickable { onToggleEditMode() },
             shape = RoundedCornerShape(4.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (isEditMode) MaterialTheme.colorScheme.primary else Color.White
+                containerColor = if (isEditMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = if (isEditMode) 2.dp else 0.dp)
         ) {
@@ -82,14 +82,14 @@ fun TaskListPanel(
                     imageVector = if (isEditMode) Icons.Default.Check else Icons.Default.Edit,
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
-                    tint = if (isEditMode) Color.White else MaterialTheme.colorScheme.primary
+                    tint = if (isEditMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = if (isEditMode) "完成" else "编辑任务",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = if (isEditMode) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isEditMode) Color.White else Color.Black
+                    color = if (isEditMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                 )
             }
         }
@@ -108,7 +108,7 @@ fun TaskListPanel(
                         .clickable { onToggleAddingTask() },
                     shape = RoundedCornerShape(4.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (isAddingTask) MaterialTheme.colorScheme.primaryContainer else Color.White
+                        containerColor = if (isAddingTask) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
                     ),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
@@ -128,7 +128,7 @@ fun TaskListPanel(
                         Text(
                             "新增任务",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Black
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -176,7 +176,7 @@ private fun TaskNodeRow(
             .fillMaxWidth(),
         shape = RoundedCornerShape(4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xfff2f3f5) else Color.White
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
         ),
         border = if (isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)) else null
     ) {
@@ -200,7 +200,7 @@ private fun TaskNodeRow(
             Text(
                 text = node.name,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Black,
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                 fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

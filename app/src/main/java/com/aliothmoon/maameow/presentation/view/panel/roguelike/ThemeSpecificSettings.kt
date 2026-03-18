@@ -43,19 +43,28 @@ fun ThemeSpecificSettings(
         }
 
         "Sami" -> {
-            HorizontalDivider(
-                color = MaterialTheme.colorScheme.outlineVariant,
-                thickness = 0.5.dp,
-                modifier = Modifier.padding(vertical = 4.dp)
-            )
-            Text(
-                "萨米专用设置",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
+            // WPF: Visibility="RoguelikeSquadIsFoldartal"
+            val squadIsFoldartal = RoguelikeUi.isSquadFoldartal(
+                config.squad, config.mode, config.theme
             )
 
-            // WPF: Visibility="RoguelikeMode == Collectible AND theme == Sami" (line 239)
-            if (config.mode == RoguelikeMode.Collectible) {
+            val isCollectibleAvailable = config.mode == RoguelikeMode.Collectible
+
+            if (squadIsFoldartal || isCollectibleAvailable) {
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+                Text(
+                    "萨米专用设置",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            // WPF: Visibility="RoguelikeMode == Collectible AND theme == Sami"
+            if (isCollectibleAvailable) {
                 CheckBoxWithLabel(
                     checked = config.firstFloorFoldartal,
                     onCheckedChange = { onConfigChange(config.copy(firstFloorFoldartal = it)) },
@@ -72,10 +81,7 @@ fun ThemeSpecificSettings(
                 }
             }
 
-            // WPF: Visibility="RoguelikeSquadIsFoldartal" (line 257)
-            val squadIsFoldartal = RoguelikeUi.isSquadFoldartal(
-                config.squad, config.mode, config.theme
-            )
+
             if (squadIsFoldartal) {
                 CheckBoxWithLabel(
                     checked = config.newSquad2StartingFoldartal,

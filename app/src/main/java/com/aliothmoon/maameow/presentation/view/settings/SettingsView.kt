@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.aliothmoon.maameow.BuildConfig
 import com.aliothmoon.maameow.data.model.update.UpdateChannel
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.domain.models.RemoteBackend
 import com.aliothmoon.maameow.domain.service.LogExportService
 import com.aliothmoon.maameow.domain.service.ResourceInitService
@@ -53,6 +54,7 @@ import com.aliothmoon.maameow.presentation.components.ReInitializeConfirmDialog
 import com.aliothmoon.maameow.presentation.components.ResourceInitDialog
 import com.aliothmoon.maameow.presentation.components.TopAppBar
 import com.aliothmoon.maameow.presentation.viewmodel.SettingsViewModel
+import com.aliothmoon.maameow.theme.MaaDesignTokens
 import com.aliothmoon.maameow.utils.Misc
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
@@ -71,6 +73,7 @@ fun SettingsView(
     val startupBackend by viewModel.startupBackend.collectAsStateWithLifecycle()
     val skipShizukuCheck by viewModel.skipShizukuCheck.collectAsStateWithLifecycle()
     val updateChannel by viewModel.updateChannel.collectAsStateWithLifecycle()
+    val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
 
     var showReInitConfirm by remember { mutableStateOf(false) }
@@ -121,8 +124,7 @@ fun SettingsView(
             )
         }
     ) { paddingValues ->
-        val tertiaryContent = MaterialTheme.colorScheme.onTertiaryContainer
-        val primaryContent = MaterialTheme.colorScheme.onPrimaryContainer
+        val contentColor = MaterialTheme.colorScheme.onSurface
 
         LazyColumn(
             modifier = Modifier
@@ -132,34 +134,26 @@ fun SettingsView(
         ) {
             // 更新管理
             item {
+                SectionHeader("更新管理")
                 InfoCard(
                     title = "",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = tertiaryContent
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    contentColor = contentColor
                 ) {
-                    Text(
-                        text = "更新管理",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = tertiaryContent,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    SettingClickItem("重新初始化资源", "从内置资源包重新解压", tertiaryContent) {
+                    SettingClickItem("重新初始化资源", "从内置资源包重新解压", contentColor) {
                         showReInitConfirm = true
                     }
-                    SettingsDivider(tertiaryContent)
+                    SettingsDivider(contentColor)
                     SettingSwitchItem(
                         title = "启动时检查更新",
                         description = "启动应用时自动检查应用和资源更新",
-                        contentColor = tertiaryContent,
+                        contentColor = contentColor,
                         checked = autoCheckUpdate,
                         onCheckedChange = { viewModel.setAutoCheckUpdate(it) }
                     )
-                    SettingsDivider(tertiaryContent)
+                    SettingsDivider(contentColor)
                     SettingChannelItem(
-                        contentColor = tertiaryContent,
+                        contentColor = contentColor,
                         selectedChannel = updateChannel,
                         onChannelSelected = { viewModel.setUpdateChannel(it) }
                     )
@@ -168,30 +162,21 @@ fun SettingsView(
 
             // 日志
             item {
-                val color = MaterialTheme.colorScheme.onSecondaryContainer
+                SectionHeader("日志")
                 InfoCard(
                     title = "",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = color
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    contentColor = contentColor
                 ) {
-                    Text(
-                        text = "日志",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = color,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    SettingClickItem("历史日志", "查看任务执行日志", color) {
+                    SettingClickItem("历史日志", "查看任务执行日志", contentColor) {
                         navController.navigate("log_history")
                     }
-                    SettingsDivider(color)
-                    SettingClickItem("错误日志", "查看应用异常和错误记录", color) {
+                    SettingsDivider(contentColor)
+                    SettingClickItem("错误日志", "查看应用异常和错误记录", contentColor) {
                         navController.navigate("error_log")
                     }
-                    SettingsDivider(color)
-                    SettingClickItem("导出日志压缩包", "打包所有日志为 ZIP 文件分享", color) {
+                    SettingsDivider(contentColor)
+                    SettingClickItem("导出日志压缩包", "打包所有日志为 ZIP 文件分享", contentColor) {
                         coroutineScope.launch {
                             val intent = logExportService.exportAllLogs()
                             if (intent != null) {
@@ -199,11 +184,11 @@ fun SettingsView(
                             }
                         }
                     }
-                    SettingsDivider(color)
+                    SettingsDivider(contentColor)
                     SettingSwitchItem(
                         title = "调试模式",
                         description = "启用后记录详细日志信息",
-                        contentColor = color,
+                        contentColor = contentColor,
                         checked = debugMode,
                         onCheckedChange = { enabled ->
                             if (enabled) {
@@ -218,31 +203,27 @@ fun SettingsView(
 
             // 其他设置
             item {
-                val color = MaterialTheme.colorScheme.onSurfaceVariant
+                SectionHeader("其他设置")
                 InfoCard(
                     title = "",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = color
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    contentColor = contentColor
                 ) {
-                    Text(
-                        text = "其他设置",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = color,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
                     SettingRemoteBackendItem(
-                        contentColor = color,
+                        contentColor = contentColor,
                         selectedBackend = startupBackend,
                         onBackendSelected = { viewModel.setStartupBackend(it) }
                     )
-                    SettingsDivider(color)
+                    SettingsDivider(contentColor)
+                    SettingThemeModeItem(
+                        contentColor = contentColor,
+                        selectedMode = themeMode,
+                        onModeSelected = { viewModel.setThemeMode(it) }
+                    )
                     SettingSwitchItem(
                         title = "跳过 Shizuku 检查",
                         description = "如果 Shizuku 已启动但应用仍弹出警告，可开启此项（仅限 Shizuku 模式）",
-                        contentColor = color,
+                        contentColor = contentColor,
                         checked = skipShizukuCheck,
                         enabled = startupBackend == RemoteBackend.SHIZUKU,
                         onCheckedChange = { viewModel.setSkipShizukuCheck(it) }
@@ -252,36 +233,29 @@ fun SettingsView(
 
             // 关于
             item {
+                SectionHeader("关于")
                 InfoCard(
                     title = "",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = primaryContent
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    contentColor = contentColor
                 ) {
-                    Text(
-                        text = "关于",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Medium,
-                        color = primaryContent,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
 
-                    SettingInfoRow("版本", BuildConfig.VERSION_NAME, primaryContent)
-                    SettingsDivider(primaryContent)
-                    SettingInfoRow("开发者", "Aliothmoon", primaryContent)
-                    SettingsDivider(primaryContent)
+                    SettingInfoRow("版本", BuildConfig.VERSION_NAME, contentColor)
+                    SettingsDivider(contentColor)
+                    SettingInfoRow("开发者", "Aliothmoon", contentColor)
+                    SettingsDivider(contentColor)
                     SettingClickItem(
                         title = "问题反馈 QQ 群",
                         description = "遇到问题或有建议？欢迎加群交流反馈",
-                        contentColor = primaryContent
+                        contentColor = contentColor
                     ) {
                         Misc.openUriSafely(context, "https://qm.qq.com/q/j4CFbeDQXu")
                     }
-                    SettingsDivider(primaryContent)
+                    SettingsDivider(contentColor)
                     Text(
                         text = "⭐ 喜欢就给个 Star 吧",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = primaryContent,
+                        color = contentColor,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -302,6 +276,62 @@ fun SettingsView(
 }
 
 @Composable
+private fun SettingThemeModeItem(
+    contentColor: Color,
+    selectedMode: AppSettingsManager.ThemeMode,
+    onModeSelected: (AppSettingsManager.ThemeMode) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = MaaDesignTokens.Spacing.listItemVertical),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "主题模式",
+                style = MaterialTheme.typography.bodyLarge,
+                color = contentColor
+            )
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val modes = listOf(
+                AppSettingsManager.ThemeMode.WHITE to "白色",
+                AppSettingsManager.ThemeMode.DARK to "暗色",
+                AppSettingsManager.ThemeMode.PURE_DARK to "纯黑"
+            )
+            modes.forEach { (mode, label) ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .selectable(
+                            selected = mode == selectedMode,
+                            onClick = { onModeSelected(mode) },
+                            role = Role.RadioButton
+                        )
+                ) {
+                    RadioButton(
+                        selected = mode == selectedMode,
+                        onClick = null
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SettingClickItem(
     title: String,
     description: String,
@@ -312,7 +342,7 @@ private fun SettingClickItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+            .padding(vertical = MaaDesignTokens.Spacing.listItemVertical),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -342,7 +372,7 @@ private fun SettingSwitchItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .padding(vertical = MaaDesignTokens.Spacing.listItemVertical),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -396,8 +426,23 @@ private fun SettingInfoRow(
 @Composable
 private fun SettingsDivider(contentColor: Color) {
     HorizontalDivider(
-        modifier = Modifier.padding(vertical = 8.dp),
-        color = contentColor.copy(alpha = 0.1f)
+        modifier = Modifier.padding(start = MaaDesignTokens.Separator.inset),
+        thickness = MaaDesignTokens.Separator.thickness,
+        color = contentColor.copy(alpha = 0.12f)
+    )
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(
+            start = 32.dp,
+            top = MaaDesignTokens.Spacing.lg,
+            bottom = MaaDesignTokens.Spacing.xs
+        )
     )
 }
 
@@ -410,7 +455,7 @@ private fun SettingChannelItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .padding(vertical = MaaDesignTokens.Spacing.listItemVertical),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -466,7 +511,7 @@ private fun SettingRemoteBackendItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .padding(vertical = MaaDesignTokens.Spacing.listItemVertical),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -77,7 +77,7 @@ fun TodayStagesHint(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Color(0xFFE8F5E9),
+        color = MaterialTheme.colorScheme.secondaryContainer,
         shape = RoundedCornerShape(4.dp)
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
@@ -97,8 +97,8 @@ fun TodayStagesHint(
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     activityTips.forEach { tip ->
                         val color = when {
-                            tip.startsWith("｢") -> Color(0xFFE65100) // 活动提示用橙色
-                            else -> Color(0xFFD84315) // 活动关卡掉落用深橙色
+                            tip.startsWith("｢") -> MaterialTheme.colorScheme.tertiary // 活动提示用橙色
+                            else -> MaterialTheme.colorScheme.onTertiaryContainer // 活动关卡掉落用深橙色
                         }
                         Text(
                             text = "· $tip",
@@ -111,7 +111,7 @@ fun TodayStagesHint(
                         Text(
                             text = "· 资源收集活动进行中（资源本全开放）",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF1976D2)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -133,12 +133,12 @@ fun TodayStagesHint(
                         text = "今日关卡小提示（$todayName）",
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF2E7D32)
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
                     Icon(
                         imageVector = Icons.Default.ArrowDropDown,
                         contentDescription = if (expanded) "收起" else "展开",
-                        tint = Color(0xFF2E7D32),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -154,8 +154,8 @@ fun TodayStagesHint(
                     ) {
                         regularTips.forEach { tip ->
                             val color = when {
-                                tip.trimStart().startsWith("(") -> Color(0xFF757575) // 仓库信息用灰色
-                                else -> Color(0xFF388E3C) // 资源提示用绿色
+                                tip.trimStart().startsWith("(") -> MaterialTheme.colorScheme.onSurfaceVariant // 仓库信息用灰色
+                                else -> MaterialTheme.colorScheme.onSecondaryContainer // 资源提示用绿色
                             }
                             Text(
                                 text = "· $tip",
@@ -171,7 +171,7 @@ fun TodayStagesHint(
                     text = "今日关卡小提示（$todayName）",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
-                    color = Color(0xFF2E7D32)
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
         }

@@ -67,9 +67,9 @@ private fun AllowUseStoneSaveSection(
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFFFEBEE),
+                color = MaterialTheme.colorScheme.errorContainer,
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color(0xFFE57373))
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
             ) {
                 Column(
                     modifier = Modifier.padding(12.dp),
@@ -79,12 +79,12 @@ private fun AllowUseStoneSaveSection(
                         text = "警告",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFD32F2F)
+                        color = MaterialTheme.colorScheme.onErrorContainer
                     )
                     Text(
                         text = "启用此选项后，源石使用设置将被保存。\n这可能导致意外消耗源石，请谨慎操作！",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFC62828)
+                        color = MaterialTheme.colorScheme.onErrorContainer
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -105,7 +105,7 @@ private fun AllowUseStoneSaveSection(
                             modifier = Modifier.height(32.dp),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFD32F2F)
+                                containerColor = MaterialTheme.colorScheme.error
                             )
                         ) {
                             Text("确认启用", style = MaterialTheme.typography.bodySmall)

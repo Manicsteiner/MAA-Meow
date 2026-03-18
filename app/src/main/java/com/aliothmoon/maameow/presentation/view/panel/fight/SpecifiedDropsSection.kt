@@ -59,13 +59,13 @@ fun SpecifiedDropsSection(
             // 材料选择说明提示
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFFFF3E0),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
                 shape = RoundedCornerShape(4.dp)
             ) {
                 Text(
                     text = "该选项不会自动计算最优关卡，请手动选择关卡",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFF57C00),
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
                     modifier = Modifier.padding(8.dp)
                 )
             }

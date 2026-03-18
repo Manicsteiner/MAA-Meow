@@ -26,9 +26,15 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PageSize
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
@@ -61,6 +67,8 @@ fun MallConfigPanel(config: MallConfig, onConfigChange: (MallConfig) -> Unit) {
         pageCount = { 2 }
     )
     val coroutineScope = rememberCoroutineScope()
+    var isReorderMode by remember { mutableStateOf(false) }
+    var isDraggingPriority by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -104,12 +112,13 @@ fun MallConfigPanel(config: MallConfig, onConfigChange: (MallConfig) -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            userScrollEnabled = true
+            userScrollEnabled = !isReorderMode && !isDraggingPriority
         ) { page ->
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(end = 12.dp, bottom = 8.dp)
+                contentPadding = PaddingValues(end = 12.dp, bottom = 8.dp),
+                userScrollEnabled = !isDraggingPriority
             ) {
                 when (page) {
                     // 常规设置 Tab
@@ -119,11 +128,20 @@ fun MallConfigPanel(config: MallConfig, onConfigChange: (MallConfig) -> Unit) {
                             BasicMallSettings(config, onConfigChange)
                         }
                         item {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                thickness = 0.5.dp
+                            )
                         }
                         // 优先购买物品列表（可拖拽排序）
                         item {
-                            PriorityItemsSection(config, onConfigChange)
+                            PriorityItemsSection(
+                                config = config,
+                                onConfigChange = onConfigChange,
+                                isReorderMode = isReorderMode,
+                                onReorderModeChange = { isReorderMode = it },
+                                onDraggingChanged = { isDraggingPriority = it }
+                            )
                         }
                         // 提示信息
                         item {
@@ -138,7 +156,10 @@ fun MallConfigPanel(config: MallConfig, onConfigChange: (MallConfig) -> Unit) {
                             BlacklistSection(config, onConfigChange)
                         }
                         item {
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                thickness = 0.5.dp
+                            )
                         }
                         // 高级选项：溢出时无视黑名单、只买打折商品、预留信用点
                         item {
@@ -222,14 +243,14 @@ private fun BasicMallSettings(config: MallConfig, onConfigChange: (MallConfig) -
         if (config.creditFight && !creditFightAvailability.isAvailable) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFFFF3E0),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
                 shape = RoundedCornerShape(4.dp)
             ) {
                 Text(
                     text = creditFightAvailability.warningMessage
                         ?: "当前存在无法解析有效关卡的理智作战任务，本次不会借助战打一把 OF-1。",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFF57C00),
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
                     modifier = Modifier.padding(8.dp)
                 )
             }
@@ -243,13 +264,13 @@ private fun BasicMallSettings(config: MallConfig, onConfigChange: (MallConfig) -
             )
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFE3F2FD),
+                color = MaterialTheme.colorScheme.secondaryContainer,
                 shape = RoundedCornerShape(4.dp)
             ) {
                 Text(
                     "借助战需要好友支援，确保好友列表有可用支援干员",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF1976D2),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.padding(8.dp)
                 )
             }
@@ -272,7 +293,7 @@ private fun FormationSelector(selectedFormation: Int, onFormationChange: (Int) -
                     modifier = Modifier
                         .clickable { onFormationChange(value) }
                         .background(
-                            if (selectedFormation == value) Color(0xFFE3F2FD) else Color.Transparent,
+                            if (selectedFormation == value) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
                             RoundedCornerShape(4.dp)
                         )
                         .padding(horizontal = 4.dp, vertical = 4.dp),
@@ -292,7 +313,13 @@ private fun FormationSelector(selectedFormation: Int, onFormationChange: (Int) -
 }
 
 @Composable
-private fun PriorityItemsSection(config: MallConfig, onConfigChange: (MallConfig) -> Unit) {
+private fun PriorityItemsSection(
+    config: MallConfig,
+    onConfigChange: (MallConfig) -> Unit,
+    isReorderMode: Boolean,
+    onReorderModeChange: (Boolean) -> Unit,
+    onDraggingChanged: (Boolean) -> Unit
+) {
     var priorityItems by remember(config.buyFirst) {
         mutableStateOf(config.buyFirst)
     }
@@ -308,8 +335,27 @@ private fun PriorityItemsSection(config: MallConfig, onConfigChange: (MallConfig
                 Text(
                     "优先购买物品",
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f)
                 )
+
+                if (config.shopping && priorityItems.isNotEmpty()) {
+                    IconButton(
+                        onClick = { onReorderModeChange(!isReorderMode) },
+                        modifier = Modifier.size(32.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = if (isReorderMode) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                            contentColor = if (isReorderMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    ) {
+                        Icon(
+                            if (isReorderMode) Icons.Default.Done else Icons.Default.SwapVert,
+                            contentDescription = if (isReorderMode) "完成" else "排序",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
                 ExpandableTipIcon(
                     expanded = tipExpanded,
                     onExpandedChange = { tipExpanded = it })
@@ -320,20 +366,20 @@ private fun PriorityItemsSection(config: MallConfig, onConfigChange: (MallConfig
             )
         }
         Text(
-            "长按拖动可调整优先级顺序，点击×删除",
+            if (isReorderMode) "当前处于排序模式，长按列表项可调整优先级，完成后点击勾选按钮退出" else "开启排序模式可调整优先级顺序，点击×删除",
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = if (isReorderMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
         )
         if (!config.shopping) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFFFF3E0),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
                 shape = RoundedCornerShape(4.dp)
             ) {
                 Text(
                     "请先启用「购买信用商店物品」功能",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFF57C00),
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
                     modifier = Modifier.padding(8.dp)
                 )
             }
@@ -342,25 +388,35 @@ private fun PriorityItemsSection(config: MallConfig, onConfigChange: (MallConfig
         ReorderablePriorityList(
             items = priorityItems,
             enabled = config.shopping,
+            isReorderMode = isReorderMode,
             onItemsReordered = { newList ->
+                priorityItems = newList.toMutableList()
+            },
+            onItemRemoved = { index ->
+                val newList = priorityItems.filterIndexed { i, _ -> i != index }
                 priorityItems = newList.toMutableList()
                 onConfigChange(config.copy(buyFirst = newList))
             },
-            onItemRemoved = { index ->
-                priorityItems = priorityItems.filterIndexed { i, _ -> i != index }.toMutableList()
-                onConfigChange(config.copy(buyFirst = priorityItems))
+            onDraggingChanged = { dragging ->
+                onDraggingChanged(dragging)
+                if (!dragging) {
+                    onConfigChange(config.copy(buyFirst = priorityItems))
+                }
             }
         )
 
         // 添加按钮
-        Button(
-            onClick = { showAddPanel = !showAddPanel },
-            enabled = config.shopping,
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (showAddPanel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
-            )
-        ) { Text(if (showAddPanel) "收起" else "添加物品") }
+        AnimatedVisibility(visible = !isReorderMode) {
+            Button(
+                onClick = { showAddPanel = !showAddPanel },
+                enabled = config.shopping,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) { Text(if (showAddPanel) "收起" else "添加物品") }
+        }
 
         // 内联添加面板（输入框形式）
         AnimatedVisibility(
@@ -439,13 +495,13 @@ private fun BlacklistSection(config: MallConfig, onConfigChange: (MallConfig) ->
         if (!config.shopping) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFFFF3E0),
+                color = MaterialTheme.colorScheme.tertiaryContainer,
                 shape = RoundedCornerShape(4.dp)
             ) {
                 Text(
                     "请先启用「购买信用商店物品」功能",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFF57C00),
+                    color = MaterialTheme.colorScheme.onTertiaryContainer,
                     modifier = Modifier.padding(8.dp)
                 )
             }

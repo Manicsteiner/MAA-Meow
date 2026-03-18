@@ -29,5 +29,7 @@ data class AppSettings(
 
     @PrefKey(default = "STABLE") val updateChannel: String = "STABLE",
 
-    @PrefKey(default = "true") val showTouchPreview: String = "true"
+    @PrefKey(default = "false") val showTouchPreview: String = "false",
+
+    @PrefKey(default = "WHITE") val themeMode: String = "WHITE",
 )

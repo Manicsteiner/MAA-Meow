@@ -1,13 +1,16 @@
 package com.aliothmoon.maameow.presentation.view.panel.mall
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
@@ -16,21 +19,17 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
 
 @Composable
 fun PriorityItemRow(
     item: String,
-    index: Int,
     isDragging: Boolean,
+    isReorderMode: Boolean,
     enabled: Boolean,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier
@@ -38,9 +37,23 @@ fun PriorityItemRow(
     Card(
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = if (enabled) Color.White else MaterialTheme.colorScheme.surfaceVariant
+            containerColor = when {
+                isDragging -> MaterialTheme.colorScheme.surfaceVariant
+                isReorderMode -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+                enabled -> MaterialTheme.colorScheme.surface
+                else -> MaterialTheme.colorScheme.surfaceVariant
+            }
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 8.dp else 2.dp)
+        border = BorderStroke(
+            width = 1.dp,
+            color = when {
+                isDragging -> MaterialTheme.colorScheme.primary
+                isReorderMode -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                else -> MaterialTheme.colorScheme.outlineVariant
+            }
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isDragging) 8.dp else 0.dp),
+        shape = MaterialTheme.shapes.extraSmall
     ) {
         Row(
             modifier = Modifier
@@ -48,47 +61,45 @@ fun PriorityItemRow(
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                modifier = Modifier.size(28.dp),
-                shape = RoundedCornerShape(14.dp),
-                color = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+            AnimatedVisibility(
+                visible = isReorderMode,
+                enter = fadeIn(),
+                exit = fadeOut() + shrinkHorizontally()
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        "${index + 1}",
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Menu,
+                        "拖动排序",
+                        modifier = Modifier
+                            .size(28.dp)
+                            .padding(5.dp),
+                        tint = MaterialTheme.colorScheme.primary
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
             }
-            Spacer(modifier = Modifier.width(12.dp))
+
             Text(
                 item,
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (enabled) Color.Black else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.weight(1f)
             )
-            // 删除按钮
-            IconButton(
-                onClick = onRemove,
-                enabled = enabled,
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    Icons.Default.Close,
-                    contentDescription = "删除",
-                    modifier = Modifier.size(16.dp),
-                    tint = if (enabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant
-                )
+
+            AnimatedVisibility(visible = !isReorderMode) {
+                IconButton(
+                    onClick = onRemove,
+                    enabled = enabled && !isDragging,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "删除",
+                        modifier = Modifier.size(16.dp),
+                        tint = if (enabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outlineVariant
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(4.dp))
-            Icon(
-                Icons.Default.Menu,
-                "拖动排序",
-                modifier = Modifier.size(20.dp),
-                tint = if (enabled) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.outlineVariant
-            )
         }
     }
 }

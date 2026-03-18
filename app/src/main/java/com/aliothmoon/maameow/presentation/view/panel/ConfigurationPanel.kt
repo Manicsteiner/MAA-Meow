@@ -255,7 +255,8 @@ private fun TaskGalleryView(onAddNode: (TaskTypeInfo) -> Unit) {
                             text = typeInfo.displayName,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }

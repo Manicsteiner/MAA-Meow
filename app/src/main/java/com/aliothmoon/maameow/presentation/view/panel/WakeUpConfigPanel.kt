@@ -72,12 +72,13 @@ fun WakeUpConfigPanel(
                             alpha = if (isTaskActive) 0.5f else 1f
                         )
 
-                        else -> Color(0xFFE0E0E0)
+                        isTaskActive -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f)
+                        else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
                     }
                     val textColor = when {
-                        isSelected -> Color.White
-                        isTaskActive -> MaterialTheme.colorScheme.onSurfaceVariant
-                        else -> Color.DarkGray
+                        isSelected -> MaterialTheme.colorScheme.onPrimary
+                        isTaskActive -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+                        else -> MaterialTheme.colorScheme.onSurface
                     }
                     Surface(
                         modifier = Modifier

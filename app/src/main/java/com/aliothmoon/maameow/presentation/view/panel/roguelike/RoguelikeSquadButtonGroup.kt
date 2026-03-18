@@ -55,13 +55,13 @@ fun RoguelikeSquadButtonGroup(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .clickable { onValueChange(squad) },
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color(0xFFE0E0E0),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(
                         text = squad,
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (isSelected) Color.White else Color.DarkGray,
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }

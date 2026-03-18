@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.aliothmoon.maameow.constant.Routes
+import com.aliothmoon.maameow.theme.MaaDesignTokens
 
 sealed class BottomNavTab(
     val route: String,
@@ -56,14 +57,17 @@ fun AppBottomNavigation(
     currentRoute: String,
     onTabSelected: (BottomNavTab) -> Unit
 ) {
-    Surface(color = Color.White) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 0.dp
+    ) {
         Column {
-            HorizontalDivider(thickness = 1.dp, color = Color(0xFFe5e7eb))
+            HorizontalDivider(thickness = MaaDesignTokens.Separator.thickness, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(horizontal = 24.dp, vertical = 2.dp),
+                    .padding(horizontal = 24.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -72,7 +76,7 @@ fun AppBottomNavigation(
                     val contentColor = if (selected)
                         MaterialTheme.colorScheme.primary
                     else
-                        Color(0xFF9ca3af)
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
 
                     Column(
                         modifier = Modifier

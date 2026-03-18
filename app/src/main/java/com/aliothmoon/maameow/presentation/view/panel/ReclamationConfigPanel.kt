@@ -128,13 +128,13 @@ fun ReclamationConfigPanel(config: ReclamationConfig, onConfigChange: (Reclamati
                             AnimatedVisibility(visible = config.mode == 1) {
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(),
-                                    color = Color(0xFFE3F2FD),
+                                    color = MaterialTheme.colorScheme.tertiaryContainer,
                                     shape = RoundedCornerShape(4.dp)
                                 ) {
                                     Text(
                                         "通过组装支援道具刷生息点数，需要有存档",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = Color(0xFF1976D2),
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer,
                                         modifier = Modifier.padding(8.dp)
                                     )
                                 }
@@ -205,13 +205,13 @@ fun ReclamationConfigPanel(config: ReclamationConfig, onConfigChange: (Reclamati
                         item {
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
-                                color = Color(0xFFFFF3E0),
+                                color = MaterialTheme.colorScheme.errorContainer,
                                 shape = RoundedCornerShape(4.dp)
                             ) {
                                 Text(
                                     "目前生息演算的支持仍处于中期阶段，使用时请注意以下几点。",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color(0xFFF57C00),
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.padding(8.dp)
                                 )
@@ -304,9 +304,9 @@ private fun ReclamationButtonGroup(
                         .clip(RoundedCornerShape(16.dp))
                         .clickable(enabled = enabled) { onValueChange(value) },
                     color = when {
-                        !enabled -> Color(0xFFE0E0E0)
+                        !enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         isSelected -> MaterialTheme.colorScheme.primary
-                        else -> Color(0xFFE0E0E0)
+                        else -> MaterialTheme.colorScheme.surfaceVariant
                     },
                     shape = RoundedCornerShape(16.dp)
                 ) {
@@ -314,9 +314,9 @@ private fun ReclamationButtonGroup(
                         text = displayName,
                         style = MaterialTheme.typography.bodySmall,
                         color = when {
-                            !enabled -> MaterialTheme.colorScheme.outlineVariant
-                            isSelected -> Color.White
-                            else -> Color.DarkGray
+                            !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            isSelected -> MaterialTheme.colorScheme.onPrimary
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )

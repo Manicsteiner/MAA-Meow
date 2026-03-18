@@ -165,7 +165,7 @@ fun HomeView(
                 title = {
                     Text(
                         text = "MAA",
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         style = MaterialTheme.typography.headlineMedium
                     )
                 },
@@ -180,8 +180,9 @@ fun HomeView(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground,
+                    actionIconContentColor = MaterialTheme.colorScheme.primary
                 )
             )
             LazyColumn(
@@ -256,7 +257,7 @@ fun HomeView(
                 }
 
                 item {
-                    OutlinedButton(
+                    Button(
                         onClick = {
                             Timber.d("关闭所有服务")
                             viewModel.onStopAllServices()
@@ -264,8 +265,9 @@ fun HomeView(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
+                            contentColor = Color.White
                         ),
                         shape = MaterialTheme.shapes.large,
                         enabled = !uiState.isLoading
@@ -371,8 +373,10 @@ private fun ScreenInfoCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
@@ -390,7 +394,7 @@ private fun ScreenInfoCard(
                     text = "屏幕分辨率",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "$screenWidth × $screenHeight",
@@ -407,7 +411,7 @@ private fun ScreenInfoCard(
                     text = "资源版本",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = resourceVersion.ifBlank { "未安装" },
@@ -427,7 +431,7 @@ private fun ScreenInfoCard(
                     text = "服务状态",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 val statusColor = when (serviceStatusColor) {
@@ -473,8 +477,10 @@ private fun RunModeCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Row(
@@ -489,7 +495,7 @@ private fun RunModeCard(
                     text = "运行模式",
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = when (runMode) {
@@ -497,7 +503,7 @@ private fun RunModeCard(
                         RunMode.BACKGROUND -> "后台模式：应用内运行"
                     },
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Row(
@@ -507,7 +513,7 @@ private fun RunModeCard(
                 Text(
                     text = runMode.displayName,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Switch(
                     checked = runMode == RunMode.BACKGROUND,
@@ -570,12 +576,14 @@ private fun PermissionCard(
     onRequestNotification: () -> Unit
 ) {
     var expandedPermissions by remember { mutableStateOf(false) }
-    val contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+    val contentColor = MaterialTheme.colorScheme.onSurface
 
     Card(
         modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
@@ -678,12 +686,9 @@ private fun ForegroundModeSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            OutlinedButton(
+            Button(
                 onClick = onChangeTo16x9Resolution,
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.primary
-                ),
                 shape = MaterialTheme.shapes.small
             ) {
                 Text(
@@ -692,12 +697,9 @@ private fun ForegroundModeSection(
                 )
             }
 
-            OutlinedButton(
+            Button(
                 onClick = onResetResolution,
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = MaterialTheme.colorScheme.primary
-                ),
                 shape = MaterialTheme.shapes.small
             ) {
                 Text(
@@ -708,8 +710,10 @@ private fun ForegroundModeSection(
         }
         Card(
             modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            shape = MaterialTheme.shapes.medium,
             colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                containerColor = MaterialTheme.colorScheme.surface
             )
         ) {
             Row(
@@ -724,7 +728,7 @@ private fun ForegroundModeSection(
                         text = "悬浮窗模式",
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = if (overlayControlMode == OverlayControlMode.ACCESSIBILITY)
@@ -732,7 +736,7 @@ private fun ForegroundModeSection(
                         else
                             "点击悬浮球切换面板",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Row(
@@ -742,7 +746,7 @@ private fun ForegroundModeSection(
                     Text(
                         text = overlayControlMode.displayName,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Switch(
                         checked = overlayControlMode == OverlayControlMode.ACCESSIBILITY,

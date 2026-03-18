@@ -42,7 +42,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
@@ -239,8 +238,10 @@ fun UpdateCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+            containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
         Column(
@@ -253,7 +254,7 @@ fun UpdateCard(
                 text = "更新管理",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onTertiaryContainer
+                color = MaterialTheme.colorScheme.onSurface
             )
 
             // ========== 更新项列表 ==========
@@ -271,12 +272,12 @@ fun UpdateCard(
                     Text(
                         text = "App本体",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f)
                     )
 
                     if (!appIsUpdating) {
-                        OutlinedButton(
+                        TextButton(
                             onClick = { viewModel.checkAppUpdate() },
                             enabled = !appIsChecking,
                             modifier = Modifier.defaultMinSize(minHeight = 1.dp),
@@ -319,7 +320,7 @@ fun UpdateCard(
                     )
 
                     if (!resIsUpdating) {
-                        OutlinedButton(
+                        TextButton(
                             onClick = { viewModel.checkResourceUpdate() },
                             enabled = !resIsChecking,
                             modifier = Modifier.defaultMinSize(minHeight = 1.dp),

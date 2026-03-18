@@ -71,4 +71,13 @@ class SettingsViewModel(
             appSettingsManager.setUpdateChannel(channel)
         }
     }
+
+    val themeMode: StateFlow<AppSettingsManager.ThemeMode> = appSettingsManager.themeMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettingsManager.ThemeMode.WHITE)
+
+    fun setThemeMode(mode: AppSettingsManager.ThemeMode) {
+        viewModelScope.launch {
+            appSettingsManager.setThemeMode(mode)
+        }
+    }
 }

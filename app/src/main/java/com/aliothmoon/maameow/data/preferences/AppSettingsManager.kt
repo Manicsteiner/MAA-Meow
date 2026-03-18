@@ -229,11 +229,11 @@ class AppSettingsManager(private val context: Context) {
 
     // 触摸预览
     val showTouchPreview: StateFlow<Boolean> = settings
-        .map { it.showTouchPreview.toBooleanStrictOrNull() ?: true }
+        .map { it.showTouchPreview.toBooleanStrictOrNull() ?: false }
         .distinctUntilChanged()
         .stateIn(
             scope, SharingStarted.Eagerly,
-            initialSettings.showTouchPreview.toBooleanStrictOrNull() ?: true
+            initialSettings.showTouchPreview.toBooleanStrictOrNull() ?: false
         )
 
     suspend fun setShowTouchPreview(enabled: Boolean) {
@@ -260,4 +260,40 @@ class AppSettingsManager(private val context: Context) {
             context.dataStore.edit { it[updateChannel] = channel.name }
         }
     }
+
+    // 主题模式
+    enum class ThemeMode {
+        WHITE, DARK, PURE_DARK
+    }
+
+    val themeMode: StateFlow<ThemeMode> = settings
+        .map {
+            val modeStr = it.themeMode
+            if (modeStr == "SYSTEM" || modeStr == "LIGHT") {
+                ThemeMode.WHITE
+            } else {
+                runCatching { ThemeMode.valueOf(modeStr) }
+                    .getOrDefault(ThemeMode.WHITE)
+            }
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope, SharingStarted.Eagerly,
+            runCatching { 
+                val initialModeStr = initialSettings.themeMode
+                if (initialModeStr == "SYSTEM" || initialModeStr == "LIGHT") {
+                    ThemeMode.WHITE
+                } else {
+                    ThemeMode.valueOf(initialModeStr)
+                }
+            }
+                .getOrDefault(ThemeMode.WHITE)
+        )
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        with(AppSettingsSchema) {
+            context.dataStore.edit { it[themeMode] = mode.name }
+        }
+    }
+
 }
