@@ -93,6 +93,7 @@ object RemoteServiceManager {
     fun initialize(context: Context, appSettings: AppSettingsManager) {
         RemoteAccessCoordinator.initialize(appSettings)
         RootRemoteServiceConnector.initialize(context)
+        LogcatServiceManager.initialize(context)
     }
 
     private fun onBinderConnected(backend: RemoteBackend, binder: IBinder) {

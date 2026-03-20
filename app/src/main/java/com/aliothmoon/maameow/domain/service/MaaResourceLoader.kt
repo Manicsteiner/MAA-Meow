@@ -1,5 +1,6 @@
 package com.aliothmoon.maameow.domain.service
 
+import android.os.Process
 import com.aliothmoon.maameow.MaaCoreService
 import com.aliothmoon.maameow.data.config.MaaPathConfig
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
@@ -10,12 +11,14 @@ import com.aliothmoon.maameow.data.resource.ItemHelper
 import com.aliothmoon.maameow.data.resource.ResourceDataManager
 import com.aliothmoon.maameow.manager.LogcatServiceManager
 import com.aliothmoon.maameow.manager.RemoteServiceManager.useRemoteService
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.File
@@ -51,10 +54,18 @@ class MaaResourceLoader(
                     remote.setup(pathConfig.rootDir, appSettings.debugMode.value)
 
                     if (appSettings.debugMode.value) {
-                        val appPid = android.os.Process.myPid()
+                        val appPid = Process.myPid()
                         val servicePid = remote.pid()
-                        LogcatServiceManager.bind()
-                        LogcatServiceManager.startCapture(appPid, servicePid, pathConfig.rootDir)
+                        CoroutineScope(Dispatchers.IO).async {
+                            LogcatServiceManager.bind()
+                            runCatching {
+                                LogcatServiceManager.startCapture(
+                                    appPid,
+                                    servicePid,
+                                    pathConfig.rootDir
+                                )
+                            }.onFailure { Timber.w(it, "LogcatService startCapture failed") }
+                        }
                     }
 
                     val maa = remote.maaCoreService

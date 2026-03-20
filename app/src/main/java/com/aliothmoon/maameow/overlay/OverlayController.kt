@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
@@ -90,7 +91,7 @@ class OverlayController(
     fun setup() {
         context.registerComponentCallbacks(callback)
         scope.launch {
-            appSettings.runMode.collect { mode ->
+            appSettings.runMode.drop(1).collect { mode ->
                 when (mode) {
                     RunMode.FOREGROUND -> {
                         install()
