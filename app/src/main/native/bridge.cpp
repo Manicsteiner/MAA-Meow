@@ -305,9 +305,30 @@ static int UpcallStartApp(JNIEnv *env, const char *packageName, int displayId, b
     return result ? 0 : -1;
 }
 
+static const char *MethodTypeName(MethodType method) {
+    switch (method) {
+        case TOUCH_DOWN:  return "TOUCH_DOWN";
+        case TOUCH_MOVE:  return "TOUCH_MOVE";
+        case TOUCH_UP:    return "TOUCH_UP";
+        case KEY_DOWN:    return "KEY_DOWN";
+        case KEY_UP:      return "KEY_UP";
+        case START_GAME:  return "START_GAME";
+        case STOP_GAME:   return "STOP_GAME";
+        case INPUT:       return "INPUT";
+        default:          return "UNKNOWN";
+    }
+}
+
 BRIDGE_API int DispatchInputMessage(MethodParam param) {
+    LOGD("DispatchInputMessage: method=%s(%d) display_id=%d",
+         MethodTypeName(param.method), param.method, param.display_id);
+
     auto *env = (JNIEnv *) AttachThread();
-    if (!env) return -1;
+    if (!env) {
+        LOGE("DispatchInputMessage: AttachThread failed, method=%s display_id=%d",
+             MethodTypeName(param.method), param.display_id);
+        return -1;
+    }
     switch (param.method) {
         case TOUCH_DOWN:
             return UpcallInputControl(env, TOUCH_DOWN, param.args.touch.p.x, param.args.touch.p.y,

@@ -35,6 +35,8 @@ public final class WindowManager {
     private Method setForcedDisplaySizeMethod;
     private Method clearForcedDisplaySizeMethod;
 
+    private Method syncInputTransactions;
+
     static WindowManager create() {
         IInterface manager = ServiceManager.getService("window", "android.view.IWindowManager");
         return new WindowManager(manager);
@@ -316,9 +318,9 @@ public final class WindowManager {
      * Android 14+ 截图
      * 调用 IWindowManager.captureDisplay(displayId, captureArgs, listener)
      *
-     * @param displayId 显示器 ID (通常为 0)
+     * @param displayId   显示器 ID (通常为 0)
      * @param captureArgs 截图参数 (可为 null)
-     * @param listener ScreenCaptureListener 实例
+     * @param listener    ScreenCaptureListener 实例
      */
     @TargetApi(AndroidVersions.API_34_ANDROID_14)
     public void captureDisplay(int displayId, Object captureArgs, Object listener) {

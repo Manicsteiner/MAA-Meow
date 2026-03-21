@@ -1,5 +1,6 @@
 package com.aliothmoon.maameow.maa;
 
+import android.app.UiAutomation;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.view.InputDevice;
@@ -49,8 +50,8 @@ public final class InputControlUtils {
 
     private static void setPointerCoords(float x, float y, float pressure) {
         MotionEvent.PointerCoords coords = POINTER_COORDS[0];
-        coords.x = x;
-        coords.y = y;
+        coords.x = Math.max(0, x);
+        coords.y = Math.max(0, y);
         coords.pressure = pressure;
         coords.size = 1.0f;
     }
@@ -68,11 +69,15 @@ public final class InputControlUtils {
     }
 
     private static boolean injectInputEvent(MotionEvent event, int displayId, int mode) {
-        if (!setDisplayId(event, displayId)) {
-            return false;
+        try {
+            if (!setDisplayId(event, displayId)) {
+                return false;
+            }
+            notifyTouchCallback(event);
+            return getManager().injectInputEvent(event, mode);
+        } finally {
+            event.recycle();
         }
-        notifyTouchCallback(event);
-        return getManager().injectInputEvent(event, mode);
     }
 
     public static void setTouchCallback(ITouchEventCallback callback) {
@@ -99,28 +104,43 @@ public final class InputControlUtils {
     }
 
     public static synchronized boolean down(int x, int y, int displayId) {
+        // 在按下前，如果发现上一次序列未正常结束，强制发送一个 ACTION_CANCEL 确保触控槽位被清空
+        if (currentDownTime != 0) {
+            MotionEvent cancelEvent = obtainTouchEvent(currentDownTime, SystemClock.uptimeMillis(),
+                    MotionEvent.ACTION_CANCEL, (float) x, (float) y, 0.0f);
+            injectInputEvent(cancelEvent, displayId, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
+        }
+
         currentDownTime = SystemClock.uptimeMillis();
 
-
         MotionEvent motionEvent = obtainTouchEvent(currentDownTime, currentDownTime,
-                MotionEvent.ACTION_DOWN, x, y, 1.0f);
-        return injectInputEvent(motionEvent, displayId, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
+                MotionEvent.ACTION_DOWN, (float) x, (float) y, 1.0f);
+
+        // DOWN 事件必须使用 WAIT_FOR_FINISH 模式，确保起始状态被系统成功接收
+        return injectInputEvent(motionEvent, displayId, InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH);
     }
 
     public static synchronized boolean move(int x, int y, int displayId) {
-        long eventTime = SystemClock.uptimeMillis();
+        if (currentDownTime == 0) return false;
 
+        long eventTime = SystemClock.uptimeMillis();
         MotionEvent motionEvent = obtainTouchEvent(currentDownTime, eventTime,
-                MotionEvent.ACTION_MOVE, x, y, 1.0f);
+                MotionEvent.ACTION_MOVE, (float) x, (float) y, 1.0f);
         return injectInputEvent(motionEvent, displayId, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
     }
 
     public static synchronized boolean up(int x, int y, int displayId) {
-        long eventTime = SystemClock.uptimeMillis();
+        if (currentDownTime == 0) return false;
 
+        long eventTime = SystemClock.uptimeMillis();
         MotionEvent motionEvent = obtainTouchEvent(currentDownTime, eventTime,
-                MotionEvent.ACTION_UP, x, y, 0.0f);
-        return injectInputEvent(motionEvent, displayId, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
+                MotionEvent.ACTION_UP, (float) x, (float) y, 0.0f);
+        
+        boolean result = injectInputEvent(motionEvent, displayId, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
+        
+        // 抬起后重置时间戳
+        currentDownTime = 0;
+        return result;
     }
 
     public static boolean keyDown(int keyCode, int displayId) {
@@ -130,8 +150,7 @@ public final class InputControlUtils {
         if (!setDisplayId(keyEvent, displayId)) {
             return false;
         }
-
-        return getManager().injectInputEvent(keyEvent, InputManager.INJECT_INPUT_EVENT_MODE_ASYNC);
+        return getManager().injectInputEvent(keyEvent, InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH);
     }
 
     public static boolean keyUp(int keyCode, int displayId) {
