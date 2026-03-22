@@ -2,7 +2,7 @@
 
 # MAA Meow 🐱
 
-**在 Android 设备上原生运行 MAA**
+**在 Android 设备上原生运行 [MAA](https://github.com/MaaAssistantArknights/MaaAssistantArknights)**
 
 基于图像识别技术，一键完成全部日常任务
 
@@ -72,8 +72,8 @@
 ## 致谢
 
 - [MaaAssistantArknights](https://github.com/MaaAssistantArknights/MaaAssistantArknights) — 明日方舟游戏小助手，基于图像识别技术
-- [Genymobile/scrcpy](https://github.com/Genymobile/scrcpy) — Android 设备投屏与控制工具
-- [Shizuku](https://github.com/RikkaApps/Shizuku) — 通过 app_process 以 adb/root 权限调用系统 API
+- [Genymobile/scrcpy](https://github.com/Genymobile/scrcpy) — Display and control your Android device.
+- [Shizuku](https://github.com/RikkaApps/Shizuku) — Using system APIs directly with adb/root privileges from normal apps through a Java process started with app_process.
 
 ## 许可证
 

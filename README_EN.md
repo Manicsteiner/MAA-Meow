@@ -2,7 +2,7 @@
 
 # MAA Meow 🐱
 
-**Run MAA natively on Android**
+**Run [MAA](https://github.com/MaaAssistantArknights/MaaAssistantArknights) natively on Android**
 
 One-click automation for all daily tasks, powered by image recognition
 
@@ -72,8 +72,8 @@ If you find this project useful, consider giving it a Star ⭐ to help others di
 ## Acknowledgements
 
 - [MaaAssistantArknights](https://github.com/MaaAssistantArknights/MaaAssistantArknights) — Arknights assistant based on image recognition
-- [Genymobile/scrcpy](https://github.com/Genymobile/scrcpy) — Android screen mirroring & control
-- [Shizuku](https://github.com/RikkaApps/Shizuku) — Use system APIs with adb/root privileges via app_process
+- [Genymobile/scrcpy](https://github.com/Genymobile/scrcpy) — Display and control your Android device.
+- [Shizuku](https://github.com/RikkaApps/Shizuku) — Using system APIs directly with adb/root privileges from normal apps through a Java process started with app_process.
 
 ## License
 
