@@ -1,92 +1,80 @@
+<div align="center">
+
 # MAA Meow 🐱
 
-在 Android 设备上 **原生运行 MAA**
+**在 Android 设备上原生运行 MAA**
 
-无需Root权限，明日方舟可后台！正在开发中，功能不稳定，欢迎尝鲜体验～
+基于图像识别技术，一键完成全部日常任务
 
-基于图像识别技术，一键完成全部日常任务！
+[![GitHub Release](https://img.shields.io/github/v/release/Aliothmoon/MAA-Meow?style=flat-square&label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC)](https://github.com/Aliothmoon/MAA-Meow/releases/latest)
+[![License](https://img.shields.io/github/license/Aliothmoon/MAA-Meow?style=flat-square)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/Aliothmoon/MAA-Meow?style=flat-square)](https://github.com/Aliothmoon/MAA-Meow/stargazers)
+[![GitHub Downloads](https://img.shields.io/github/downloads/Aliothmoon/MAA-Meow/total?style=flat-square&label=%E4%B8%8B%E8%BD%BD%E9%87%8F)](https://github.com/Aliothmoon/MAA-Meow/releases)
 
-- 基于 [MaaAssistantArknights](https://github.com/MaaAssistantArknights/MaaAssistantArknights)
-- Jetpack Compose 构建 UI
-- 后台模式: 后台运行《明日方舟》, 无需修改分辨率
-- 前台模式: 悬浮控制面板
-- [点击此处下载最新版本](https://github.com/Aliothmoon/MAA-Meow/releases/latest)
+[下载最新版](https://github.com/Aliothmoon/MAA-Meow/releases/latest) · [问题反馈](https://github.com/Aliothmoon/MAA-Meow/issues) · [QQ 交流群](https://qm.qq.com/q/j4CFbeDQXu)
 
-## 这有什么不同？
+**[English](README_EN.md)** | **中文**
 
-🧠 **原生运行 MAA Core** — 直接在 Android 上运行自动化逻辑
+</div>
 
-🚀 **无需模拟器** — 不需要PC
+---
 
-🪟 **双模式运行** — 前台悬浮控制面板 / 后台虚拟显示器无界面运行
+> 无需 Root 权限，明日方舟可后台！正在开发中，功能不稳定，欢迎尝鲜体验～
 
-📦 **完整任务支持** — 理智作战、公招识别、基建托管、抄作业、自动肉鸽，以及其他 MAA 支持的任务
+<p align="center">
+  <img src="docs/screenshots/home.png" width="200" />
+  <img src="docs/screenshots/background_task.png" width="200" />
+  <img src="docs/screenshots/schedule.png" width="200" />
+  <img src="docs/screenshots/auto_controls.png" width="200" />
+</p>
+
+## 特性
+
+|  | 特性 | 说明 |
+|---|---|---|
+| 🧠 | **原生运行 MAA Core** | 直接在 Android 上运行自动化逻辑，无需 PC 或模拟器 |
+| 🪟 | **双模式运行** | 前台悬浮控制面板 / 后台虚拟显示器无界面运行 |
+| 📦 | **完整任务支持** | 理智作战、公招识别、基建托管、抄作业、自动肉鸽等 |
+| ⏱️ | **定时任务** | 按预设时间自动启动任务，适合日常挂机 |
+| 🔄 | **自动更新** | 启动时自动检查并下载应用和资源更新 |
 
 ## 运行要求
 
-- Android 9+（API 28）
-- 设备上运行 [Shizuku](https://shizuku.rikka.app/) 且已获取权限
-- arm64-v8a 或 x86_64 设备
+| 项目 | 要求 |
+|---|---|
+| 系统版本 | Android 9+（API 28） |
+| 权限方案 | [Shizuku](https://shizuku.rikka.app/) 已运行并授权，或设备已 Root |
+| 设备架构 | arm64-v8a 或 x86_64 |
 
-## 构建
+## 文档
 
-- 安装 [Eclipse Temurin JDK 21](https://adoptium.net/zh-CN/temurin/releases?version=21)
+| 文档 | 说明 |
+|---|---|
+| [构建指南](docs/BUILDING.md) | 从源码构建 APK |
+| [Roadmap](docs/ROADMAP.md) | 功能规划与进度 |
+| [第三方代码声明](docs/THIRD_PARTY_NOTICES.md) | 引用的开源组件及许可证 |
 
-- 安装 [Android Studio](https://developer.android.com/studio)
+## 参与贡献
 
-- 下载 MAA Core 预编译产物（so 库 + 资源文件）
+欢迎提交 Pull Request！无论是修复 Bug、优化体验还是实现新功能，我们都非常感谢。
 
-  ```bash
-  python scripts/setup_maa_core.py
-  ```
+1. Fork 本仓库
+2. 创建你的分支 (`git checkout -b feat/your-feature`)
+3. 提交更改 (`git commit -m 'feat: 添加某某功能'`)
+4. 推送到远程 (`git push origin feat/your-feature`)
+5. 发起 Pull Request
 
-- 使用 Android Studio 打开此文件夹，在 Settings - Build, Execution, Deployment - Build Tools - Gradle - Gradle Projects - Gradle JDK 选择此前安装的 temurin-21
+> 提交信息请遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范（`feat:`、`fix:`、`docs:` 等）。
+> 首次构建请参阅 [构建指南](docs/BUILDING.md)。
 
-- 运行 Sync Project with Gradle Files，Android Studio 将自行安装其他依赖，完成后运行 Assemble app Run Configuration 即可构建apk。
-
-## 问题反馈
-用户交流QQ群: 1074855131
-
-## Roadmap
-
-未来计划支持 / 优化以下内容：
-
-- [x] 原生 Root 权限支持  
-  在现有 Shizuku 方案之外，补充原生 Root 模式支持，提供更多运行方式选择，并进一步提升设备兼容性与可用性
-
-- [x] 小工具功能移植  
-  逐步移植 MAA 相关小工具(小游戏等)能力，补全更多可用场景
-
-- [x] 定时任务支持  
-  支持按照预设时间自动启动任务，减少手动操作，更适合日常挂机与固定流程执行
-
-- [ ] 外部通知支持  
-  在任务开始、结束或异常时，支持通过外部渠道推送通知，方便及时了解运行状态
-
-- [ ] MaaFramework Controller 迁移  
-  逐步迁移至 MaaFramework AndroidNativeController，优化底层实现，为后续功能扩展与维护打下基础
-
-## 第三方代码
-
-本项目包含来自以下开源项目的代码：
-
-| 组件                                                                                                   | 来源                                                                                      | 许可证                                                               |
-|------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------|-------------------------------------------------------------------|
-| MAA Core（自动化引擎，SO 库 + 资源文件）                                                                          | [MaaAssistantArknights](https://github.com/MaaAssistantArknights/MaaAssistantArknights) | [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.html)            |
-| [`app/src/main/java/com/aliothmoon/maameow/third/`](app/src/main/java/com/aliothmoon/maameow/third/) | [Genymobile/scrcpy](https://github.com/Genymobile/scrcpy)                               | [Apache License 2.0](LICENSE-Apache-2.0) |
-
-详细的第三方代码声明、修改说明及文件清单见 [docs/THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md)。
+如果觉得项目有用，欢迎点一个 Star ⭐ 让更多人看到！
 
 ## 致谢
 
-感谢以下开源项目，本项目的实现离不开它们的贡献：
-
-- [MaaAssistantArknights](https://github.com/MaaAssistantArknights/MaaAssistantArknights) — 一款明日方舟游戏小助手 基于图像识别技术，一键完成全部日常任务！
-- [Genymobile/scrcpy](https://github.com/Genymobile/scrcpy) — This application mirrors Android devices (video and audio) connected via USB or TCP/IP and allows control using the computer's keyboard and mouse. It does not require root access or an app installed on the device. It works on Linux, Windows, and macOS.
-- [Shizuku](https://github.com/RikkaApps/Shizuku) — Using system APIs directly with adb/root privileges from normal apps through a Java process started with app_process.
+- [MaaAssistantArknights](https://github.com/MaaAssistantArknights/MaaAssistantArknights) — 明日方舟游戏小助手，基于图像识别技术
+- [Genymobile/scrcpy](https://github.com/Genymobile/scrcpy) — Android 设备投屏与控制工具
+- [Shizuku](https://github.com/RikkaApps/Shizuku) — 通过 app_process 以 adb/root 权限调用系统 API
 
 ## 许可证
 
-本项目以 [AGPL-3.0](LICENSE) 许可证发布。
-
-第三方代码保留其原始许可证，详见上方说明。
+本项目以 [AGPL-3.0](LICENSE) 许可证发布。第三方代码保留其原始许可证，详见[第三方代码声明](docs/THIRD_PARTY_NOTICES.md)。
