@@ -27,6 +27,25 @@ class SubTaskHandler(
     private val resources = applicationContext.resources
     private val packageName = applicationContext.packageName
 
+    // 战斗进度临时暂存（FightTimes/SanityBeforeStage 先于 StartButton2/AnnihilationConfirm 到达）
+    private data class PendingFightState(
+        val fightCurrent: Int? = null,
+        val fightTotal: Int? = null,
+        val sanity: Int? = null,
+        val sanityMax: Int? = null,
+    )
+
+    private var pendingFight = PendingFightState()
+
+    // 本次会话累计用药数（跨战斗累计，session 开始时重置）
+    private var medicineUsedTotal = 0
+
+    /** 每次新 session 开始时调用，重置跨任务状态 */
+    fun resetSessionState() {
+        pendingFight = PendingFightState()
+        medicineUsedTotal = 0
+    }
+
     /**
      * 主分发方法
      */
@@ -73,7 +92,21 @@ class SubTaskHandler(
             }
 
             "BattleFormationTask" -> {
-                append(str("MissingOperators"), LogLevel.ERROR)
+                val innerDetails = details.getJSONObject("details")
+                val opers = innerDetails?.getJSONObject("opers")
+                if (opers.isNullOrEmpty()) {
+                    append(str("MissingOperators"), LogLevel.ERROR)
+                } else {
+                    val sb = StringBuilder(str("MissingOperators")).append("\n")
+                    opers.forEach { (key, value) ->
+                        val names = when (value) {
+                            is com.alibaba.fastjson2.JSONArray -> value.joinToString(", ")
+                            else -> value.toString()
+                        }
+                        sb.append("[$key]: $names\n")
+                    }
+                    append(sb.trimEnd().toString(), LogLevel.ERROR)
+                }
             }
 
             "CopilotTask" -> {
@@ -121,7 +154,14 @@ class SubTaskHandler(
     ) {
         when (task) {
             "StartButton2", "AnnihilationConfirm" -> {
-                append(str("MissionStart"), LogLevel.INFO)
+                val sb = StringBuilder(str("MissionStart"))
+                val pf = pendingFight
+                if (pf.fightCurrent != null && pf.fightTotal != null)
+                    sb.append(" (${pf.fightCurrent + 1}/${pf.fightTotal})")
+                if (pf.sanity != null)
+                    sb.append("  ${str("Sanity")}: ${pf.sanity}/${pf.sanityMax}")
+                append(sb.toString(), LogLevel.INFO)
+                pendingFight = PendingFightState()
             }
 
             "StoneConfirm" -> {
@@ -238,21 +278,25 @@ class SubTaskHandler(
             val innerDetails = details.getJSONObject("details")
             val task = innerDetails?.getString("task")
 
-            when {
-                taskchain == "Infrast" && task == "UnlockClues" -> {
+            when (taskchain) {
+                "Infrast" if task == "UnlockClues" -> {
                     append(str("ClueExchangeUnlocked"), LogLevel.TRACE)
                 }
 
-                taskchain == "Roguelike" && task == "StartExplore" -> {
+                "Infrast" if task == "SendClues" -> {
+                    append(str("CluesSent"), LogLevel.TRACE)
+                }
+
+                "Roguelike" if task == "StartExplore" -> {
                     val times = innerDetails.getIntValue("exec_times", 0)
                     append("${str("BegunToExplore")} $times ${str("UnitTime")}", LogLevel.INFO)
                 }
 
-                taskchain == "Mall" && task == "EndOfActionThenStop" -> {
+                "Mall" if task == "EndOfActionThenStop" -> {
                     append("${str("CompleteTask")}${str("CreditFight")}", LogLevel.TRACE)
                 }
 
-                taskchain == "Mall" && (task == "VisitLimited" || task == "VisitNextBlack") -> {
+                "Mall" if (task == "VisitLimited" || task == "VisitNextBlack") -> {
                     append("${str("CompleteTask")}${str("Visiting")}", LogLevel.TRACE)
                 }
             }
@@ -266,6 +310,20 @@ class SubTaskHandler(
         val subDetails = details.getJSONObject("details")
 
         when (what) {
+            "FightTimes" -> {
+                pendingFight = pendingFight.copy(
+                    fightCurrent = subDetails?.getIntValue("cur_times"),
+                    fightTotal = subDetails?.getIntValue("total_times"),
+                )
+            }
+
+            "SanityBeforeStage" -> {
+                pendingFight = pendingFight.copy(
+                    sanity = subDetails?.getIntValue("current"),
+                    sanityMax = subDetails?.getIntValue("max"),
+                )
+            }
+
             "StageDrops" -> handleStageDrops(subDetails)
             "AccountSwitch" -> {
                 val accountName = subDetails?.getString("account_name") ?: ""
@@ -487,11 +545,19 @@ class SubTaskHandler(
     private fun handleUseMedicine(subDetails: JSONObject?) {
         val count = subDetails?.getIntValue("count") ?: 0
         val isExpiring = subDetails?.getBooleanValue("is_expiring") ?: false
+        if (count > 0) medicineUsedTotal += count
 
         when {
             count == -1 -> append("${str("MedicineUsed")} Unknown times", LogLevel.ERROR)
-            isExpiring -> append("${str("ExpiringMedicineUsed")} (+$count)", LogLevel.INFO)
-            else -> append("${str("MedicineUsed")} (+$count)", LogLevel.INFO)
+            isExpiring -> append(
+                "${str("ExpiringMedicineUsed")} (+$count, ${str("Total")}: $medicineUsedTotal)",
+                LogLevel.INFO
+            )
+
+            else -> append(
+                "${str("MedicineUsed")} (+$count, ${str("Total")}: $medicineUsedTotal)",
+                LogLevel.INFO
+            )
         }
     }
 
@@ -543,7 +609,12 @@ class SubTaskHandler(
                 val tags = comb.getJSONArray("tags")?.joinToString("  ") ?: ""
 
                 // tag 组合标题行：按组合星级着色
-                withStyle(SpanStyle(color = LogLevel.forRecruitStar(tagLevel).color, fontWeight = FontWeight.Bold)) {
+                withStyle(
+                    SpanStyle(
+                        color = LogLevel.forRecruitStar(tagLevel).color,
+                        fontWeight = FontWeight.Bold
+                    )
+                ) {
                     append("$tagLevel★ Tags:  $tags")
                 }
 
