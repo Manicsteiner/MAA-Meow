@@ -390,6 +390,17 @@ class TaskChainState(private val context: Context) {
         }
     }
 
+    suspend fun importProfiles(profiles: List<TaskProfile>, activeId: String) {
+        val resolvedActiveId = profiles.find { it.id == activeId }?.id
+            ?: profiles.firstOrNull()?.id ?: return
+        val activeChain = profiles.find { it.id == resolvedActiveId }?.chain ?: defaultChain
+        _profiles.value = profiles
+        _activeProfileId.value = resolvedActiveId
+        _chain.value = activeChain
+        persistProfiles(profiles, resolvedActiveId)
+        Timber.d("Imported %d profiles, active: %s", profiles.size, resolvedActiveId)
+    }
+
     private fun nextProfileName(profiles: List<TaskProfile>): String {
         val maxNum = profiles.mapNotNull { p ->
             if (p.name.startsWith(PROFILE_NAME_PREFIX)) {

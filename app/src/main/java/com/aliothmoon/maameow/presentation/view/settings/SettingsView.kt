@@ -1,6 +1,9 @@
 package com.aliothmoon.maameow.presentation.view.settings
 
 import android.content.Intent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -75,10 +78,45 @@ fun SettingsView(
     val skipShizukuCheck by viewModel.skipShizukuCheck.collectAsStateWithLifecycle()
     val updateChannel by viewModel.updateChannel.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
+    val showRestartDialog by viewModel.showRestartDialog.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        context.contentResolver.openOutputStream(uri)?.let { viewModel.exportConfig(it) }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        context.contentResolver.openInputStream(uri)?.let { viewModel.importConfig(it) }
+    }
+
+    backupMessage?.let { msg ->
+        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        viewModel.clearBackupMessage()
+    }
 
     var showReInitConfirm by remember { mutableStateOf(false) }
     var showDebugModeConfirm by remember { mutableStateOf(false) }
+
+    if (showRestartDialog) {
+        AdaptiveTaskPromptDialog(
+            visible = true,
+            title = "导入成功",
+            message = "配置已导入完成，需要重启应用以使所有设置生效。",
+            icon = Icons.Rounded.Build,
+            confirmText = "立即重启",
+            dismissText = "稍后重启",
+            onConfirm = { viewModel.confirmRestart() },
+            onDismissRequest = { viewModel.dismissRestartDialog() }
+        )
+    }
 
     if (showReInitConfirm) {
         ReInitializeConfirmDialog(
@@ -108,7 +146,6 @@ fun SettingsView(
         )
     }
 
-    val context = LocalContext.current
     if (resourceInitState is ResourceInitState.Extracting) {
         ResourceInitDialog(
             state = resourceInitState,
@@ -237,6 +274,24 @@ fun SettingsView(
                         enabled = startupBackend == RemoteBackend.SHIZUKU,
                         onCheckedChange = { viewModel.setSkipShizukuCheck(it) }
                     )
+                }
+            }
+
+            // 数据管理
+            item {
+                SectionHeader("数据管理")
+                InfoCard(
+                    title = "",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    contentColor = contentColor
+                ) {
+                    SettingClickItem("导出配置", "将所有设置和任务配置导出为文件", contentColor) {
+                        exportLauncher.launch("maameow_config.json")
+                    }
+                    SettingsDivider(contentColor)
+                    SettingClickItem("导入配置", "从文件恢复设置和任务配置", contentColor) {
+                        importLauncher.launch(arrayOf("application/json"))
+                    }
                 }
             }
 

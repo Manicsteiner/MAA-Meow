@@ -2,7 +2,9 @@ package com.aliothmoon.maameow.domain.models
 
 import com.aliothmoon.preferences.PrefKey
 import com.aliothmoon.preferences.PrefSchema
+import kotlinx.serialization.Serializable
 
+@Serializable
 @PrefSchema
 data class AppSettings(
     @PrefKey(default = "ACCESSIBILITY") val overlayMode: String = "ACCESSIBILITY",

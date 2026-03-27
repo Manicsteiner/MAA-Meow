@@ -114,6 +114,13 @@ class ScheduleStrategyRepository(private val context: Context) {
     }
 
 
+    suspend fun importStrategies(strategies: List<ScheduleStrategy>) {
+        context.store.edit { prefs ->
+            prefs[STRATEGIES_KEY] = json.encodeToString<List<ScheduleStrategy>>(strategies)
+            Timber.d("导入 %d 条调度策略", strategies.size)
+        }
+    }
+
     private fun decodeStrategies(raw: String?): List<ScheduleStrategy> {
         if (raw.isNullOrEmpty()) return emptyList()
         return runCatching {

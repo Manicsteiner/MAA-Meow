@@ -15,6 +15,7 @@ import com.aliothmoon.maameow.data.datasource.update.MirrorChyanResourceVersionC
 import com.aliothmoon.maameow.data.log.ApplicationLogWriter
 import com.aliothmoon.maameow.data.log.TaskLogWriter
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.data.preferences.ConfigBackupManager
 import com.aliothmoon.maameow.data.preferences.TaskChainState
 import com.aliothmoon.maameow.schedule.service.ScheduleAlarmManager
 import com.aliothmoon.maameow.schedule.data.ScheduleStrategyRepository
@@ -86,6 +87,7 @@ val appModule = module {
     singleOf(::ScheduleStrategyRepository)
     singleOf(::ScheduleAlarmManager)
     singleOf(::TaskChainState)
+    singleOf(::ConfigBackupManager)
     singleOf(::MaaPathConfig)
     singleOf(::ResourceDownloader)
     singleOf(::AppDownloader)

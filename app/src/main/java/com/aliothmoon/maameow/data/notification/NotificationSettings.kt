@@ -2,7 +2,9 @@ package com.aliothmoon.maameow.data.notification
 
 import com.aliothmoon.preferences.PrefKey
 import com.aliothmoon.preferences.PrefSchema
+import kotlinx.serialization.Serializable
 
+@Serializable
 @PrefSchema(name = "NotificationSettings")
 data class NotificationSettings(
     @PrefKey(default = "true") val sendOnComplete: String = "true",
