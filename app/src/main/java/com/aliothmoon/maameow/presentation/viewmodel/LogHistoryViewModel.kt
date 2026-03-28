@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aliothmoon.maameow.data.log.LogEntry
 import com.aliothmoon.maameow.data.log.LogFileInfo
-import com.aliothmoon.maameow.data.log.TaskLogWriter
+import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,9 +16,7 @@ import timber.log.Timber
 /**
  * 日志历史 ViewModel
  */
-class LogHistoryViewModel(
-    private val taskLogWriter: TaskLogWriter
-) : ViewModel() {
+class LogHistoryViewModel(private val sessionLogger: MaaSessionLogger) : ViewModel() {
 
     private val _logFiles = MutableStateFlow<List<LogFileInfo>>(emptyList())
     val logFiles: StateFlow<List<LogFileInfo>> = _logFiles.asStateFlow()
@@ -44,7 +42,7 @@ class LogHistoryViewModel(
             _isLoading.value = true
             try {
                 val files = withContext(Dispatchers.IO) {
-                    taskLogWriter.getLogFiles()
+                    sessionLogger.getLogFiles()
                 }
                 _logFiles.value = files
                 Timber.d("Loaded ${files.size} log files")
@@ -64,7 +62,7 @@ class LogHistoryViewModel(
             _isLoading.value = true
             try {
                 val entries = withContext(Dispatchers.IO) {
-                    taskLogWriter.readLogFile(logFile.fileName)
+                    sessionLogger.readLogFile(logFile.fileName)
                 }
                 _selectedLogEntries.value = entries
                 _selectedFileName.value = logFile.fileName
@@ -92,7 +90,7 @@ class LogHistoryViewModel(
         viewModelScope.launch {
             try {
                 val success = withContext(Dispatchers.IO) {
-                    taskLogWriter.deleteLogFile(logFile.fileName)
+                    sessionLogger.deleteLogFile(logFile.fileName)
                 }
                 if (success) {
                     loadLogFiles() // 刷新列表
@@ -111,7 +109,7 @@ class LogHistoryViewModel(
         viewModelScope.launch {
             try {
                 val deletedCount = withContext(Dispatchers.IO) {
-                    taskLogWriter.cleanupOldLogs(daysToKeep)
+                    sessionLogger.cleanupOldLogs(daysToKeep)
                 }
                 if (deletedCount > 0) {
                     loadLogFiles() // 刷新列表

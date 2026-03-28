@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
+import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalTime
@@ -47,10 +47,10 @@ import kotlin.math.abs
 
 @Composable
 fun ScreenSaverView(
-    runtimeLogCenter: RuntimeLogCenter,
+    sessionLogger: MaaSessionLogger,
     onUnlock: () -> Unit
 ) {
-    val logs by runtimeLogCenter.logs.collectAsStateWithLifecycle()
+    val logs by sessionLogger.logs.collectAsStateWithLifecycle()
     val latestLog = logs.lastOrNull()?.content ?: "等待任务开始..."
 
     val batteryState = rememberBatteryState()

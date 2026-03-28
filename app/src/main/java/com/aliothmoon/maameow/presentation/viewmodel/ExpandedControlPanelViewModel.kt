@@ -9,7 +9,7 @@ import com.aliothmoon.maameow.data.model.TaskTypeInfo
 import com.aliothmoon.maameow.data.preferences.TaskChainState
 import com.aliothmoon.maameow.data.resource.ResourceDataManager
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
-import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
+import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.domain.usecase.BuildTaskParamsUseCase
 import com.aliothmoon.maameow.data.model.TaskParamProvider
@@ -30,18 +30,17 @@ import timber.log.Timber
 
 
 class ExpandedControlPanelViewModel(
-    val resourceDataManager: ResourceDataManager,
     val chainState: TaskChainState,
     private val application: Context,
     private val buildTaskParams: BuildTaskParamsUseCase,
     private val compositionService: MaaCompositionService,
     private val overlayController: OverlayController,
-    private val runtimeLogCenter: RuntimeLogCenter
+    private val sessionLogger: MaaSessionLogger
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(FloatingPanelState())
     val state: StateFlow<FloatingPanelState> = _state.asStateFlow()
-    val runtimeLogs: StateFlow<List<LogItem>> = runtimeLogCenter.logs
+    val runtimeLogs: StateFlow<List<LogItem>> = sessionLogger.logs
 
     init {
         viewModelScope.launch {
@@ -217,7 +216,7 @@ class ExpandedControlPanelViewModel(
     }
 
     fun onClearLogs() {
-        runtimeLogCenter.clearRuntimeLogs()
+        sessionLogger.clearRuntimeLogs()
     }
 
     fun onStartTasks() {

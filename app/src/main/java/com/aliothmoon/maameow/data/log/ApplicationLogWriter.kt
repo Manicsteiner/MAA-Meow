@@ -3,6 +3,7 @@ package com.aliothmoon.maameow.data.log
 import android.os.Build
 import android.util.Log
 import com.aliothmoon.maameow.BuildConfig
+import com.aliothmoon.maameow.constant.LogConfig
 import com.aliothmoon.maameow.data.config.MaaPathConfig
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import kotlinx.coroutines.CoroutineScope
@@ -27,8 +28,6 @@ class ApplicationLogWriter(
         private const val INTERNAL_TAG = "ApplicationLogWriter"
         private const val LOG_DIR_NAME = "error_logs"
         private const val CURRENT_LOG_FILE = "error.log"
-        private const val MAX_FILE_SIZE = 2 * 1024 * 1024L // 2MB
-        private const val MAX_LOG_FILES = 5
         private const val BUFFER_SIZE = 8 * 1024 // 8KB
     }
 
@@ -173,7 +172,7 @@ class ApplicationLogWriter(
             fileSize = currentLogFile.length()
         }
 
-        if (fileSize < MAX_FILE_SIZE) {
+        if (fileSize < LogConfig.MAX_ERROR_LOG_SIZE) {
             return
         }
 
@@ -181,12 +180,12 @@ class ApplicationLogWriter(
         closeOutputStream()
 
         try {
-            val oldestFile = File(logDir, "error.${MAX_LOG_FILES - 1}.log")
+            val oldestFile = File(logDir, "error.${LogConfig.MAX_ERROR_LOG_FILES - 1}.log")
             if (oldestFile.exists()) {
                 oldestFile.delete()
             }
 
-            for (i in (MAX_LOG_FILES - 2) downTo 1) {
+            for (i in (LogConfig.MAX_ERROR_LOG_FILES - 2) downTo 1) {
                 val fromFile = File(logDir, "error.$i.log")
                 val toFile = File(logDir, "error.${i + 1}.log")
                 if (fromFile.exists()) {

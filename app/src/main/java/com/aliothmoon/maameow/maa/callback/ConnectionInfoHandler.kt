@@ -3,7 +3,7 @@ package com.aliothmoon.maameow.maa.callback
 import android.content.Context
 import com.alibaba.fastjson2.JSONObject
 import com.aliothmoon.maameow.data.model.LogLevel
-import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
+import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import timber.log.Timber
 
 /**
@@ -14,7 +14,7 @@ import timber.log.Timber
  */
 class ConnectionInfoHandler(
     applicationContext: Context,
-    private val runtimeLogCenter: RuntimeLogCenter,
+    private val sessionLogger: MaaSessionLogger,
 ) {
     private val resources = applicationContext.resources
     private val packageName = applicationContext.packageName
@@ -29,14 +29,14 @@ class ConnectionInfoHandler(
             }
 
             "UnsupportedResolution" -> {
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     str("ResolutionNotSupported"),
                     LogLevel.ERROR
                 )
             }
 
             "ResolutionError" -> {
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     str("ResolutionAcquisitionFailure"),
                     LogLevel.ERROR
                 )
@@ -44,35 +44,35 @@ class ConnectionInfoHandler(
 
             "Reconnecting" -> {
                 val times = (innerDetails?.getIntValue("times") ?: 0) + 1
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     "${str("TryToReconnect")} ($times)",
                     LogLevel.ERROR
                 )
             }
 
             "Reconnected" -> {
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     str("ReconnectSuccess"),
                     LogLevel.SUCCESS
                 )
             }
 
             "Disconnect" -> {
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     str("ReconnectFailed"),
                     LogLevel.ERROR
                 )
             }
 
             "ScreencapFailed" -> {
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     str("ScreencapFailed"),
                     LogLevel.ERROR
                 )
             }
 
             "TouchModeNotAvailable" -> {
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     str("TouchModeNotAvailable"),
                     LogLevel.ERROR
                 )
@@ -101,21 +101,21 @@ class ConnectionInfoHandler(
 
         when {
             costInt != null && costInt > 800 -> {
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     str("FastestWayToScreencapErrorTip", cost),
                     LogLevel.WARNING
                 )
             }
 
             costInt != null && costInt > 400 -> {
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     str("FastestWayToScreencapWarningTip", cost),
                     LogLevel.WARNING
                 )
             }
 
             else -> {
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     str("FastestWayToScreencap", cost, method),
                     LogLevel.TRACE
                 )
@@ -138,21 +138,21 @@ class ConnectionInfoHandler(
 
         when {
             avgInt != null && avgInt >= 800 -> {
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     str("FastestWayToScreencapErrorTip", avg),
                     LogLevel.WARNING
                 )
             }
 
             avgInt != null && avgInt >= 400 -> {
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     str("FastestWayToScreencapWarningTip", avg),
                     LogLevel.WARNING
                 )
             }
 
             else -> {
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     str("ScreencapCost", min, avg, max, ""),
                     LogLevel.TRACE
                 )

@@ -3,7 +3,7 @@ package com.aliothmoon.maameow.maa.callback
 import com.alibaba.fastjson2.JSON
 import com.alibaba.fastjson2.JSONObject
 import com.aliothmoon.maameow.data.model.LogLevel
-import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
+import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.data.notification.NotificationSettingsManager
 import com.aliothmoon.maameow.domain.service.ExternalNotificationService
@@ -11,7 +11,7 @@ import com.aliothmoon.maameow.maa.AsstMsg
 import timber.log.Timber
 
 class MaaCallbackDispatcher(
-    private val runtimeLogCenter: RuntimeLogCenter,
+    private val sessionLogger: MaaSessionLogger,
     private val stateHolder: MaaExecutionStateHolder,
     private val connectionInfoHandler: ConnectionInfoHandler,
     private val taskChainHandler: TaskChainHandler,
@@ -70,11 +70,11 @@ class MaaCallbackDispatcher(
         val why = details?.getString("why") ?: ""
         Timber.e("MaaCore 初始化失败: what=$what, why=$why")
         stateHolder.reportRunState(MaaExecutionState.ERROR)
-        runtimeLogCenter.append(
+        sessionLogger.append(
             "初始化失败: $what${if (why.isNotEmpty()) " ($why)" else ""}",
             LogLevel.ERROR
         )
-        runtimeLogCenter.endSession("INIT_FAILED")
+        sessionLogger.endSession("INIT_FAILED")
     }
 
     private fun handleConnectionInfo(details: JSONObject?) {
@@ -88,7 +88,7 @@ class MaaCallbackDispatcher(
     private fun handleAllTasksCompleted(details: JSONObject?) {
         stateHolder.reportRunState(MaaExecutionState.IDLE)
         details?.let { taskChainHandler.handle(AsstMsg.AllTasksCompleted, it) }
-        runtimeLogCenter.endSession("COMPLETED")
+        sessionLogger.endSession("COMPLETED")
         if (notificationSettings.sendOnComplete.value) {
             notificationService.sendWithLogs("所有任务已完成", "全部任务执行结束")
         }
@@ -97,7 +97,7 @@ class MaaCallbackDispatcher(
     private fun handleTaskChainError(details: JSONObject?) {
         stateHolder.reportRunState(MaaExecutionState.ERROR)
         details?.let { taskChainHandler.handle(AsstMsg.TaskChainError, it) }
-        runtimeLogCenter.endSession("TASK_ERROR")
+        sessionLogger.endSession("TASK_ERROR")
         if (notificationSettings.sendOnError.value) {
             val taskchain = details?.getString("taskchain") ?: "Unknown"
             notificationService.send("任务出错", "任务链 $taskchain 执行失败")
@@ -124,7 +124,7 @@ class MaaCallbackDispatcher(
     private fun handleDestroyed(details: JSONObject?) {
         stateHolder.reportRunState(MaaExecutionState.IDLE)
         Timber.i("MaaCore 实例已销毁")
-        runtimeLogCenter.completeSession("DESTROYED", "MaaCore 实例已销毁", LogLevel.WARNING)
+        sessionLogger.completeSession("DESTROYED", "MaaCore 实例已销毁", LogLevel.WARNING)
     }
 
     private fun handleSubTaskError(details: JSONObject?) {

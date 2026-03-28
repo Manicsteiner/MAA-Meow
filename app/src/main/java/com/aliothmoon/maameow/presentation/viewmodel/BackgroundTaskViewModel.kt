@@ -11,7 +11,7 @@ import com.aliothmoon.maameow.data.model.TaskParamProvider
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.data.preferences.TaskChainState
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
-import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
+import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.domain.usecase.BuildTaskParamsUseCase
 import com.aliothmoon.maameow.manager.RemoteServiceManager
@@ -21,7 +21,6 @@ import com.aliothmoon.maameow.presentation.view.panel.PanelDialogConfirmAction
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogType
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogUiState
 import com.aliothmoon.maameow.presentation.view.panel.PanelTab
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +37,7 @@ class BackgroundTaskViewModel(
     val chainState: TaskChainState,
     private val buildTaskParams: BuildTaskParamsUseCase,
     private val compositionService: MaaCompositionService,
-    private val runtimeLogCenter: RuntimeLogCenter,
+    private val sessionLogger: MaaSessionLogger,
     private val appSettingsManager: AppSettingsManager,
     scheduleRepository: ScheduleStrategyRepository,
 ) : ViewModel() {
@@ -53,7 +52,7 @@ class BackgroundTaskViewModel(
 
     private val _state = MutableStateFlow(BackgroundTaskState())
     val state: StateFlow<BackgroundTaskState> = _state.asStateFlow()
-    val runtimeLogs: StateFlow<List<LogItem>> = runtimeLogCenter.logs
+    val logs: StateFlow<List<LogItem>> = sessionLogger.logs
 
     private val surfaceRef = AtomicReference<Surface>()
 
@@ -380,7 +379,7 @@ class BackgroundTaskViewModel(
         val params = buildTaskParams()
         val result = compositionService.start(params) {
             if (request != null) {
-                runtimeLogCenter.appendAndWait(
+                sessionLogger.appendAndWait(
                     "由定时任务「${request.strategyName}」触发",
                 )
             }
@@ -410,7 +409,7 @@ class BackgroundTaskViewModel(
     }
 
     fun onClearLogs() {
-        runtimeLogCenter.clearRuntimeLogs()
+        sessionLogger.clearRuntimeLogs()
     }
 
     fun onMuteGameSound() {

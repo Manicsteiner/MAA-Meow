@@ -45,7 +45,7 @@ class TaskExecutionService : Service() {
     }
 
     private val compositionService: MaaCompositionService by inject()
-    private val runtimeLogCenter: RuntimeLogCenter by inject()
+    private val sessionLogger: MaaSessionLogger by inject()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var observeJob: Job? = null
 
@@ -63,7 +63,7 @@ class TaskExecutionService : Service() {
             var lastUpdateTime = 0L
             combine(
                 compositionService.state,
-                runtimeLogCenter.logs
+                sessionLogger.logs
             ) { state, logs ->
                 Pair(state, logs.lastOrNull()?.content)
             }.collectLatest { (state, latestLog) ->

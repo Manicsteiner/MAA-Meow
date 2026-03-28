@@ -88,8 +88,8 @@ class CrashHandler(private val pathConfig: MaaPathConfig) : Thread.UncaughtExcep
             if (crashDir.exists() && crashDir.isDirectory) {
                 val files = crashDir.listFiles()?.sortedByDescending { it.lastModified() }
                 files?.let {
-                    if (it.size > LogConfig.MAX_LOG_FILES) {
-                        for (i in LogConfig.MAX_LOG_FILES until it.size) {
+                    if (it.size > LogConfig.MAX_CRASH_LOG_FILES) {
+                        for (i in LogConfig.MAX_CRASH_LOG_FILES until it.size) {
                             it[i].delete()
                         }
                     }

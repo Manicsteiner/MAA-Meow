@@ -3,7 +3,7 @@ package com.aliothmoon.maameow.maa.callback
 import android.content.Context
 import com.alibaba.fastjson2.JSONObject
 import com.aliothmoon.maameow.data.model.LogLevel
-import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
+import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import com.aliothmoon.maameow.maa.AsstMsg
 import timber.log.Timber
 
@@ -12,7 +12,7 @@ import timber.log.Timber
  */
 class TaskChainHandler(
     applicationContext: Context,
-    private val runtimeLogCenter: RuntimeLogCenter,
+    private val sessionLogger: MaaSessionLogger,
     private val copilotRuntimeStateStore: CopilotRuntimeStateStore
 )  {
     private val resources = applicationContext.resources
@@ -41,7 +41,7 @@ class TaskChainHandler(
     private fun handleTaskChainError(details: JSONObject) {
         val taskchain = details.getString("taskchain") ?: "Unknown"
         val taskName = str(taskchain)
-        runtimeLogCenter.append("${str("TaskError")}$taskName", LogLevel.ERROR)
+        sessionLogger.append("${str("TaskError")}$taskName", LogLevel.ERROR)
     }
 
     /**
@@ -50,7 +50,7 @@ class TaskChainHandler(
     private fun handleTaskChainStart(details: JSONObject) {
         val taskchain = details.getString("taskchain") ?: "Unknown"
         val taskName = str(taskchain)
-        runtimeLogCenter.append("${str("StartTask")}$taskName", LogLevel.TRACE)
+        sessionLogger.append("${str("StartTask")}$taskName", LogLevel.TRACE)
     }
 
     /**
@@ -59,7 +59,7 @@ class TaskChainHandler(
     private fun handleTaskChainCompleted(details: JSONObject) {
         val taskchain = details.getString("taskchain") ?: "Unknown"
         val taskName = str(taskchain)
-        runtimeLogCenter.append("${str("CompleteTask")}$taskName", LogLevel.SUCCESS)
+        sessionLogger.append("${str("CompleteTask")}$taskName", LogLevel.SUCCESS)
         // TODO 实现 Fight 任务的理智消耗
     }
 
@@ -71,13 +71,13 @@ class TaskChainHandler(
         when (what) {
             "StageDrops-Stars-3", "StageDrops-Stars-Adverse" -> {
                 copilotRuntimeStateStore.markTaskSuccess()
-                runtimeLogCenter.append(str("CompleteCombat"), LogLevel.INFO)
+                sessionLogger.append(str("CompleteCombat"), LogLevel.INFO)
             }
             "RoutingRestart" -> {
                 val why = details.getString("why")
                 if (why == "TooManyBattlesAhead") {
                     val cost = details.getString("node_cost") ?: "?"
-                    runtimeLogCenter.append(
+                    sessionLogger.append(
                         str("RoutingRestartTooManyBattles", cost),
                         LogLevel.WARNING
                     )
@@ -97,7 +97,7 @@ class TaskChainHandler(
     private fun handleTaskChainStopped(details: JSONObject) {
         val taskchain = details.getString("taskchain") ?: "Unknown"
         val taskName = str(taskchain)
-        runtimeLogCenter.append("${str("CompleteTask")}$taskName", LogLevel.INFO)
+        sessionLogger.append("${str("CompleteTask")}$taskName", LogLevel.INFO)
     }
 
     /**
@@ -105,7 +105,7 @@ class TaskChainHandler(
      */
     private fun handleAllTasksCompleted() {
         // TODO 计算耗时，处理 SanityReport
-        runtimeLogCenter.append(str("AllTasksComplete", ""), LogLevel.SUCCESS)
+        sessionLogger.append(str("AllTasksComplete", ""), LogLevel.SUCCESS)
     }
 
     /**

@@ -43,7 +43,7 @@ class MaaCompositionService(
     private val resourceLoader: MaaResourceLoader,
     private val appSettings: AppSettingsManager,
     private val unifiedStateDispatcher: UnifiedStateDispatcher,
-    private val runtimeLogCenter: RuntimeLogCenter,
+    private val sessionLogger: MaaSessionLogger,
     private val activityManager: ActivityManager,
     private val appWatchdog: AppWatchdog,
     private val taskChainState: TaskChainState,
@@ -131,7 +131,7 @@ class MaaCompositionService(
             unifiedStateDispatcher.serviceDiedEvent.collect {
                 appWatchdog.stopWatching()
                 setRunState(MaaExecutionState.ERROR)
-                runtimeLogCenter.completeSessionAndWait(
+                sessionLogger.completeSessionAndWait(
                     "SERVICE_DIED",
                     "MAA服务异常终止",
                     LogLevel.ERROR
@@ -145,7 +145,7 @@ class MaaCompositionService(
         scope.launch {
             appWatchdog.appDiedEvent.collect { packageName ->
                 Timber.w("App watchdog detected app died: %s", packageName)
-                runtimeLogCenter.appendAndWait(
+                sessionLogger.appendAndWait(
                     "游戏进程未启动或被异常关闭($packageName)",
                     LogLevel.WARNING
                 )
@@ -200,8 +200,8 @@ class MaaCompositionService(
         message: String, sessionStatus: String, result: StartResult
     ): StartResult {
         setRunState(MaaExecutionState.ERROR)
-        runtimeLogCenter.appendAndWait(message, LogLevel.ERROR)
-        runtimeLogCenter.endSessionAndWait(sessionStatus)
+        sessionLogger.appendAndWait(message, LogLevel.ERROR)
+        sessionLogger.endSessionAndWait(sessionStatus)
         return result
     }
 
@@ -292,7 +292,7 @@ class MaaCompositionService(
         successMessage: String,
     ): StartResult {
         tasks.forEach { t ->
-            runtimeLogCenter.appendToFileOnly("[TaskParams] ${t.type.value}: ${t.params}")
+            sessionLogger.appendToFileOnly("[TaskParams] ${t.type.value}: ${t.params}")
             maa.AppendTask(t.type.value, t.params)
         }
         if (!maa.Start()) {
@@ -300,7 +300,7 @@ class MaaCompositionService(
         }
         setRunState(MaaExecutionState.RUNNING)
         appWatchdog.startWatching()
-        runtimeLogCenter.appendAndWait(successMessage, LogLevel.SUCCESS)
+        sessionLogger.appendAndWait(successMessage, LogLevel.SUCCESS)
         return StartResult.Success(maa.GetVersion())
     }
 
@@ -312,10 +312,10 @@ class MaaCompositionService(
         onSessionStarted: (suspend () -> Unit)? = null,
     ): StartResult {
         setRunState(MaaExecutionState.STARTING)
-        runtimeLogCenter.startSession(tasks.map { it.type.value })
+        sessionLogger.startSession(tasks.map { it.type.value })
         subTaskHandler.resetSessionState()
         onSessionStarted?.invoke()
-        runtimeLogCenter.appendAndWait(startMessage, LogLevel.INFO)
+        sessionLogger.appendAndWait(startMessage, LogLevel.INFO)
 
         val mode = appSettings.runMode.value
         return withContext(Dispatchers.IO) {
@@ -375,11 +375,11 @@ class MaaCompositionService(
             }.also {
                 setRunState(MaaExecutionState.IDLE)
                 val status = if (it is StopResult.Success) "STOPPED" else "STOP_FAILED"
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     "任务停止，状态: $status",
                     if (it is StopResult.Success) LogLevel.INFO else LogLevel.ERROR
                 )
-                runtimeLogCenter.endSession(status)
+                sessionLogger.endSession(status)
             }
         }
     }

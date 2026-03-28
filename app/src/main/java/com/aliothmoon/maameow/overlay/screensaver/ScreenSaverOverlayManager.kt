@@ -17,11 +17,11 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
+import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 
 class ScreenSaverOverlayManager(
     private val context: Context,
-    private val runtimeLogCenter: RuntimeLogCenter
+    private val sessionLogger: MaaSessionLogger
 ) : LifecycleOwner, SavedStateRegistryOwner {
 
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
@@ -58,7 +58,7 @@ class ScreenSaverOverlayManager(
 
             setContent {
                 ScreenSaverView(
-                    runtimeLogCenter = runtimeLogCenter,
+                    sessionLogger = sessionLogger,
                     onUnlock = { hide() }
                 )
             }

@@ -5,7 +5,7 @@ import com.alibaba.fastjson2.JSONObject
 import com.aliothmoon.maameow.data.model.LogItem
 import com.aliothmoon.maameow.data.model.LogLevel
 import com.aliothmoon.maameow.data.resource.ResourceDataManager
-import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
+import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import com.aliothmoon.maameow.maa.AsstMsg
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -20,7 +20,7 @@ import timber.log.Timber
  */
 class SubTaskHandler(
     applicationContext: Context,
-    private val runtimeLogCenter: RuntimeLogCenter,
+    private val sessionLogger: MaaSessionLogger,
     private val copilotRuntimeStateStore: CopilotRuntimeStateStore,
     private val resourceDataManager: ResourceDataManager
 ) {
@@ -138,7 +138,7 @@ class SubTaskHandler(
 
             "CombatRecordRecognitionTask" -> {
                 val what = details.getString("what") ?: return
-                runtimeLogCenter.append(what, LogLevel.MESSAGE)
+                sessionLogger.append(what, LogLevel.MESSAGE)
             }
 
             else -> {
@@ -390,7 +390,7 @@ class SubTaskHandler(
             "RecruitResult" -> {
                 val level = subDetails?.getIntValue("level") ?: 0
                 val annotatedTooltip = buildRecruitResultTooltip(subDetails)
-                runtimeLogCenter.append(
+                sessionLogger.append(
                     LogItem(
                         content = "$level ★ Tags",
                         level = if (level >= 5) LogLevel.RARE else LogLevel.INFO,
@@ -518,7 +518,7 @@ class SubTaskHandler(
         }
 
         if (curTimes >= 0) sb.append("\n${str("CurTimes")} : $curTimes")
-        runtimeLogCenter.append(sb.toString(), LogLevel.TRACE)
+        sessionLogger.append(sb.toString(), LogLevel.TRACE)
     }
 
     private fun handleInfrastTrainingCompleted(subDetails: JSONObject?) {
@@ -654,6 +654,6 @@ class SubTaskHandler(
         MaaStringRes.getString(resources, packageName, key, *args)
 
     private fun append(content: String, level: LogLevel) {
-        runtimeLogCenter.append(content, level)
+        sessionLogger.append(content, level)
     }
 }

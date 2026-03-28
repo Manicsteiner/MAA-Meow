@@ -13,7 +13,7 @@ import com.aliothmoon.maameow.data.datasource.ZipExtractor
 import com.aliothmoon.maameow.data.datasource.update.MirrorChyanAppVersionChecker
 import com.aliothmoon.maameow.data.datasource.update.MirrorChyanResourceVersionChecker
 import com.aliothmoon.maameow.data.log.ApplicationLogWriter
-import com.aliothmoon.maameow.data.log.TaskLogWriter
+import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.data.preferences.ConfigBackupManager
 import com.aliothmoon.maameow.data.preferences.TaskChainState
@@ -29,7 +29,6 @@ import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.domain.service.MaaResourceLoader
 import com.aliothmoon.maameow.domain.service.AppWatchdog
 import com.aliothmoon.maameow.domain.service.ResourceInitService
-import com.aliothmoon.maameow.domain.service.RuntimeLogCenter
 import com.aliothmoon.maameow.domain.service.UnifiedStateDispatcher
 import com.aliothmoon.maameow.domain.service.update.UpdateService
 import com.aliothmoon.maameow.domain.service.update.checker.AppVersionChecker
@@ -105,7 +104,7 @@ val appModule = module {
 
     singleOf(::ResourceInitService)
     singleOf(::MaaResourceLoader)
-    single { RuntimeLogCenter(get()) }
+    singleOf(::MaaSessionLogger)
 
     // 外部通知
     singleOf(::NotificationSettingsManager)
@@ -148,7 +147,6 @@ val appModule = module {
     singleOf(::CopilotApiService)
     singleOf(::CopilotRepository)
     singleOf(::CopilotManager)
-    singleOf(::TaskLogWriter)
     singleOf(::ApplicationLogWriter)
     singleOf(::LogTreeHolder)
 }

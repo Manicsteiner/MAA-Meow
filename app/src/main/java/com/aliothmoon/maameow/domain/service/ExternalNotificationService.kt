@@ -13,7 +13,7 @@ import timber.log.Timber
 
 class ExternalNotificationService(
     private val settingsManager: NotificationSettingsManager,
-    private val runtimeLogCenter: RuntimeLogCenter,
+    private val sessionLogger: MaaSessionLogger,
     providerList: List<NotificationProvider>,
 ) {
 
@@ -31,7 +31,7 @@ class ExternalNotificationService(
     fun sendWithLogs(title: String, content: String) {
         scope.launch {
             val body = if (settingsManager.includeLogDetails.value) {
-                val logs = runtimeLogCenter.logs.value
+                val logs = sessionLogger.logs.value
                     .joinToString("\n") { "[${it.formattedTime}] ${it.content}" }
                 if (logs.isNotEmpty()) "$logs\n$content" else content
             } else {

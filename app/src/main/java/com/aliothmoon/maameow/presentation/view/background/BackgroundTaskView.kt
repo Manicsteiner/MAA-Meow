@@ -452,7 +452,7 @@ fun BackgroundTaskView(
                                     1 -> AutoBattlePanel(modifier = Modifier.fillMaxSize())
                                     2 -> MiniGamePanel(modifier = Modifier.fillMaxSize())
                                     3 -> {
-                                        val runtimeLogs by viewModel.runtimeLogs.collectAsStateWithLifecycle()
+                                        val runtimeLogs by viewModel.logs.collectAsStateWithLifecycle()
                                         LogPanel(
                                             logs = runtimeLogs,
                                             onClearLogs = { viewModel.onClearLogs() },
