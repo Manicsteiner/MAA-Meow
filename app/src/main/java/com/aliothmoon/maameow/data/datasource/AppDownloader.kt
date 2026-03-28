@@ -100,7 +100,9 @@ class AppDownloader(
         url: String, version: String, onProgress: (DownloadProgress) -> Unit
     ): Result<File> {
         return try {
-            val request = Request.Builder().url(url).build()
+            val request = Request.Builder().url(url)
+                .header("Accept-Encoding", "identity")
+                .build()
             val response = httpClient.rawClient().newCall(request).await()
 
             if (!response.isSuccessful) {
