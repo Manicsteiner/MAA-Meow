@@ -43,9 +43,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -63,11 +61,11 @@ import com.aliothmoon.maameow.utils.JsonUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableColumn
 import java.io.File
 import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 /**
  * 基建换班配置面板
@@ -312,14 +310,14 @@ private fun CustomInfrastSection(
     val pathConfig: MaaPathConfig = koinInject()
 
     // 解析后的配置（用于计划下拉框）
-    var parsedConfig by remember { mutableStateOf<CustomInfrastConfig?>(null) }
-    var parseError by remember { mutableStateOf<String?>(null) }
+    val (custom, setCustom) = remember { mutableStateOf<CustomInfrastConfig?>(null) }
+    val (parseError, setParseError) = remember { mutableStateOf<String?>(null) }
 
     // 当文件路径变化时解析配置
     LaunchedEffect(config.customInfrastFile) {
         if (config.customInfrastFile.isBlank()) {
-            parsedConfig = null
-            parseError = null
+            setCustom(null)
+            setParseError(null)
             return@LaunchedEffect
         }
         withContext(Dispatchers.IO) {
@@ -329,55 +327,53 @@ private fun CustomInfrastSection(
                     val content = file.readText()
                     val parsed = JsonUtils.common
                         .decodeFromString<CustomInfrastConfig>(content)
-                    parsedConfig = parsed
-                    parseError = null
+                    setCustom(parsed)
+                    setParseError(null)
                     // 同步时间段数据到 config 用于 toTaskParams 的时间轮换
                     val periods = parsed.plans.map { it.period }
                     if (periods != config.customPlanPeriods) {
                         onConfigChange(config.copy(customPlanPeriods = periods))
                     }
                 } else {
-                    parsedConfig = null
-                    parseError = "文件不存在"
+                    setCustom(null)
+                    setParseError("文件不存在")
                 }
             } catch (e: Exception) {
-                parsedConfig = null
-                parseError = "解析失败: ${e.message}"
+                setCustom(null)
+                setParseError("解析失败: ${e.message}")
             }
         }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        val parsed = parsedConfig
-
-        // 1. 配置信息卡片（仅当 parsed 有 title/description 时显示）
-        if (parsed != null && parsed.plans.isNotEmpty()) {
-            if (!parsed.title.isNullOrBlank() || !parsed.description.isNullOrBlank()) {
+        // 配置信息卡片（仅当 custom 有 title/description 时显示）
+        if (custom != null && custom.plans.isNotEmpty()) {
+            if (!custom.title.isNullOrBlank() || !custom.description.isNullOrBlank()) {
                 var descExpanded by remember { mutableStateOf(false) }
                 Card(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                     ),
                     modifier = Modifier.clickable(
-                        enabled = !parsed.description.isNullOrBlank()
+                        enabled = !custom.description.isNullOrBlank()
                     ) { descExpanded = !descExpanded }
                 ) {
                     Column(
                         modifier = Modifier.padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        if (!parsed.title.isNullOrBlank()) {
+                        if (!custom.title.isNullOrBlank()) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = parsed.title.replace("\\n", "\n"),
+                                    text = custom.title.replace("\\n", "\n"),
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.weight(1f)
                                 )
-                                if (!parsed.description.isNullOrBlank()) {
+                                if (!custom.description.isNullOrBlank()) {
                                     ExpandableTipIcon(
                                         expanded = descExpanded,
                                         onExpandedChange = { descExpanded = it }
@@ -386,12 +382,12 @@ private fun CustomInfrastSection(
                             }
                         }
                         AnimatedVisibility(
-                            visible = descExpanded && !parsed.description.isNullOrBlank(),
+                            visible = descExpanded && !custom.description.isNullOrBlank(),
                             enter = expandVertically(),
                             exit = shrinkVertically()
                         ) {
                             Text(
-                                text = parsed.description?.replace("\\n", "\n") ?: "",
+                                text = custom.description?.replace("\\n", "\n") ?: "",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -400,9 +396,9 @@ private fun CustomInfrastSection(
                 }
             }
 
-            // 2. 排班计划选择
+            // 排班计划选择
             PlanSelectButtonGroup(
-                plans = parsed.plans,
+                plans = custom.plans,
                 selectedPlanIndex = config.customInfrastPlanSelect,
                 onPlanSelected = {
                     onConfigChange(config.copy(customInfrastPlanSelect = it))
@@ -410,7 +406,7 @@ private fun CustomInfrastSection(
             )
         }
 
-        // 3. 在线生成器链接
+        // 在线生成器链接
         val context = LocalContext.current
         Text(
             text = "自定义基建排班制作器",
@@ -423,7 +419,7 @@ private fun CustomInfrastSection(
             }
         )
 
-        // 4. 内置配置选择
+        // 内置配置选择
         PresetButtonGroup(
             selectedPreset = config.defaultInfrast,
             onPresetSelected = { preset ->
@@ -451,10 +447,10 @@ private fun CustomInfrastSection(
             }
         )
 
-        // 5. 解析错误提示
+        //  解析错误提示
         if (parseError != null) {
             Text(
-                text = parseError!!,
+                text = parseError,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error
             )
@@ -513,7 +509,7 @@ private fun PlanSelectButtonGroup(
     // TODO: 定时刷新时间轮换显示（WPF 每分钟调用 RefreshInfrastTimeRotationDisplay 更新）
     val currentPlanName = if (hasPeriodicPlan) {
         val now = LocalTime.now()
-        val formatter = java.time.format.DateTimeFormatter.ofPattern("H:mm")
+        val formatter = DateTimeFormatter.ofPattern("H:mm")
         val matched = plans.firstOrNull { plan ->
             plan.period.any { range ->
                 if (range.size < 2) return@any false

@@ -213,7 +213,7 @@ class AppSettingsManager(private val context: Context) {
         }
     }
 
-    // 任务结束后关闭应用
+    // 任务结束时关闭应用
     val closeAppOnTaskEnd: StateFlow<Boolean> = settings
         .map { it.closeAppOnTaskEnd.toBooleanStrictOrNull() ?: false }
         .distinctUntilChanged()
