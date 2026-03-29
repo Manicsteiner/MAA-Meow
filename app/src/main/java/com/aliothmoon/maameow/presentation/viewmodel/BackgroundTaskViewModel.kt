@@ -355,28 +355,24 @@ class BackgroundTaskViewModel(
 
     private suspend fun startTasksInternal(request: ScheduledExecutionRequest? = null): String? {
         doSwitchProfile(request)
-        val enabledNodes = chainState.chain.value
-            .filter { it.enabled }
-            .sortedBy { it.order }
 
-        if (enabledNodes.isEmpty()) {
-            Timber.w("No tasks enabled")
+        val validateError = buildTaskParams.validate(chainState.chain.value)
+        if (validateError != null) {
+            Timber.w("Validation failed: $validateError")
             if (request != null) {
-                return "关联的任务配置中没有启用任务".also {
-                    showStartFailedDialog(it)
-                }
+                showStartFailedDialog(validateError)
             } else {
                 showDialog(
                     PanelDialogUiState(
                         type = PanelDialogType.WARNING,
                         title = "提示",
-                        message = "请先选择要执行的任务",
+                        message = validateError,
                         confirmText = "知道了",
                         confirmAction = PanelDialogConfirmAction.DISMISS_ONLY
                     )
                 )
-                return "请先选择要执行的任务"
             }
+            return validateError
         }
 
         val params = buildTaskParams()

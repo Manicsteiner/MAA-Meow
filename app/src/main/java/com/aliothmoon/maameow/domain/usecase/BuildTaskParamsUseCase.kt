@@ -17,6 +17,24 @@ class BuildTaskParamsUseCase(private val chainState: TaskChainState) {
         return buildFrom(chainState.chain.value)
     }
 
+    /** 校验任务链配置，返回错误信息或 null 表示通过 */
+    fun validate(chain: List<TaskChainNode>): String? {
+        val nodes = chain.filter { it.enabled }
+        if (nodes.isEmpty()) return "请先选择要执行的任务"
+        return validateClientTypeConsistency(nodes)
+    }
+
+    /** 多个开始唤醒节点的客户端类型必须一致 */
+    private fun validateClientTypeConsistency(nodes: List<TaskChainNode>): String? {
+        val clientTypes = nodes
+            .mapNotNull { (it.config as? WakeUpConfig)?.clientType }
+            .distinct()
+        if (clientTypes.size > 1) {
+            return "任务链中存在多个不同的客户端类型（${clientTypes.joinToString("、")}），请保持一致"
+        }
+        return null
+    }
+
     fun buildFrom(chain: List<TaskChainNode>): List<MaaTaskParams> {
         val enabledNodes = chain.filter { it.enabled }.sortedBy { it.order }
         val clientType = resolveClientType(enabledNodes)

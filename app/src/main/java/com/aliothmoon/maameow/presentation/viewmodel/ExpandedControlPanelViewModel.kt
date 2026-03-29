@@ -220,17 +220,14 @@ class ExpandedControlPanelViewModel(
     }
 
     fun onStartTasks() {
-        val enabledNodes = chainState.chain.value
-            .filter { it.enabled }
-            .sortedBy { it.order }
-
-        if (enabledNodes.isEmpty()) {
-            Timber.w("No tasks enabled")
+        val validateError = buildTaskParams.validate(chainState.chain.value)
+        if (validateError != null) {
+            Timber.w("Validation failed: $validateError")
             showDialog(
                 PanelDialogUiState(
                     type = PanelDialogType.WARNING,
                     title = "提示",
-                    message = "请先选择要执行的任务",
+                    message = validateError,
                     confirmText = "知道了",
                     confirmAction = PanelDialogConfirmAction.DISMISS_ONLY
                 )
