@@ -32,19 +32,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aliothmoon.maameow.data.resource.MiniGameTextRegistry
-import com.aliothmoon.maameow.presentation.viewmodel.MiniGameViewModel
-import org.koin.compose.koinInject
+import com.aliothmoon.maameow.presentation.viewmodel.MiniGameDelegate
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MiniGamePanel(
     modifier: Modifier = Modifier,
-    viewModel: MiniGameViewModel = koinInject()
+    delegate: MiniGameDelegate
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
-    val miniGames by viewModel.miniGames.collectAsStateWithLifecycle()
+    val state by delegate.state.collectAsStateWithLifecycle()
+    val miniGames by delegate.miniGames.collectAsStateWithLifecycle()
 
-    val currentGame = viewModel.findGame(state.selectedTaskName)
+    val currentGame = delegate.findGame(state.selectedTaskName)
     val tip = currentGame?.tip?.takeIf { it.isNotBlank() } ?: MiniGameTextRegistry.EMPTY_TIP
     val isUnsupported = currentGame?.isUnsupported == true
     val currentGameDisplay = currentGame?.display ?: ""
@@ -105,7 +104,7 @@ fun MiniGamePanel(
                                 modifier = Modifier
                                     .weight(1f)
                                     .heightIn(min = 36.dp)
-                                    .clickable { viewModel.onTaskSelected(game.value) }
+                                    .clickable { delegate.onTaskSelected(game.value) }
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -187,7 +186,7 @@ fun MiniGamePanel(
         }
 
         // 隐秘战线配置
-        if (viewModel.isSecretFront(state.selectedTaskName)) {
+        if (delegate.isSecretFront(state.selectedTaskName)) {
             item {
                 HorizontalDivider()
             }
@@ -204,10 +203,10 @@ fun MiniGamePanel(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        MiniGameViewModel.ENDINGS.forEach { ending ->
+                        MiniGameDelegate.ENDINGS.forEach { ending ->
                             FilterChip(
                                 selected = state.selectedEnding == ending,
-                                onClick = { viewModel.onEndingSelected(ending) },
+                                onClick = { delegate.onEndingSelected(ending) },
                                 label = {
                                     Text(
                                         text = ending,
@@ -237,7 +236,7 @@ fun MiniGamePanel(
                         horizontalArrangement = Arrangement.spacedBy(5.dp),
                         verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        MiniGameViewModel.EVENTS.forEach { (value, display) ->
+                        MiniGameDelegate.EVENTS.forEach { (value, display) ->
                             val selected = state.selectedEvent == value
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
@@ -255,7 +254,7 @@ fun MiniGamePanel(
                                     }
                                 ),
                                 modifier = Modifier
-                                    .clickable { viewModel.onEventSelected(value) }
+                                    .clickable { delegate.onEventSelected(value) }
                             ) {
                                 Text(
                                     text = display,

@@ -40,7 +40,7 @@ import com.aliothmoon.maameow.presentation.view.panel.PanelDialogType.ERROR
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogType.SUCCESS
 import com.aliothmoon.maameow.presentation.viewmodel.CopilotViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.ExpandedControlPanelViewModel
-import com.aliothmoon.maameow.presentation.viewmodel.MiniGameViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.ToolboxViewModel
 import org.koin.compose.koinInject
 
 
@@ -53,7 +53,7 @@ fun ExpandedControlPanel(
     onLockToggle: (Boolean) -> Unit = {},
     viewModel: ExpandedControlPanelViewModel = viewModel(),
     copilotViewModel: CopilotViewModel = viewModel(),
-    miniGameViewModel: MiniGameViewModel = koinInject(),
+    toolboxViewModel: ToolboxViewModel = koinInject(),
     service: MaaCompositionService = koinInject(),
     appSettings: AppSettingsManager = koinInject()
 ) {
@@ -178,7 +178,7 @@ fun ExpandedControlPanel(
                         }
 
                         2 -> { // PanelTab.TOOLS
-                            MiniGamePanel(modifier = Modifier.fillMaxSize())
+                            ToolboxPanel(modifier = Modifier.fillMaxSize())
                         }
 
                         3 -> { // PanelTab.LOG
@@ -204,7 +204,7 @@ fun ExpandedControlPanel(
                             focusManager.clearFocus()
                             when (uiState.currentTab) {
                                 PanelTab.AUTO_BATTLE -> copilotViewModel.onStart()
-                                PanelTab.TOOLS -> miniGameViewModel.onStart()
+                                PanelTab.TOOLS -> toolboxViewModel.onStart()
                                 else -> viewModel.onStartTasks()
                             }
                         },

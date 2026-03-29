@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.aliothmoon.maameow.data.model.RecruitConfig
 import com.aliothmoon.maameow.data.resource.ResourceDataManager
 import com.aliothmoon.maameow.presentation.components.INumericField
+import com.aliothmoon.maameow.presentation.components.RecruitTimeSelector
 import com.aliothmoon.maameow.presentation.components.tip.ExpandableTipContent
 import com.aliothmoon.maameow.presentation.components.tip.ExpandableTipIcon
 import kotlinx.coroutines.launch
@@ -527,12 +528,14 @@ private fun ChooseLevel3Section(
         }
 
         // 时长选择器
-        TimeSelector(
+        RecruitTimeSelector(
             enabled = config.chooseLevel3,
-            hour = config.chooseLevel3Hour,
-            minute = config.chooseLevel3Min,
-            onTimeChange = { h, m ->
-                onConfigChange(config.copy(chooseLevel3Hour = h, chooseLevel3Min = m))
+            totalMinutes = config.chooseLevel3Hour * 60 + config.chooseLevel3Min,
+            onTimeChange = { total ->
+                onConfigChange(config.copy(
+                    chooseLevel3Hour = total / 60,
+                    chooseLevel3Min = total % 60
+                ))
             }
         )
     }
@@ -564,12 +567,14 @@ private fun ChooseLevel4Section(
             )
         }
 
-        TimeSelector(
+        RecruitTimeSelector(
             enabled = config.chooseLevel4,
-            hour = config.chooseLevel4Hour,
-            minute = config.chooseLevel4Min,
-            onTimeChange = { h, m ->
-                onConfigChange(config.copy(chooseLevel4Hour = h, chooseLevel4Min = m))
+            totalMinutes = config.chooseLevel4Hour * 60 + config.chooseLevel4Min,
+            onTimeChange = { total ->
+                onConfigChange(config.copy(
+                    chooseLevel4Hour = total / 60,
+                    chooseLevel4Min = total % 60
+                ))
             }
         )
     }
@@ -601,105 +606,15 @@ private fun ChooseLevel5Section(
             )
         }
 
-        TimeSelector(
+        RecruitTimeSelector(
             enabled = config.chooseLevel5,
-            hour = config.chooseLevel5Hour,
-            minute = config.chooseLevel5Min,
-            onTimeChange = { h, m ->
-                onConfigChange(config.copy(chooseLevel5Hour = h, chooseLevel5Min = m))
+            totalMinutes = config.chooseLevel5Hour * 60 + config.chooseLevel5Min,
+            onTimeChange = { total ->
+                onConfigChange(config.copy(
+                    chooseLevel5Hour = total / 60,
+                    chooseLevel5Min = total % 60
+                ))
             }
-        )
-    }
-}
-
-
-/**
- * 时长选择器（小时:分钟）
- * WPF: 两个NumericUpDown + 冒号分隔
- *
- * 时间验证逻辑（对应 WPF ChooseLevelXTime 属性）：
- * - 总时长范围: 60-540 分钟
- * - 分钟必须是 10 的倍数
- * - 超出范围时自动修正: < 60 → 540, > 540 → 60
- */
-@Composable
-private fun TimeSelector(
-    enabled: Boolean,
-    hour: Int,
-    minute: Int,
-    onTimeChange: (Int, Int) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.5f),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // 小时选择器
-        INumericField(
-            value = hour,
-            onValueChange = { newHour ->
-                if (enabled) {
-                    // 计算新的总时长（分钟）
-                    val totalMinutes = newHour * 60 + minute
-
-                    // 公招时间验证
-                    val validatedMinutes = when {
-                        totalMinutes < 60 -> 540  // 小于 1 小时 → 9 小时
-                        totalMinutes > 540 -> 60  // 大于 9 小时 → 1 小时
-                        else -> totalMinutes
-                    }
-
-                    // 分解为小时和分钟
-                    val validatedHour = validatedMinutes / 60
-                    val validatedMin = validatedMinutes % 60
-                    onTimeChange(validatedHour, validatedMin)
-                }
-            },
-            minimum = 1,
-            maximum = 9,
-            valueFormat = "%02d",
-            enabled = enabled,
-            modifier = Modifier
-                .width(90.dp)
-                .height(60.dp)
-        )
-
-        Text(
-            text = ":",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-
-        // 分钟选择器
-        INumericField(
-            value = minute,
-            onValueChange = { newMinute ->
-                if (enabled) {
-                    // 计算新的总时长（分钟）
-                    val totalMinutes = hour * 60 + newMinute
-
-                    val validatedMinutes = when {
-                        totalMinutes < 60 -> 540  // 小于 1 小时 → 9 小时
-                        totalMinutes > 540 -> 60  // 大于 9 小时 → 1 小时
-                        else -> totalMinutes
-                    }
-
-                    // 分解为小时和分钟
-                    val validatedHour = validatedMinutes / 60
-                    val validatedMin = validatedMinutes % 60
-                    onTimeChange(validatedHour, validatedMin)
-                }
-            },
-            minimum = 0,
-            maximum = 50,
-            increment = 10,
-            valueFormat = "%02d",
-            enabled = enabled,
-            modifier = Modifier
-                .width(90.dp)
-                .height(60.dp)
         )
     }
 }

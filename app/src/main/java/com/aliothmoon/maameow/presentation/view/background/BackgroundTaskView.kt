@@ -98,10 +98,9 @@ import com.aliothmoon.maameow.presentation.view.panel.PanelTab
 import com.aliothmoon.maameow.presentation.view.panel.TaskConfigPanel
 import com.aliothmoon.maameow.presentation.view.panel.TaskListPanel
 import com.aliothmoon.maameow.presentation.view.panel.AutoBattlePanel
-import com.aliothmoon.maameow.presentation.view.panel.MiniGamePanel
 import com.aliothmoon.maameow.presentation.viewmodel.BackgroundTaskViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.CopilotViewModel
-import com.aliothmoon.maameow.presentation.viewmodel.MiniGameViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.ToolboxViewModel
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -121,13 +120,14 @@ import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.ui.graphics.vector.ImageVector
 
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.aliothmoon.maameow.presentation.view.panel.ToolboxPanel
 
 @Composable
 fun BackgroundTaskView(
     onFullscreenChanged: (Boolean) -> Unit = {},
     viewModel: BackgroundTaskViewModel,
     copilotViewModel: CopilotViewModel = koinInject(),
-    miniGameViewModel: MiniGameViewModel = koinInject(),
+    toolboxViewModel: ToolboxViewModel = koinInject(),
     compositionService: MaaCompositionService = koinInject(),
     dispatcher: UnifiedStateDispatcher = koinInject(),
     permissionManager: PermissionManager = koinInject(),
@@ -450,7 +450,7 @@ fun BackgroundTaskView(
                                     }
 
                                     1 -> AutoBattlePanel(modifier = Modifier.fillMaxSize())
-                                    2 -> MiniGamePanel(modifier = Modifier.fillMaxSize())
+                                    2 -> ToolboxPanel(modifier = Modifier.fillMaxSize())
                                     3 -> {
                                         val runtimeLogs by viewModel.logs.collectAsStateWithLifecycle()
                                         LogPanel(
@@ -475,7 +475,7 @@ fun BackgroundTaskView(
                                             when (state.current) {
                                                 PanelTab.TASKS -> viewModel.onStartTasks()
                                                 PanelTab.AUTO_BATTLE -> copilotViewModel.onStart()
-                                                PanelTab.TOOLS -> miniGameViewModel.onStart()
+                                                PanelTab.TOOLS -> toolboxViewModel.onStart()
                                                 else -> {}
                                             }
                                         },
@@ -499,7 +499,7 @@ fun BackgroundTaskView(
                                             when (state.current) {
                                                 PanelTab.TASKS -> viewModel.onStopTasks()
                                                 PanelTab.AUTO_BATTLE -> copilotViewModel.onStop()
-                                                PanelTab.TOOLS -> miniGameViewModel.onStop()
+                                                PanelTab.TOOLS -> toolboxViewModel.onStop()
                                                 else -> {}
                                             }
                                         },

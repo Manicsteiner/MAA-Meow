@@ -1,12 +1,11 @@
 package com.aliothmoon.maameow.presentation.viewmodel
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.aliothmoon.maameow.data.model.activity.MiniGame
 import com.aliothmoon.maameow.data.resource.ActivityManager
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,10 +26,11 @@ data class MiniGameUiState(
     val statusMessage: String = "",
 )
 
-class MiniGameViewModel(
-    private val activityManager: ActivityManager,
+class MiniGameDelegate(
+    activityManager: ActivityManager,
     private val compositionService: MaaCompositionService,
-) : ViewModel() {
+    private val scope: CoroutineScope,
+) {
 
     private val _state = MutableStateFlow(MiniGameUiState())
     val state: StateFlow<MiniGameUiState> = _state.asStateFlow()
@@ -79,39 +79,16 @@ class MiniGameViewModel(
             return
         }
 
-        viewModelScope.launch {
+        scope.launch {
             val task = buildTaskParams()
             _state.update { it.copy(statusMessage = "正在启动...") }
-            when (val result = compositionService.startCopilot(listOf(task))) {
-                is MaaCompositionService.StartResult.Success -> {
-                    _state.update { it.copy(statusMessage = "小游戏任务已启动") }
-                }
-
-                is MaaCompositionService.StartResult.ResourceError -> {
-                    _state.update { it.copy(statusMessage = "资源加载失败，请重新初始化资源") }
-                }
-
-                is MaaCompositionService.StartResult.InitializationError -> {
-                    _state.update { it.copy(statusMessage = "初始化失败: ${result.phase}") }
-                }
-
-                is MaaCompositionService.StartResult.ConnectionError -> {
-                    _state.update { it.copy(statusMessage = "连接失败: ${result.phase}") }
-                }
-
-                is MaaCompositionService.StartResult.StartError -> {
-                    _state.update { it.copy(statusMessage = "启动失败") }
-                }
-
-                is MaaCompositionService.StartResult.PortraitOrientationError -> {
-                    _state.update { it.copy(statusMessage = "当前为竖屏,无法在前台模式运行") }
-                }
-            }
+            val result = compositionService.startCopilot(listOf(task))
+            _state.update { it.copy(statusMessage = formatStartResult(result, "小游戏任务已启动")) }
         }
     }
 
     fun onStop() {
-        viewModelScope.launch {
+        scope.launch {
             _state.update { it.copy(statusMessage = "正在停止...") }
             compositionService.stop()
             _state.update { it.copy(statusMessage = "已停止") }

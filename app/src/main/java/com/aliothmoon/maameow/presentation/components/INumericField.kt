@@ -1,9 +1,13 @@
 package com.aliothmoon.maameow.presentation.components
 
 import android.text.InputType
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -12,7 +16,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.aliothmoon.maameow.presentation.LocalFloatingWindowContext
 
 /**
@@ -32,6 +41,7 @@ import com.aliothmoon.maameow.presentation.LocalFloatingWindowContext
  * @param valueFormat 格式化字符串
  * @param enabled 是否启用
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun INumericField(
     value: Int,
@@ -102,11 +112,11 @@ fun INumericField(
             }
         )
     } else {
-        // 普通环境：使用 OutlinedTextField
-        OutlinedTextField(
+        // 普通环境：使用 BasicTextField 以支持更紧凑的高度
+        val interactionSource = remember { MutableInteractionSource() }
+        BasicTextField(
             value = inputText,
             onValueChange = { text ->
-                // 只允许数字和负号
                 if (text.isEmpty() || text == "-" || text.toIntOrNull() != null) {
                     inputText = text
                 }
@@ -118,10 +128,41 @@ fun INumericField(
                         validateOnFocusLost()
                     }
                 },
-            placeholder = { Text(hint) },
-            singleLine = true,
             enabled = enabled,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            singleLine = true,
+            textStyle = TextStyle(
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 14.sp
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            interactionSource = interactionSource,
+            decorationBox = { innerTextField ->
+                OutlinedTextFieldDefaults.DecorationBox(
+                    value = inputText,
+                    innerTextField = innerTextField,
+                    enabled = enabled,
+                    singleLine = true,
+                    visualTransformation = VisualTransformation.None,
+                    interactionSource = interactionSource,
+                    placeholder = { Text(hint, fontSize = 14.sp) },
+                    contentPadding = OutlinedTextFieldDefaults.contentPadding(
+                        start = 8.dp,
+                        end = 8.dp,
+                        top = 4.dp,
+                        bottom = 4.dp
+                    ),
+                    container = {
+                        OutlinedTextFieldDefaults.ContainerBox(
+                            enabled = enabled,
+                            isError = false,
+                            interactionSource = interactionSource,
+                            colors = OutlinedTextFieldDefaults.colors(),
+                            shape = OutlinedTextFieldDefaults.shape
+                        )
+                    }
+                )
+            }
         )
     }
 }

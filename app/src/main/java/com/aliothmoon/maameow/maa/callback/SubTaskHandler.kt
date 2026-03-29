@@ -22,7 +22,8 @@ class SubTaskHandler(
     applicationContext: Context,
     private val sessionLogger: MaaSessionLogger,
     private val copilotRuntimeStateStore: CopilotRuntimeStateStore,
-    private val resourceDataManager: ResourceDataManager
+    private val resourceDataManager: ResourceDataManager,
+    private val toolboxResultCollector: ToolboxResultCollector,
 ) {
     private val resources = applicationContext.resources
     private val packageName = applicationContext.packageName
@@ -314,8 +315,21 @@ class SubTaskHandler(
     // ==================== SubTaskExtraInfo (20003) ====================
 
     private fun handleExtraInfo(details: JSONObject) {
-        val what = details.getString("what") ?: return
+        // Depot / OperBox 通过 taskchain 路由（与 WPF 一致）
+        val taskchain = details.getString("taskchain")
         val subDetails = details.getJSONObject("details")
+        when (taskchain) {
+            "Depot" -> {
+                toolboxResultCollector.onDepotResult(subDetails)
+                return
+            }
+            "OperBox" -> {
+                toolboxResultCollector.onOperBoxResult(subDetails)
+                return
+            }
+        }
+
+        val what = details.getString("what") ?: return
 
         when (what) {
             "FightTimes" -> {
@@ -384,6 +398,7 @@ class SubTaskHandler(
             "RecruitTagsDetected" -> {
                 val tags = subDetails?.getJSONArray("tags")?.joinToString("\n") ?: ""
                 append("${str("RecruitingResults")}\n$tags", LogLevel.TRACE)
+                toolboxResultCollector.onRecruitTagsDetected(subDetails)
             }
 
             "RecruitSpecialTag" -> {
@@ -406,6 +421,7 @@ class SubTaskHandler(
                         annotatedTooltip = annotatedTooltip
                     )
                 )
+                toolboxResultCollector.onRecruitResult(subDetails)
             }
 
             "RecruitSupportOperator" -> {

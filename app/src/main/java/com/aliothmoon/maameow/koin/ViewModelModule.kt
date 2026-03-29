@@ -6,7 +6,7 @@ import com.aliothmoon.maameow.presentation.viewmodel.ErrorLogViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.ExpandedControlPanelViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.HomeViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.LogHistoryViewModel
-import com.aliothmoon.maameow.presentation.viewmodel.MiniGameViewModel
+import com.aliothmoon.maameow.presentation.viewmodel.ToolboxViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.SettingsViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.NotificationSettingsViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.UpdateViewModel
@@ -35,5 +35,5 @@ val viewModelModule = module {
 val floatingWindowModule = module {
     singleOf(::ExpandedControlPanelViewModel)
     singleOf(::CopilotViewModel)
-    singleOf(::MiniGameViewModel)
+    singleOf(::ToolboxViewModel)
 }

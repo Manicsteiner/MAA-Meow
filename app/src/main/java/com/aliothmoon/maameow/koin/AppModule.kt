@@ -41,6 +41,7 @@ import com.aliothmoon.maameow.maa.callback.MaaExecutionStateHolder
 import com.aliothmoon.maameow.maa.callback.SubTaskHandler
 import com.aliothmoon.maameow.maa.callback.TaskChainHandler
 import com.aliothmoon.maameow.maa.callback.TaskChainStatusTracker
+import com.aliothmoon.maameow.maa.callback.ToolboxResultCollector
 import com.aliothmoon.maameow.manager.PermissionManager
 import com.aliothmoon.maameow.overlay.OverlayController
 import com.aliothmoon.maameow.overlay.OverlayViewModelOwner
@@ -126,6 +127,7 @@ val appModule = module {
     // 回调处理链
     singleOf(::ConnectionInfoHandler)
     singleOf(::CopilotRuntimeStateStore)
+    singleOf(::ToolboxResultCollector)
     singleOf(::TaskChainStatusTracker)
     singleOf(::TaskChainHandler)
     singleOf(::SubTaskHandler)
