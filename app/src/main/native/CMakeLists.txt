@@ -8,8 +8,26 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_compile_options(-Os -flto -ffunction-sections -fdata-sections -fvisibility=hidden -fvisibility-inlines-hidden)
 add_link_options(-flto -Wl,--exclude-libs,ALL -Wl,--gc-sections -Wl,--strip-all)
 
-add_library(bridge SHARED bridge.cpp bridge.h misc.cpp)
-set_source_files_properties(bridge.cpp PROPERTIES COMPILE_OPTIONS "-O2")
+add_library(bridge SHARED
+        bridge.cpp
+        bridge.h
+        bridge_internal.h
+        bridge_frame_buffer.h
+        bridge_frame_buffer.cpp
+        bridge_preview.h
+        bridge_preview.cpp
+        bridge_capture.h
+        bridge_capture.cpp
+        bridge_input.h
+        bridge_input.cpp
+        misc.cpp)
+set_source_files_properties(
+        bridge.cpp
+        bridge_frame_buffer.cpp
+        bridge_preview.cpp
+        bridge_capture.cpp
+        bridge_input.cpp
+        PROPERTIES COMPILE_OPTIONS "-O2")
 option(ENABLE_FRAME_TIMING "Enable per-frame timing logs" OFF)
 if (ENABLE_FRAME_TIMING)
     target_compile_definitions(bridge PRIVATE ENABLE_FRAME_TIMING)
@@ -20,5 +38,5 @@ set_target_properties(launcher PROPERTIES
         SUFFIX ".so"
         LINKER_LANGUAGE C)
 
-target_link_libraries(bridge log android jnigraphics)
+target_link_libraries(bridge log android jnigraphics mediandk EGL GLESv2)
 target_link_libraries(launcher log dl)

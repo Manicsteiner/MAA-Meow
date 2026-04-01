@@ -1,7 +1,7 @@
 package com.aliothmoon.maameow.bridge;
 
 import android.graphics.Bitmap;
-import android.hardware.HardwareBuffer;
+import android.view.Surface;
 
 import com.aliothmoon.maameow.third.Ln;
 
@@ -22,25 +22,18 @@ public class NativeBridgeLib {
 
     // for test
     @FastNative
-    @SuppressWarnings("JavaJniMissingFunction")
     public static native String ping();
 
-    @SuppressWarnings("JavaJniMissingFunction")
-    public static native void initFrameBuffers(int width, int height);
+    public static native Surface setupNativeCapturer(int width, int height);
 
-    @SuppressWarnings("JavaJniMissingFunction")
-    public static native long copyFrameFromHardwareBuffer(HardwareBuffer hardwareBuffer, long timestampNs);
+    public static native void releaseNativeCapturer();
 
     @FastNative
     public static native void setPreviewSurface(Object surface);
 
-    @SuppressWarnings("JavaJniMissingFunction")
-    public static native void releaseFrameBuffers();
-
     /**
      * 测试用
      */
-    @SuppressWarnings("JavaJniMissingFunction")
     public static native Bitmap getFrameBufferBitmap();
 
 }

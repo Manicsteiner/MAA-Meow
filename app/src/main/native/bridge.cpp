@@ -1,592 +1,82 @@
-#include "bridge.h"
-#include <string>
-#include <android/log.h>
-#include <android/hardware_buffer.h>
-#include <android/hardware_buffer_jni.h>
-#include <android/bitmap.h>
-#include <cinttypes>
-#include <cstring>
-#include <cstdlib>
-#include <cstdio>
-#include <thread>
-#include <chrono>
-#include <atomic>
-#include <cstdint>
-#include <mutex>
+#include "bridge_capture.h"
+#include "bridge_frame_buffer.h"
+#include "bridge_input.h"
+#include "bridge_internal.h"
+#include "bridge_preview.h"
 
-#define LOG_TAG "LibBridge"
-
-#ifdef NDEBUG
-#define LOGD(...) ((void)0)
-#else
-#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
-#endif
-
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
-#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-
-#ifndef ENABLE_FRAME_TIMING
-#define NATIVE_COPY_FRAME_TIMING_START()
-#define NATIVE_COPY_FRAME_TIMING_END() ((void) 0)
-#else
-#define NATIVE_COPY_FRAME_TIMING_START() \
-    auto nativeCopyFrameStart = std::chrono::steady_clock::now()
-#define NATIVE_COPY_FRAME_TIMING_END()                                                     \
-    do {                                                                                   \
-        auto nativeCopyFrameElapsedNs =                                                    \
-                std::chrono::duration_cast<std::chrono::nanoseconds>(                      \
-                        std::chrono::steady_clock::now() - nativeCopyFrameStart            \
-                ).count();                                                                 \
-        g_nativeCopyFrameWindowTotalNs += nativeCopyFrameElapsedNs;                        \
-        ++g_nativeCopyFrameWindowCount;                                                    \
-        if (g_nativeCopyFrameWindowCount >= 100) {                                         \
-            double avgMs = static_cast<double>(g_nativeCopyFrameWindowTotalNs) /           \
-                           static_cast<double>(g_nativeCopyFrameWindowCount) / 1000000.0;  \
-            LOGD("NativeCopyFrameFromHardwareBuffer avg over %d calls: %.3f ms",           \
-                 g_nativeCopyFrameWindowCount, avgMs);                                     \
-            g_nativeCopyFrameWindowTotalNs = 0;                                            \
-            g_nativeCopyFrameWindowCount = 0;                                              \
-        }                                                                                  \
-    } while (0)
-#endif
-
-static jstring ping(JNIEnv *env, jclass clazz);
-
-static void nativeInitFrameBuffers(JNIEnv *env, jclass clazz, jint width, jint height);
-
-static jlong nativeCopyFrameFromHardwareBuffer(JNIEnv *env, jclass clazz, jobject hardwareBuffer,
-                                               jlong timestampNs);
-
-static void nativeReleaseFrameBuffers(JNIEnv *env, jclass clazz);
-
-static jobject nativeGetFrameBufferBitmap(JNIEnv *env, jclass clazz);
-
-static void nativeSetPreviewSurface(JNIEnv *env, jclass clazz, jobject jSurface);
-
-#include <android/native_window.h>
-#include <android/native_window_jni.h>
-
-#if defined(__ARM_NEON)
-
-#include <arm_neon.h>
-
-#endif
-
-static void ProcessFrameDataV2(
-        const uint8_t *__restrict src,
-        uint8_t *__restrict dstRGBA,
-        uint8_t *__restrict dstBGR,
-        int width,
-        int height,
-        int srcStride) {
-
-    if (dstRGBA) {
-        int rowBytes = width * 4;
-        if (srcStride == rowBytes) {
-            memcpy(dstRGBA, src, (size_t) rowBytes * height);
-        } else {
-            for (int y = 0; y < height; ++y)
-                memcpy(dstRGBA + y * rowBytes, src + (size_t) y * srcStride, rowBytes);
-        }
-    }
-
-    for (int y = 0; y < height; ++y) {
-        const uint8_t *s = src + (size_t) y * srcStride;
-        uint8_t *d3 = dstBGR + y * width * 3;
-
-        int x = 0;
-
-#if defined(__ARM_NEON)
-        for (; x <= width - 16; x += 16) {
-            uint8x16x4_t rgba = vld4q_u8(s);
-            s += 64;
-
-            uint8x16x3_t bgr;
-            bgr.val[0] = rgba.val[2];
-            bgr.val[1] = rgba.val[1];
-            bgr.val[2] = rgba.val[0];
-            vst3q_u8(d3, bgr);
-            d3 += 48;
-        }
-
-        for (; x <= width - 8; x += 8) {
-            uint8x8x4_t rgba = vld4_u8(s);
-            s += 32;
-
-            uint8x8x3_t bgr;
-            bgr.val[0] = rgba.val[2];
-            bgr.val[1] = rgba.val[1];
-            bgr.val[2] = rgba.val[0];
-            vst3_u8(d3, bgr);
-            d3 += 24;
-        }
-#endif
-        for (; x < width; ++x) {
-            d3[0] = s[2];
-            d3[1] = s[1];
-            d3[2] = s[0];
-
-            s += 4;
-            d3 += 3;
-        }
-    }
+static jstring ping(JNIEnv *env, jclass clazz) {
+    (void) clazz;
+    return env->NewStringUTF("LibBridge");
 }
 
-static ANativeWindow *g_previewWindow = nullptr;
-static jobject g_previewSurfaceObj = nullptr;
-static std::mutex g_previewMutex;
-static std::atomic<bool> g_hasPreview{false};
-static std::atomic<int> g_targetWidth{0};
-static std::atomic<int> g_targetHeight{0};
+static jobject nativeGetFrameBufferBitmap(JNIEnv *env, jclass clazz) {
+    (void) clazz;
+    return CreateFrameBufferBitmap(env);
+}
 
 static void nativeSetPreviewSurface(JNIEnv *env, jclass clazz, jobject jSurface) {
-    std::lock_guard<std::mutex> lock(g_previewMutex);
-    if (g_previewSurfaceObj && env->IsSameObject(jSurface, g_previewSurfaceObj)) return;
-    if (g_previewWindow) {
-        ANativeWindow_release(g_previewWindow);
-        g_previewWindow = nullptr;
-    }
-    if (g_previewSurfaceObj) {
-        env->DeleteGlobalRef(g_previewSurfaceObj);
-        g_previewSurfaceObj = nullptr;
-    }
-    if (jSurface) {
-        g_previewSurfaceObj = env->NewGlobalRef(jSurface);
-        g_previewWindow = ANativeWindow_fromSurface(env, jSurface);
-        if (g_previewWindow) {
-            int w = g_targetWidth.load();
-            int h = g_targetHeight.load();
-            if (w > 0 && h > 0)
-                ANativeWindow_setBuffersGeometry(g_previewWindow, w, h,
-                                                 AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM);
-            LOGI("Preview connected: %p", g_previewWindow);
-        }
-    }
-    g_hasPreview.store(g_previewWindow != nullptr, std::memory_order_release);
+    (void) clazz;
+    SetPreviewSurface(env, jSurface);
 }
 
-static void DispatchPreview(const FrameBuffer *target) {
-    if (!target || !target->data) return;
-    std::lock_guard<std::mutex> lock(g_previewMutex);
-    if (!g_previewWindow) return;
-    static auto lastPreviewTime = std::chrono::steady_clock::now();
-    auto now = std::chrono::steady_clock::now();
-    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastPreviewTime).count() <
-        16)
-        return;
-    ANativeWindow_Buffer outBuffer;
-    if (ANativeWindow_lock(g_previewWindow, &outBuffer, nullptr) == 0) {
-        if (outBuffer.width == target->width && outBuffer.height == target->height) {
-            int dstStride = outBuffer.stride * 4;
-            int srcStride = target->stride;
-            if (dstStride == srcStride) memcpy(outBuffer.bits, target->data, target->size);
-            else {
-                int rowBytes = target->width * 4;
-                for (int y = 0; y < target->height; ++y)
-                    memcpy((uint8_t *) outBuffer.bits + y * dstStride, target->data + y * srcStride,
-                           rowBytes);
-            }
-            lastPreviewTime = now;
-        }
-        ANativeWindow_unlockAndPost(g_previewWindow);
-    }
+static jobject nativeSetupNativeCapturer(JNIEnv *env, jclass clazz, jint width, jint height) {
+    (void) clazz;
+    return SetupNativeCapturer(env, width, height);
+}
+
+static void nativeReleaseNativeCapturer(JNIEnv *env, jclass clazz) {
+    (void) env;
+    (void) clazz;
+    ReleaseNativeCapturer();
 }
 
 static JNINativeMethod gMethods[] = {
-        {"ping",                        "()Ljava/lang/String;",                  (void *) ping},
-        {"initFrameBuffers",            "(II)V",                                 (void *) nativeInitFrameBuffers},
-        {"copyFrameFromHardwareBuffer", "(Landroid/hardware/HardwareBuffer;J)J", (void *) nativeCopyFrameFromHardwareBuffer},
-        {"setPreviewSurface",           "(Ljava/lang/Object;)V",                 (void *) nativeSetPreviewSurface},
-        {"releaseFrameBuffers",         "()V",                                   (void *) nativeReleaseFrameBuffers},
-        {"getFrameBufferBitmap",        "()Landroid/graphics/Bitmap;",           (void *) nativeGetFrameBufferBitmap},
+        {"ping",                  "()Ljava/lang/String;",        reinterpret_cast<void *>(ping)},
+        {"setupNativeCapturer",   "(II)Landroid/view/Surface;",  reinterpret_cast<void *>(nativeSetupNativeCapturer)},
+        {"releaseNativeCapturer", "()V",                         reinterpret_cast<void *>(nativeReleaseNativeCapturer)},
+        {"setPreviewSurface",     "(Ljava/lang/Object;)V",       reinterpret_cast<void *>(nativeSetPreviewSurface)},
+        {"getFrameBufferBitmap",  "()Landroid/graphics/Bitmap;", reinterpret_cast<void *>(nativeGetFrameBufferBitmap)},
 };
 
-static JavaVM *g_jvm = nullptr;
-static jclass g_driver_class = nullptr;
-static jmethodID g_touch_down_method = nullptr;
-static jmethodID g_touch_move_method = nullptr;
-static jmethodID g_touch_up_method = nullptr;
-static jmethodID g_key_down_method = nullptr;
-static jmethodID g_key_up_method = nullptr;
-static jmethodID g_start_app_method = nullptr;
-
-static FrameBuffer g_buffers[FRAME_BUFFER_COUNT] = {
-        {nullptr, nullptr, 0, 0, 0, 0, 0, 0, 0},
-        {nullptr, nullptr, 0, 0, 0, 0, 0, 0, 0},
-        {nullptr, nullptr, 0, 0, 0, 0, 0, 0, 0}
-};
-static std::atomic<int> g_bufferStates[FRAME_BUFFER_COUNT] = {FRAME_STATE_FREE, FRAME_STATE_FREE,
-                                                              FRAME_STATE_FREE};
-static std::atomic<int> g_readerCounts[FRAME_BUFFER_COUNT] = {0, 0, 0};
-static std::atomic<FrameBuffer *> g_readBuffer{nullptr};
-static std::atomic<int64_t> g_frameCount{0};
-static bool g_frameBuffersInitialized = false;
-
-#ifdef ENABLE_FRAME_TIMING
-static int64_t g_nativeCopyFrameWindowTotalNs = 0;
-static int g_nativeCopyFrameWindowCount = 0;
-static int64_t g_processFrameWindowTotalNs = 0;
-static int g_processFrameWindowCount = 0;
-#endif
-
-static constexpr auto DRIVE_CLAZZ = "com/aliothmoon/maameow/maa/DriverClass";
-static constexpr auto NATIVE_BRIDGE_CLAZZ = "com/aliothmoon/maameow/bridge/NativeBridgeLib";
+static constexpr char kNativeBridgeClass[] = "com/aliothmoon/maameow/bridge/NativeBridgeLib";
+static constexpr char kDriverClass[] = "com/aliothmoon/maameow/maa/DriverClass";
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {
-    g_jvm = vm;
+    (void) reserved;
+
     JNIEnv *env = nullptr;
-    if (vm->GetEnv((void **) &env, JNI_VERSION_1_6) != JNI_OK) return JNI_ERR;
-    jclass nativeLibClass = env->FindClass(NATIVE_BRIDGE_CLAZZ);
-    if (nativeLibClass == nullptr ||
-        env->RegisterNatives(nativeLibClass, gMethods, std::size(gMethods)) < 0)
+    if (vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) != JNI_OK || !env) {
         return JNI_ERR;
-    jclass driverClass = env->FindClass(DRIVE_CLAZZ);
-    if (driverClass) {
-        g_driver_class = (jclass) env->NewGlobalRef(driverClass);
-        g_touch_down_method = env->GetStaticMethodID(g_driver_class, "touchDown", "(III)Z");
-        g_touch_move_method = env->GetStaticMethodID(g_driver_class, "touchMove", "(III)Z");
-        g_touch_up_method = env->GetStaticMethodID(g_driver_class, "touchUp", "(III)Z");
-        g_key_down_method = env->GetStaticMethodID(g_driver_class, "keyDown", "(II)Z");
-        g_key_up_method = env->GetStaticMethodID(g_driver_class, "keyUp", "(II)Z");
-        g_start_app_method = env->GetStaticMethodID(g_driver_class, "startApp",
-                                                    "(Ljava/lang/String;IZ)Z");
-        env->DeleteLocalRef(driverClass);
     }
+
+    jclass nativeLibClass = env->FindClass(kNativeBridgeClass);
+    if (!nativeLibClass) {
+        CheckJNIException(env, "FindClass(NativeBridgeLib)");
+        return JNI_ERR;
+    }
+
+    if (env->RegisterNatives(
+            nativeLibClass, gMethods,
+            static_cast<jint>(sizeof(gMethods) / sizeof(gMethods[0]))) < 0) {
+        CheckJNIException(env, "RegisterNatives(NativeBridgeLib)");
+        env->DeleteLocalRef(nativeLibClass);
+        return JNI_ERR;
+    }
+    env->DeleteLocalRef(nativeLibClass);
+
+    if (!InitInputBridge(vm, env, kDriverClass)) {
+        return JNI_ERR;
+    }
+
     return JNI_VERSION_1_6;
 }
 
 JNIEXPORT void JNICALL JNI_OnUnload(JavaVM *vm, void *reserved) {
-    std::lock_guard<std::mutex> lock(g_previewMutex);
+    (void) reserved;
+
     JNIEnv *env = nullptr;
-    if (vm->GetEnv((void **) &env, JNI_VERSION_1_6) == JNI_OK) {
-        if (g_driver_class) env->DeleteGlobalRef(g_driver_class);
-        if (g_previewSurfaceObj) env->DeleteGlobalRef(g_previewSurfaceObj);
+    if (vm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) == JNI_OK && env) {
+        SetPreviewSurface(env, nullptr);
+        ReleaseInputBridge(env);
     }
-    if (g_previewWindow) ANativeWindow_release(g_previewWindow);
-}
-
-static int
-UpcallInputControl(JNIEnv *env, MethodType method, int x, int y, int keyCode, int displayId) {
-    if (!env) return -1;
-    jmethodID targetMethod = nullptr;
-    switch (method) {
-        case TOUCH_DOWN:
-            targetMethod = g_touch_down_method;
-            return env->CallStaticBooleanMethod(g_driver_class, targetMethod, x, y, displayId) ? 0
-                                                                                               : -1;
-        case TOUCH_MOVE:
-            targetMethod = g_touch_move_method;
-            return env->CallStaticBooleanMethod(g_driver_class, targetMethod, x, y, displayId) ? 0
-                                                                                               : -1;
-        case TOUCH_UP:
-            targetMethod = g_touch_up_method;
-            return env->CallStaticBooleanMethod(g_driver_class, targetMethod, x, y, displayId) ? 0
-                                                                                               : -1;
-        case KEY_DOWN:
-            targetMethod = g_key_down_method;
-            return env->CallStaticBooleanMethod(g_driver_class, targetMethod, keyCode, displayId)
-                   ? 0 : -1;
-        case KEY_UP:
-            targetMethod = g_key_up_method;
-            return env->CallStaticBooleanMethod(g_driver_class, targetMethod, keyCode, displayId)
-                   ? 0 : -1;
-        default:
-            return -1;
-    }
-}
-
-static int UpcallStartApp(JNIEnv *env, const char *packageName, int displayId, bool forceStop) {
-    if (!env || !packageName) return -1;
-    jstring jPackageName = env->NewStringUTF(packageName);
-    jboolean result = env->CallStaticBooleanMethod(g_driver_class, g_start_app_method, jPackageName,
-                                                   displayId, (jboolean) forceStop);
-    env->DeleteLocalRef(jPackageName);
-    return result ? 0 : -1;
-}
-
-static const char *MethodTypeName(MethodType method) {
-    switch (method) {
-        case TOUCH_DOWN:  return "TOUCH_DOWN";
-        case TOUCH_MOVE:  return "TOUCH_MOVE";
-        case TOUCH_UP:    return "TOUCH_UP";
-        case KEY_DOWN:    return "KEY_DOWN";
-        case KEY_UP:      return "KEY_UP";
-        case START_GAME:  return "START_GAME";
-        case STOP_GAME:   return "STOP_GAME";
-        case INPUT:       return "INPUT";
-        default:          return "UNKNOWN";
-    }
-}
-
-BRIDGE_API int DispatchInputMessage(MethodParam param) {
-    LOGD("DispatchInputMessage: method=%s(%d) display_id=%d",
-         MethodTypeName(param.method), param.method, param.display_id);
-
-    auto *env = (JNIEnv *) AttachThread();
-    if (!env) {
-        LOGE("DispatchInputMessage: AttachThread failed, method=%s display_id=%d",
-             MethodTypeName(param.method), param.display_id);
-        return -1;
-    }
-    switch (param.method) {
-        case TOUCH_DOWN:
-            return UpcallInputControl(env, TOUCH_DOWN, param.args.touch.p.x, param.args.touch.p.y,
-                                      0, param.display_id);
-        case TOUCH_MOVE:
-            return UpcallInputControl(env, TOUCH_MOVE, param.args.touch.p.x, param.args.touch.p.y,
-                                      0, param.display_id);
-        case TOUCH_UP:
-            return UpcallInputControl(env, TOUCH_UP, param.args.touch.p.x, param.args.touch.p.y, 0,
-                                      param.display_id);
-        case KEY_DOWN:
-            return UpcallInputControl(env, KEY_DOWN, 0, 0, param.args.key.key_code,
-                                      param.display_id);
-        case KEY_UP:
-            return UpcallInputControl(env, KEY_UP, 0, 0, param.args.key.key_code, param.display_id);
-        case START_GAME:
-            return UpcallStartApp(env, param.args.start_game.package_name, param.display_id,
-                                  param.args.start_game.force_stop != 0);
-        default:
-            return 0;
-    }
-}
-
-BRIDGE_API void *AttachThread() {
-    if (!g_jvm) return nullptr;
-    JNIEnv *env = nullptr;
-    if (g_jvm->GetEnv((void **) &env, JNI_VERSION_1_6) == JNI_OK) return (void *) env;
-    return (g_jvm->AttachCurrentThreadAsDaemon(&env, nullptr) == JNI_OK) ? (void *) env : nullptr;
-}
-
-BRIDGE_API int DetachThread(void *env) { return g_jvm ? g_jvm->DetachCurrentThread() : -1; }
-
-void InitFrameBuffers(int width, int height) {
-    if (g_frameBuffersInitialized) ReleaseFrameBuffers();
-    size_t rgba_size = (size_t) width * height * 4;
-    size_t bgr_size = (size_t) width * height * 3;
-    int stride = width * 4;
-    for (int i = 0; i < FRAME_BUFFER_COUNT; ++i) {
-        FrameBuffer &buf = g_buffers[i];
-        if (posix_memalign((void **) &buf.data, 64, rgba_size) != 0 ||
-            posix_memalign((void **) &buf.bgr_data, 64, bgr_size) != 0)
-            return;
-        buf.width = width;
-        buf.height = height;
-        buf.stride = stride;
-        buf.size = rgba_size;
-        buf.bgr_size = bgr_size;
-        g_bufferStates[i].store(FRAME_STATE_FREE);
-        g_readerCounts[i].store(0);
-    }
-    g_targetWidth.store(width);
-    g_targetHeight.store(height);
-    g_readBuffer.store(nullptr);
-    g_frameCount.store(0);
-    g_frameBuffersInitialized = true;
-    LOGI("InitFrameBuffers: Success %dx%d", width, height);
-}
-
-void ReleaseFrameBuffers(void) {
-    for (int i = 0; i < FRAME_BUFFER_COUNT; ++i) {
-        while (g_bufferStates[i].load() == FRAME_STATE_WRITING || g_readerCounts[i].load() > 0)
-            std::this_thread::yield();
-        if (g_buffers[i].data) free(g_buffers[i].data);
-        if (g_buffers[i].bgr_data) free(g_buffers[i].bgr_data);
-        g_buffers[i].data = nullptr;
-        g_buffers[i].bgr_data = nullptr;
-    }
-    g_frameBuffersInitialized = false;
-}
-
-static int GetBufferIndex(FrameBuffer *buf) {
-    for (int i = 0; i < FRAME_BUFFER_COUNT; ++i) if (&g_buffers[i] == buf) return i;
-    return -1;
-}
-
-static void CommitWriteBuffer(FrameBuffer *buf) {
-    int idx = GetBufferIndex(buf);
-    if (idx >= 0) {
-        g_readBuffer.store(buf, std::memory_order_release);
-        g_bufferStates[idx].store(FRAME_STATE_FREE, std::memory_order_release);
-    }
-}
-
-static FrameBuffer *AcquireWriteBuffer() {
-    FrameBuffer *currentReadBuf = g_readBuffer.load(std::memory_order_acquire);
-    for (int i = 0; i < FRAME_BUFFER_COUNT; ++i) {
-        FrameBuffer *candidate = &g_buffers[i];
-        if (candidate == currentReadBuf ||
-            g_readerCounts[i].load(std::memory_order_acquire) > 0)
-            continue;
-        int expected = FRAME_STATE_FREE;
-        if (g_bufferStates[i].compare_exchange_strong(expected, FRAME_STATE_WRITING,
-                                                      std::memory_order_acq_rel)) {
-            if (g_readerCounts[i].load(std::memory_order_acquire) > 0 ||
-                g_readBuffer.load(std::memory_order_acquire) == candidate) {
-                g_bufferStates[i].store(FRAME_STATE_FREE, std::memory_order_release);
-                continue;
-            }
-            return candidate;
-        }
-    }
-    return nullptr;
-}
-
-int64_t CopyFrameFromHardwareBuffer(void *env_ptr, void *hardwareBufferObj, int64_t timestampNs) {
-    auto *env = (JNIEnv *) env_ptr;
-    if (!env || !hardwareBufferObj || !g_frameBuffersInitialized) return -1;
-    FrameBuffer *target = AcquireWriteBuffer();
-    if (!target) return -1;
-    AHardwareBuffer *buffer = AHardwareBuffer_fromHardwareBuffer(env, (jobject) hardwareBufferObj);
-    if (!buffer) {
-        g_bufferStates[GetBufferIndex(target)].store(FRAME_STATE_FREE);
-        return -1;
-    }
-    AHardwareBuffer_Desc desc;
-    AHardwareBuffer_describe(buffer, &desc);
-    void *srcAddr = nullptr;
-    if (AHardwareBuffer_lock(buffer, AHARDWAREBUFFER_USAGE_CPU_READ_OFTEN, -1, nullptr, &srcAddr) !=
-        0) {
-        g_bufferStates[GetBufferIndex(target)].store(FRAME_STATE_FREE);
-        return -1;
-    }
-
-    bool needsPreview = g_hasPreview.load(std::memory_order_acquire);
-
-#ifdef ENABLE_FRAME_TIMING
-    auto processFrameStart = std::chrono::steady_clock::now();
-#endif
-    ProcessFrameDataV2((uint8_t *) srcAddr,
-                       needsPreview ? target->data : nullptr,
-                       target->bgr_data,
-                       target->width, target->height,
-                       desc.stride * 4
-    );
-#ifdef ENABLE_FRAME_TIMING
-    auto processFrameElapsedNs =
-            std::chrono::duration_cast<std::chrono::nanoseconds>(
-                    std::chrono::steady_clock::now() - processFrameStart
-            ).count();
-    g_processFrameWindowTotalNs += processFrameElapsedNs;
-    ++g_processFrameWindowCount;
-    if (g_processFrameWindowCount >= 100) {
-        double avgMs = static_cast<double>(g_processFrameWindowTotalNs) /
-                       static_cast<double>(g_processFrameWindowCount) /
-                       1000000.0;
-        LOGI("ProcessFrameData avg over %d calls: %.3f ms",
-             g_processFrameWindowCount, avgMs);
-        g_processFrameWindowTotalNs = 0;
-        g_processFrameWindowCount = 0;
-    }
-#endif
-
-    AHardwareBuffer_unlock(buffer, nullptr);
-    target->timestamp = timestampNs;
-    target->frameCount = g_frameCount.fetch_add(1) + 1;
-    CommitWriteBuffer(target);
-    if (needsPreview) DispatchPreview(target);
-    return target->frameCount;
-}
-
-static const FrameBuffer *LockCurrentFrame() {
-    for (int attempt = 0; attempt < 3; attempt++) {
-        FrameBuffer *frame = g_readBuffer.load(std::memory_order_acquire);
-        if (!frame || frame->frameCount == 0) return nullptr;
-        int idx = GetBufferIndex(frame);
-        if (idx < 0) return nullptr;
-        g_readerCounts[idx].fetch_add(1, std::memory_order_acquire);
-        if (g_readBuffer.load(std::memory_order_acquire) != frame) {
-            g_readerCounts[idx].fetch_sub(1, std::memory_order_release);
-            continue;
-        }
-        if (g_bufferStates[idx].load(std::memory_order_acquire) == FRAME_STATE_WRITING) {
-            bool ready = false;
-            for (int spin = 0; spin < 500; spin++)
-                if (g_bufferStates[idx].load(std::memory_order_acquire) != FRAME_STATE_WRITING) {
-                    ready = true;
-                    break;
-                }
-            if (!ready) {
-                g_readerCounts[idx].fetch_sub(1, std::memory_order_release);
-                return nullptr;
-            }
-        }
-        return frame;
-    }
-    return nullptr;
-}
-
-static void UnlockFrame(const FrameBuffer *frame) {
-    if (frame) {
-        int idx = GetBufferIndex(const_cast<FrameBuffer *>(frame));
-        if (idx >= 0) g_readerCounts[idx].fetch_sub(1, std::memory_order_release);
-    }
-}
-
-const FrameBuffer *GetCurrentFrame() { return LockCurrentFrame(); }
-
-BRIDGE_API FrameInfo GetLockedPixels() {
-    FrameInfo result = {0};
-    const FrameBuffer *frame = GetCurrentFrame();
-    if (frame && frame->bgr_data) {
-        result.width = frame->width;
-        result.height = frame->height;
-        result.stride = frame->width * 3;
-        result.length = frame->bgr_size;
-        result.data = frame->bgr_data;
-        result.frame_ref = const_cast<FrameBuffer *>(frame);
-    }
-    return result;
-}
-
-BRIDGE_API int UnlockPixels(FrameInfo info) {
-    if (info.frame_ref) UnlockFrame(reinterpret_cast<const FrameBuffer *>(info.frame_ref));
-    return 0;
-}
-
-static jstring ping(JNIEnv *env, jclass clazz) {
-    return env->NewStringUTF("LibBridge");
-}
-
-static void nativeInitFrameBuffers(JNIEnv *env, jclass clazz, jint width, jint height) {
-    InitFrameBuffers(width, height);
-}
-
-static jlong nativeCopyFrameFromHardwareBuffer(JNIEnv *env, jclass clazz, jobject hardwareBuffer,
-                                               jlong timestampNs) {
-    if (!hardwareBuffer) return -1;
-    NATIVE_COPY_FRAME_TIMING_START();
-    auto result = CopyFrameFromHardwareBuffer(env, hardwareBuffer, timestampNs);
-    NATIVE_COPY_FRAME_TIMING_END();
-    return result;
-}
-
-static void nativeReleaseFrameBuffers(JNIEnv *env, jclass clazz) { ReleaseFrameBuffers(); }
-
-static jobject nativeGetFrameBufferBitmap(JNIEnv *env, jclass clazz) {
-    const FrameBuffer *frame = LockCurrentFrame();
-    if (!frame || !frame->data) return nullptr;
-    jclass bitmapClass = env->FindClass("android/graphics/Bitmap");
-    jclass configClass = env->FindClass("android/graphics/Bitmap$Config");
-    jfieldID argb8888Field = env->GetStaticFieldID(configClass, "ARGB_8888",
-                                                   "Landroid/graphics/Bitmap$Config;");
-    jobject argb8888Config = env->GetStaticObjectField(configClass, argb8888Field);
-    jmethodID createBitmapMethod = env->GetStaticMethodID(bitmapClass, "createBitmap",
-                                                          "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
-    jobject bitmap = env->CallStaticObjectMethod(bitmapClass, createBitmapMethod, frame->width,
-                                                 frame->height, argb8888Config);
-    void *pixels = nullptr;
-    if (AndroidBitmap_lockPixels(env, bitmap, &pixels) == ANDROID_BITMAP_RESULT_SUCCESS) {
-        AndroidBitmapInfo info;
-        AndroidBitmap_getInfo(env, bitmap, &info);
-        if (info.stride == (uint32_t) frame->stride) memcpy(pixels, frame->data, frame->size);
-        else
-            for (int y = 0; y < frame->height; ++y)
-                memcpy((uint8_t *) pixels + y * info.stride, frame->data + y * frame->stride,
-                       frame->width * 4);
-        AndroidBitmap_unlockPixels(env, bitmap);
-    }
-    UnlockFrame(frame);
-    return bitmap;
 }

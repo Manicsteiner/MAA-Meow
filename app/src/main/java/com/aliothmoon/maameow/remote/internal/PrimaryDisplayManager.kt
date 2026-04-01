@@ -2,7 +2,6 @@ package com.aliothmoon.maameow.remote.internal
 
 import android.graphics.Rect
 import android.hardware.display.VirtualDisplay
-import android.media.ImageReader
 import android.os.IBinder
 import android.view.Display
 import android.view.Surface
@@ -24,7 +23,6 @@ object PrimaryDisplayManager {
     private val state = AtomicInteger(STATE_IDLE)
     private val display = AtomicReference<IBinder?>()
     private val virtualDisplay = AtomicReference<VirtualDisplay?>()
-    private val reader = AtomicReference<ImageReader?>()
     private val setup = AtomicBoolean(false)
 
     const val DISPLAY_ID = Display.DEFAULT_DISPLAY
@@ -96,22 +94,15 @@ object PrimaryDisplayManager {
         val info = displayInfo.get()
         val width = info.size.width
         val height = info.size.height
-        NativeBridgeLib.initFrameBuffers(width, height)
-        val r = DisplayHelper.newInstanceImagerReader(width, height)
-        r.setOnImageAvailableListener({ onImageAvailable(it) }, handler)
-        reader.set(r)
-        createVirtualDisplay(r.surface, info)
+        val surface = NativeBridgeLib.setupNativeCapturer(width, height)
+        createVirtualDisplay(surface, info)
         return DISPLAY_ID
     }
 
     private fun releaseResources() {
         virtualDisplay.getAndSet(null)?.release()
         display.getAndSet(null)?.let { SurfaceControl.destroyDisplay(it) }
-        reader.getAndSet(null)?.close()
-    }
-
-    private fun onImageAvailable(reader: ImageReader) {
-        FrameCaptureHelper.processImage(reader)
+        NativeBridgeLib.releaseNativeCapturer()
     }
 
     private fun createVirtualDisplay(surface: Surface, displayInfo: DisplayInfo) {

@@ -2,7 +2,6 @@ package com.aliothmoon.maameow.remote.internal
 
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
-import android.media.ImageReader
 import android.os.Build
 import android.os.Handler
 import android.view.Surface
@@ -53,7 +52,6 @@ object VirtualDisplayManager {
     private val config = AtomicReference(DisplayConfig())
     private val displayId = AtomicInteger(DISPLAY_NONE)
     private val virtualDisplay = AtomicReference<VirtualDisplay?>()
-    private val reader = AtomicReference<ImageReader?>()
 
     private val monitorSurface = AtomicReference<Surface?>()
 
@@ -85,7 +83,6 @@ object VirtualDisplayManager {
         }
         releaseResources()
         monitorSurface.getAndSet(null)?.release()
-        NativeBridgeLib.releaseFrameBuffers()
         Ln.i("VirtualDisplayManager stopped")
     }
 
@@ -111,13 +108,8 @@ object VirtualDisplayManager {
     private fun startInternal(): Int {
         try {
             val cfg = config.get()
-            NativeBridgeLib.initFrameBuffers(cfg.width, cfg.height)
-
-            val r = DisplayHelper.newInstanceImagerReader(cfg.width, cfg.height)
-            r.setOnImageAvailableListener({ onImageAvailable(it) }, handler)
-            reader.set(r)
-
-            createVirtualDisplay(r.surface, cfg)
+            val surface = NativeBridgeLib.setupNativeCapturer(cfg.width, cfg.height)
+            createVirtualDisplay(surface, cfg)
 
             Ln.i("VirtualDisplayManager started, displayId=${displayId.get()}")
             return displayId.get()
@@ -130,12 +122,8 @@ object VirtualDisplayManager {
 
     private fun releaseResources() {
         virtualDisplay.getAndSet(null)?.release()
-        reader.getAndSet(null)?.close()
+        NativeBridgeLib.releaseNativeCapturer()
         displayId.set(DISPLAY_NONE)
-    }
-
-    private fun onImageAvailable(reader: ImageReader) {
-        FrameCaptureHelper.processImage(reader)
     }
 
     private fun createVirtualDisplay(surface: Surface, cfg: DisplayConfig) {
