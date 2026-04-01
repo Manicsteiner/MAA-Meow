@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "bridge_input.h"
 
 static JavaVM *g_jvm = nullptr;
@@ -97,27 +98,39 @@ void ReleaseInputBridge(JNIEnv *env) {
     g_jvm = nullptr;
 }
 
-BRIDGE_API void *AttachThread() {
-    if (!g_jvm) {
-        return nullptr;
-    }
-
+struct JniThreadAttacher {
     JNIEnv *env = nullptr;
-    if (g_jvm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) == JNI_OK) {
-        return env;
-    }
-    return g_jvm->AttachCurrentThreadAsDaemon(&env, nullptr) == JNI_OK ? env : nullptr;
-}
+    bool needs_detach = false;
 
-BRIDGE_API int DetachThread(void *env) {
-    (void) env;
-    return g_jvm ? g_jvm->DetachCurrentThread() : -1;
+    JniThreadAttacher() {
+        if (!g_jvm) return;
+        if (g_jvm->GetEnv(reinterpret_cast<void **>(&env), JNI_VERSION_1_6) != JNI_OK) {
+            if (g_jvm->AttachCurrentThreadAsDaemon(&env, nullptr) == JNI_OK) {
+                needs_detach = true;
+                LOGI("JniThreadAttacher: attached thread %d", gettid());
+            } else {
+                LOGE("JniThreadAttacher: attach failed for thread %d", gettid());
+            }
+        }
+    }
+
+    ~JniThreadAttacher() {
+        if (needs_detach && g_jvm) {
+            LOGI("JniThreadAttacher: detaching thread %d", gettid());
+            g_jvm->DetachCurrentThread();
+        }
+    }
+};
+
+static JNIEnv *GetJNIEnv() {
+    thread_local JniThreadAttacher attacher;
+    return attacher.env;
 }
 
 BRIDGE_API int DispatchInputMessage(MethodParam param) {
     LOGD("DispatchInputMessage: method=%d display_id=%d", param.method, param.display_id);
 
-    auto *env = static_cast<JNIEnv *>(AttachThread());
+    auto *env = GetJNIEnv();
     if (!env) {
         return -1;
     }

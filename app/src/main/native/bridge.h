@@ -72,8 +72,6 @@ struct MethodParam {
     ArgUnion args;
 };
 
-BRIDGE_API void *AttachThread(void);
-BRIDGE_API int DetachThread(void *env);
 BRIDGE_API FrameInfo GetLockedPixels(void);
 BRIDGE_API int UnlockPixels(FrameInfo info);
 BRIDGE_API int DispatchInputMessage(MethodParam param);
