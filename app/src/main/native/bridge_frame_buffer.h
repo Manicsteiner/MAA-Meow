@@ -13,20 +13,17 @@ typedef enum {
 #define FRAME_BUFFER_COUNT 3
 
 typedef struct {
-    uint8_t *data;
     uint8_t *bgr_data;
+    size_t bgr_size;
+    int64_t frame_count;
     int width;
     int height;
-    int stride;
-    size_t size;
-    size_t bgr_size;
-    int64_t timestamp;
-    int64_t frameCount;
+    int index;
 } FrameBuffer;
 
 void InitFrameBuffers(int width, int height);
 void ReleaseFrameBuffers();
-bool WriteHardwareBufferToFrame(AHardwareBuffer *buffer, int64_t timestampNs);
+bool WriteHardwareBufferToFrame(AHardwareBuffer *buffer);
 jobject CreateFrameBufferBitmap(JNIEnv *env);
 
 #endif // BRIDGE_FRAME_BUFFER_H

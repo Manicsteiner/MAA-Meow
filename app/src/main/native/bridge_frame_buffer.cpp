@@ -11,23 +11,23 @@
 #endif
 
 static FrameBuffer g_buffers[FRAME_BUFFER_COUNT] = {};
-static std::atomic<int> g_bufferStates[FRAME_BUFFER_COUNT] = {
+static std::atomic<int> g_buffer_states[FRAME_BUFFER_COUNT] = {
         FRAME_STATE_FREE, FRAME_STATE_FREE, FRAME_STATE_FREE
 };
-static std::atomic<int> g_readerCounts[FRAME_BUFFER_COUNT] = {0, 0, 0};
-static std::atomic<FrameBuffer *> g_readBuffer{nullptr};
-static std::atomic<int64_t> g_frameCount{0};
-static std::atomic<bool> g_frameBuffersInitialized{false};
+static std::atomic<int> g_reader_counts[FRAME_BUFFER_COUNT] = {0, 0, 0};
+static std::atomic<FrameBuffer *> g_read_buffer{nullptr};
+static std::atomic<int64_t> g_frame_count{0};
+static std::atomic<bool> g_frame_buffers_initialized{false};
 
 static void ProcessFrameDataV2(
         const uint8_t *__restrict src,
-        uint8_t *__restrict dstBGR,
+        uint8_t *__restrict dst_bgr,
         int width,
         int height,
-        int srcStride) {
+        int src_stride) {
     for (int y = 0; y < height; ++y) {
-        const uint8_t *s = src + static_cast<size_t>(y) * srcStride;
-        uint8_t *d3 = dstBGR + y * width * 3;
+        const uint8_t *s = src + static_cast<size_t>(y) * src_stride;
+        uint8_t *d3 = dst_bgr + y * width * 3;
         int x = 0;
 
 #if defined(__ARM_NEON)
@@ -63,12 +63,7 @@ static void ProcessFrameDataV2(
 }
 
 static int GetBufferIndex(FrameBuffer *buf) {
-    for (int i = 0; i < FRAME_BUFFER_COUNT; ++i) {
-        if (&g_buffers[i] == buf) {
-            return i;
-        }
-    }
-    return -1;
+    return buf->index;
 }
 
 static void ReleaseBuffer(FrameBuffer *buf) {
@@ -79,20 +74,16 @@ static void ReleaseBuffer(FrameBuffer *buf) {
         free(buf->bgr_data);
         buf->bgr_data = nullptr;
     }
-    buf->data = nullptr;
     buf->width = 0;
     buf->height = 0;
-    buf->stride = 0;
-    buf->size = 0;
     buf->bgr_size = 0;
-    buf->timestamp = 0;
-    buf->frameCount = 0;
+    buf->frame_count = 0;
 }
 
 static void MarkBufferFree(FrameBuffer *buf) {
     int idx = GetBufferIndex(buf);
     if (idx >= 0) {
-        g_bufferStates[idx].store(FRAME_STATE_FREE, std::memory_order_release);
+        g_buffer_states[idx].store(FRAME_STATE_FREE, std::memory_order_release);
     }
 }
 
@@ -101,35 +92,35 @@ static void CommitWriteBuffer(FrameBuffer *buf) {
     if (idx < 0) {
         return;
     }
-    g_bufferStates[idx].store(FRAME_STATE_FREE, std::memory_order_release);
-    if (g_frameBuffersInitialized.load(std::memory_order_acquire)) {
-        g_readBuffer.store(buf, std::memory_order_release);
+    g_buffer_states[idx].store(FRAME_STATE_FREE, std::memory_order_release);
+    if (g_frame_buffers_initialized.load(std::memory_order_acquire)) {
+        g_read_buffer.store(buf, std::memory_order_release);
     }
 }
 
 static FrameBuffer *AcquireWriteBuffer() {
-    if (!g_frameBuffersInitialized.load(std::memory_order_acquire)) {
+    if (!g_frame_buffers_initialized.load(std::memory_order_acquire)) {
         return nullptr;
     }
 
-    FrameBuffer *currentReadBuffer = g_readBuffer.load(std::memory_order_acquire);
+    FrameBuffer *currentReadBuffer = g_read_buffer.load(std::memory_order_acquire);
     for (int i = 0; i < FRAME_BUFFER_COUNT; ++i) {
         FrameBuffer *candidate = &g_buffers[i];
         if (candidate == currentReadBuffer ||
-            g_readerCounts[i].load(std::memory_order_acquire) > 0) {
+            g_reader_counts[i].load(std::memory_order_acquire) > 0) {
             continue;
         }
 
         int expected = FRAME_STATE_FREE;
-        if (!g_bufferStates[i].compare_exchange_strong(expected, FRAME_STATE_WRITING,
-                                                       std::memory_order_acq_rel)) {
+        if (!g_buffer_states[i].compare_exchange_strong(expected, FRAME_STATE_WRITING,
+                                                        std::memory_order_acq_rel)) {
             continue;
         }
 
-        if (g_readerCounts[i].load(std::memory_order_acquire) > 0 ||
-            g_readBuffer.load(std::memory_order_acquire) == candidate ||
-            !g_frameBuffersInitialized.load(std::memory_order_acquire)) {
-            g_bufferStates[i].store(FRAME_STATE_FREE, std::memory_order_release);
+        if (g_reader_counts[i].load(std::memory_order_acquire) > 0 ||
+            g_read_buffer.load(std::memory_order_acquire) == candidate ||
+            !g_frame_buffers_initialized.load(std::memory_order_acquire)) {
+            g_buffer_states[i].store(FRAME_STATE_FREE, std::memory_order_release);
             continue;
         }
         return candidate;
@@ -138,13 +129,13 @@ static FrameBuffer *AcquireWriteBuffer() {
 }
 
 static const FrameBuffer *LockCurrentFrame() {
-    if (!g_frameBuffersInitialized.load(std::memory_order_acquire)) {
+    if (!g_frame_buffers_initialized.load(std::memory_order_acquire)) {
         return nullptr;
     }
 
     for (int attempt = 0; attempt < 3; ++attempt) {
-        FrameBuffer *frame = g_readBuffer.load(std::memory_order_acquire);
-        if (!frame || frame->frameCount == 0) {
+        FrameBuffer *frame = g_read_buffer.load(std::memory_order_acquire);
+        if (!frame || frame->frame_count == 0) {
             return nullptr;
         }
 
@@ -153,23 +144,23 @@ static const FrameBuffer *LockCurrentFrame() {
             return nullptr;
         }
 
-        g_readerCounts[idx].fetch_add(1, std::memory_order_acquire);
-        if (g_readBuffer.load(std::memory_order_acquire) != frame ||
-            !g_frameBuffersInitialized.load(std::memory_order_acquire)) {
-            g_readerCounts[idx].fetch_sub(1, std::memory_order_release);
+        g_reader_counts[idx].fetch_add(1, std::memory_order_acquire);
+        if (g_read_buffer.load(std::memory_order_acquire) != frame ||
+            !g_frame_buffers_initialized.load(std::memory_order_acquire)) {
+            g_reader_counts[idx].fetch_sub(1, std::memory_order_release);
             continue;
         }
 
-        if (g_bufferStates[idx].load(std::memory_order_acquire) == FRAME_STATE_WRITING) {
+        if (g_buffer_states[idx].load(std::memory_order_acquire) == FRAME_STATE_WRITING) {
             bool ready = false;
             for (int spin = 0; spin < 500; ++spin) {
-                if (g_bufferStates[idx].load(std::memory_order_acquire) != FRAME_STATE_WRITING) {
+                if (g_buffer_states[idx].load(std::memory_order_acquire) != FRAME_STATE_WRITING) {
                     ready = true;
                     break;
                 }
             }
             if (!ready) {
-                g_readerCounts[idx].fetch_sub(1, std::memory_order_release);
+                g_reader_counts[idx].fetch_sub(1, std::memory_order_release);
                 return nullptr;
             }
         }
@@ -186,12 +177,12 @@ static void UnlockFrame(const FrameBuffer *frame) {
 
     int idx = GetBufferIndex(const_cast<FrameBuffer *>(frame));
     if (idx >= 0) {
-        g_readerCounts[idx].fetch_sub(1, std::memory_order_release);
+        g_reader_counts[idx].fetch_sub(1, std::memory_order_release);
     }
 }
 
 void InitFrameBuffers(int width, int height) {
-    if (g_frameBuffersInitialized.load(std::memory_order_acquire)) {
+    if (g_frame_buffers_initialized.load(std::memory_order_acquire)) {
         ReleaseFrameBuffers();
     }
 
@@ -203,53 +194,50 @@ void InitFrameBuffers(int width, int height) {
             LOGE("InitFrameBuffers: posix_memalign failed at index=%d", i);
             for (int j = 0; j <= i; ++j) {
                 ReleaseBuffer(&g_buffers[j]);
-                g_bufferStates[j].store(FRAME_STATE_FREE, std::memory_order_release);
-                g_readerCounts[j].store(0, std::memory_order_release);
+                g_buffer_states[j].store(FRAME_STATE_FREE, std::memory_order_release);
+                g_reader_counts[j].store(0, std::memory_order_release);
             }
-            g_readBuffer.store(nullptr, std::memory_order_release);
-            g_frameCount.store(0, std::memory_order_release);
+            g_read_buffer.store(nullptr, std::memory_order_release);
+            g_frame_count.store(0, std::memory_order_release);
             return;
         }
 
-        buf.data = nullptr;
+        buf.index = i;
         buf.width = width;
         buf.height = height;
-        buf.stride = width * 4;
-        buf.size = 0;
         buf.bgr_size = bgrSize;
-        buf.timestamp = 0;
-        buf.frameCount = 0;
-        g_bufferStates[i].store(FRAME_STATE_FREE, std::memory_order_release);
-        g_readerCounts[i].store(0, std::memory_order_release);
+        buf.frame_count = 0;
+        g_buffer_states[i].store(FRAME_STATE_FREE, std::memory_order_release);
+        g_reader_counts[i].store(0, std::memory_order_release);
     }
 
-    g_readBuffer.store(nullptr, std::memory_order_release);
-    g_frameCount.store(0, std::memory_order_release);
-    g_frameBuffersInitialized.store(true, std::memory_order_release);
+    g_read_buffer.store(nullptr, std::memory_order_release);
+    g_frame_count.store(0, std::memory_order_release);
+    g_frame_buffers_initialized.store(true, std::memory_order_release);
     LOGI("InitFrameBuffers: Success %dx%d", width, height);
 }
 
 void ReleaseFrameBuffers() {
-    g_frameBuffersInitialized.store(false, std::memory_order_release);
-    g_readBuffer.store(nullptr, std::memory_order_release);
+    g_frame_buffers_initialized.store(false, std::memory_order_release);
+    g_read_buffer.store(nullptr, std::memory_order_release);
 
     for (int i = 0; i < FRAME_BUFFER_COUNT; ++i) {
-        while (g_bufferStates[i].load(std::memory_order_acquire) == FRAME_STATE_WRITING ||
-               g_readerCounts[i].load(std::memory_order_acquire) > 0) {
+        while (g_buffer_states[i].load(std::memory_order_acquire) == FRAME_STATE_WRITING ||
+               g_reader_counts[i].load(std::memory_order_acquire) > 0) {
             std::this_thread::yield();
         }
 
         ReleaseBuffer(&g_buffers[i]);
-        g_bufferStates[i].store(FRAME_STATE_FREE, std::memory_order_release);
-        g_readerCounts[i].store(0, std::memory_order_release);
+        g_buffer_states[i].store(FRAME_STATE_FREE, std::memory_order_release);
+        g_reader_counts[i].store(0, std::memory_order_release);
     }
 
-    g_readBuffer.store(nullptr, std::memory_order_release);
-    g_frameCount.store(0, std::memory_order_release);
+    g_read_buffer.store(nullptr, std::memory_order_release);
+    g_frame_count.store(0, std::memory_order_release);
 }
 
-bool WriteHardwareBufferToFrame(AHardwareBuffer *buffer, int64_t timestampNs) {
-    if (!buffer || !g_frameBuffersInitialized.load(std::memory_order_acquire)) {
+bool WriteHardwareBufferToFrame(AHardwareBuffer *buffer) {
+    if (!buffer || !g_frame_buffers_initialized.load(std::memory_order_acquire)) {
         return false;
     }
 
@@ -271,8 +259,7 @@ bool WriteHardwareBufferToFrame(AHardwareBuffer *buffer, int64_t timestampNs) {
                        target->height, static_cast<int>(desc.stride) * 4);
     AHardwareBuffer_unlock(buffer, nullptr);
 
-    target->timestamp = timestampNs;
-    target->frameCount = g_frameCount.fetch_add(1, std::memory_order_acq_rel) + 1;
+    target->frame_count = g_frame_count.fetch_add(1, std::memory_order_acq_rel) + 1;
     CommitWriteBuffer(target);
     return true;
 }

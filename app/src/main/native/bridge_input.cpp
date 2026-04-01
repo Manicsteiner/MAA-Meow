@@ -2,35 +2,35 @@
 #include "bridge_input.h"
 
 static JavaVM *g_jvm = nullptr;
-static jclass g_driverClass = nullptr;
-static jmethodID g_touchDownMethod = nullptr;
-static jmethodID g_touchMoveMethod = nullptr;
-static jmethodID g_touchUpMethod = nullptr;
-static jmethodID g_keyDownMethod = nullptr;
-static jmethodID g_keyUpMethod = nullptr;
-static jmethodID g_startAppMethod = nullptr;
+static jclass g_driver_clz = nullptr;
+static jmethodID g_touch_down_method = nullptr;
+static jmethodID g_touch_move_method = nullptr;
+static jmethodID g_touch_up_method = nullptr;
+static jmethodID g_key_down_method = nullptr;
+static jmethodID g_key_up_method = nullptr;
+static jmethodID g_start_app_method = nullptr;
 
 static int
 UpcallInputControl(JNIEnv *env, MethodType method, int x, int y, int keyCode, int displayId) {
-    if (!env || !g_driverClass) {
+    if (!env || !g_driver_clz) {
         return -1;
     }
 
     switch (method) {
         case TOUCH_DOWN:
-            return env->CallStaticBooleanMethod(g_driverClass, g_touchDownMethod, x, y, displayId)
+            return env->CallStaticBooleanMethod(g_driver_clz, g_touch_down_method, x, y, displayId)
                    ? 0 : -1;
         case TOUCH_MOVE:
-            return env->CallStaticBooleanMethod(g_driverClass, g_touchMoveMethod, x, y, displayId)
+            return env->CallStaticBooleanMethod(g_driver_clz, g_touch_move_method, x, y, displayId)
                    ? 0 : -1;
         case TOUCH_UP:
-            return env->CallStaticBooleanMethod(g_driverClass, g_touchUpMethod, x, y, displayId)
+            return env->CallStaticBooleanMethod(g_driver_clz, g_touch_up_method, x, y, displayId)
                    ? 0 : -1;
         case KEY_DOWN:
-            return env->CallStaticBooleanMethod(g_driverClass, g_keyDownMethod, keyCode, displayId)
+            return env->CallStaticBooleanMethod(g_driver_clz, g_key_down_method, keyCode, displayId)
                    ? 0 : -1;
         case KEY_UP:
-            return env->CallStaticBooleanMethod(g_driverClass, g_keyUpMethod, keyCode, displayId)
+            return env->CallStaticBooleanMethod(g_driver_clz, g_key_up_method, keyCode, displayId)
                    ? 0 : -1;
         default:
             return -1;
@@ -38,12 +38,12 @@ UpcallInputControl(JNIEnv *env, MethodType method, int x, int y, int keyCode, in
 }
 
 static int UpcallStartApp(JNIEnv *env, const char *packageName, int displayId, bool forceStop) {
-    if (!env || !packageName || !g_driverClass || !g_startAppMethod) {
+    if (!env || !packageName || !g_driver_clz || !g_start_app_method) {
         return -1;
     }
 
     jstring jPackageName = env->NewStringUTF(packageName);
-    jboolean result = env->CallStaticBooleanMethod(g_driverClass, g_startAppMethod, jPackageName,
+    jboolean result = env->CallStaticBooleanMethod(g_driver_clz, g_start_app_method, jPackageName,
                                                    displayId, static_cast<jboolean>(forceStop));
     env->DeleteLocalRef(jPackageName);
     return result ? 0 : -1;
@@ -60,22 +60,22 @@ bool InitInputBridge(JavaVM *vm, JNIEnv *env, const char *driverClassName) {
         return false;
     }
 
-    g_driverClass = static_cast<jclass>(env->NewGlobalRef(driverClass));
+    g_driver_clz = static_cast<jclass>(env->NewGlobalRef(driverClass));
     env->DeleteLocalRef(driverClass);
-    if (!g_driverClass) {
+    if (!g_driver_clz) {
         return false;
     }
 
-    g_touchDownMethod = env->GetStaticMethodID(g_driverClass, "touchDown", "(III)Z");
-    g_touchMoveMethod = env->GetStaticMethodID(g_driverClass, "touchMove", "(III)Z");
-    g_touchUpMethod = env->GetStaticMethodID(g_driverClass, "touchUp", "(III)Z");
-    g_keyDownMethod = env->GetStaticMethodID(g_driverClass, "keyDown", "(II)Z");
-    g_keyUpMethod = env->GetStaticMethodID(g_driverClass, "keyUp", "(II)Z");
-    g_startAppMethod = env->GetStaticMethodID(g_driverClass, "startApp", "(Ljava/lang/String;IZ)Z");
+    g_touch_down_method = env->GetStaticMethodID(g_driver_clz, "touchDown", "(III)Z");
+    g_touch_move_method = env->GetStaticMethodID(g_driver_clz, "touchMove", "(III)Z");
+    g_touch_up_method = env->GetStaticMethodID(g_driver_clz, "touchUp", "(III)Z");
+    g_key_down_method = env->GetStaticMethodID(g_driver_clz, "keyDown", "(II)Z");
+    g_key_up_method = env->GetStaticMethodID(g_driver_clz, "keyUp", "(II)Z");
+    g_start_app_method = env->GetStaticMethodID(g_driver_clz, "startApp", "(Ljava/lang/String;IZ)Z");
 
     if (CheckJNIException(env, "GetStaticMethodID(DriverClass)") ||
-        !g_touchDownMethod || !g_touchMoveMethod || !g_touchUpMethod ||
-        !g_keyDownMethod || !g_keyUpMethod || !g_startAppMethod) {
+        !g_touch_down_method || !g_touch_move_method || !g_touch_up_method ||
+        !g_key_down_method || !g_key_up_method || !g_start_app_method) {
         ReleaseInputBridge(env);
         return false;
     }
@@ -84,17 +84,17 @@ bool InitInputBridge(JavaVM *vm, JNIEnv *env, const char *driverClassName) {
 }
 
 void ReleaseInputBridge(JNIEnv *env) {
-    g_touchDownMethod = nullptr;
-    g_touchMoveMethod = nullptr;
-    g_touchUpMethod = nullptr;
-    g_keyDownMethod = nullptr;
-    g_keyUpMethod = nullptr;
-    g_startAppMethod = nullptr;
+    g_touch_down_method = nullptr;
+    g_touch_move_method = nullptr;
+    g_touch_up_method = nullptr;
+    g_key_down_method = nullptr;
+    g_key_up_method = nullptr;
+    g_start_app_method = nullptr;
 
-    if (g_driverClass && env) {
-        env->DeleteGlobalRef(g_driverClass);
+    if (g_driver_clz && env) {
+        env->DeleteGlobalRef(g_driver_clz);
     }
-    g_driverClass = nullptr;
+    g_driver_clz = nullptr;
     g_jvm = nullptr;
 }
 

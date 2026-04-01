@@ -26,12 +26,9 @@ static void onImageAvailable(void *context, AImageReader *reader) {
         return;
     }
 
-    int64_t timestamp = 0;
-    AImage_getTimestamp(image, &timestamp);
-
-    AHardwareBuffer *hardwareBuffer = nullptr;
-    if (AImage_getHardwareBuffer(image, &hardwareBuffer) == AMEDIA_OK && hardwareBuffer) {
-        WriteHardwareBufferToFrame(hardwareBuffer, timestamp);
+    AHardwareBuffer *hb = nullptr;
+    if (AImage_getHardwareBuffer(image, &hb) == AMEDIA_OK && hb) {
+        WriteHardwareBufferToFrame(hb);
     }
 
     bool handedOver = false;
