@@ -47,7 +47,11 @@ class MaaResourceLoader(
     suspend fun load(clientType: String = chainState.getClientType()): Result<Unit> {
         _state.value = State.Loading()
         Timber.i("MaaCore resources loading, clientType=$clientType")
-        loadDepsInfo(clientType)
+        try {
+            loadDepsInfo(clientType)
+        } catch (e: Exception) {
+            Timber.e(e, "loadDepsInfo error")
+        }
 
         return try {
             withContext(Dispatchers.IO) {

@@ -99,7 +99,11 @@ class ActivityManager(
         val type = if (clientType == "Bilibili") "Official" else clientType
         val job = withContext(Dispatchers.IO) {
             async {
-                setupHotUpdate(type)
+                try {
+                    setupHotUpdate(type)
+                } catch (e: Exception) {
+                    Timber.e(e, "解析热更数据失败")
+                }
             }
         }
         try {
