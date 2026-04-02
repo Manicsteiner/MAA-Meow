@@ -13,6 +13,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import com.alibaba.fastjson2.JSONArray
 import timber.log.Timber
 
 /**
@@ -102,12 +103,14 @@ class SubTaskHandler(
                     append(str("MissingOperators"), LogLevel.ERROR)
                 } else {
                     val sb = StringBuilder(str("MissingOperators")).append("\n")
-                    opers.forEach { (key, value) ->
-                        val names = when (value) {
-                            is com.alibaba.fastjson2.JSONArray -> value.joinToString(", ")
-                            else -> value.toString()
+                    opers.forEach { (groupName, value) ->
+                        val arr = value as? JSONArray
+                        if (arr == null || arr.size <= 1) {
+                            sb.append("$groupName\n")
+                        } else {
+                            val names = arr.mapNotNull { (it as? JSONObject)?.getString("name") }
+                            sb.append("$groupName=> ${names.joinToString(" / ")}\n")
                         }
-                        sb.append("[$key]: $names\n")
                     }
                     append(sb.trimEnd().toString(), LogLevel.ERROR)
                 }
@@ -495,7 +498,14 @@ class SubTaskHandler(
             "BattleFormationOperUnavailable" -> {
                 val name = subDetails?.getString("oper_name") ?: ""
                 val reqType = subDetails?.getString("requirement_type") ?: ""
-                append(str("BattleFormationOperUnavailable", name, reqType), LogLevel.ERROR)
+                val reason = when (reqType) {
+                    "elite" -> "精英化不足"
+                    "level" -> "等级不足"
+                    "skill_level" -> "技能等级不足"
+                    "module" -> "所需模组未解锁"
+                    else -> reqType
+                }
+                append(str("BattleFormationOperUnavailable", name, reason), LogLevel.ERROR)
                 copilotRuntimeStateStore.markRequirementIgnored()
             }
 
