@@ -147,6 +147,7 @@ fun ScreenSaverView(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 48.dp)
+                .offset { IntOffset(burnInOffsetX, burnInOffsetY / 3) }
         )
     }
 }
