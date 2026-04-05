@@ -1,6 +1,9 @@
 package com.aliothmoon.maameow.domain.usecase
 
 import com.aliothmoon.maameow.data.model.TaskChainNode
+import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.data.preferences.TaskChainState
+import com.aliothmoon.maameow.domain.models.RunMode
 import com.aliothmoon.maameow.domain.service.AppAliveChecker
 import com.aliothmoon.maameow.remote.AppAliveStatus
 import timber.log.Timber
@@ -8,6 +11,8 @@ import timber.log.Timber
 class PrepareTaskStartUseCase(
     private val analyzeTaskChainUseCase: AnalyzeTaskChainUseCase,
     private val appAliveChecker: AppAliveChecker,
+    private val taskChainState: TaskChainState,
+    private val appSettingsManager: AppSettingsManager,
 ) {
     companion object {
         const val NO_WAKE_UP_WARNING_MESSAGE =
@@ -20,7 +25,10 @@ class PrepareTaskStartUseCase(
         chain: List<TaskChainNode>,
         context: TaskStartContext,
     ): TaskStartDecision {
-        val plan = when (val analyzeResult = analyzeTaskChainUseCase(chain)) {
+        val plan = when (val analyzeResult = analyzeTaskChainUseCase(
+            chain,
+            fallbackClientType = taskChainState.getLastUsedClientType(),
+        )) {
             is AnalyzeTaskChainResult.Ready -> analyzeResult.plan
             is AnalyzeTaskChainResult.Blocked -> {
                 return TaskStartDecision.Blocked(
@@ -31,6 +39,7 @@ class PrepareTaskStartUseCase(
         }
 
         if (plan.launchesGame ||
+            appSettingsManager.runMode.value == RunMode.FOREGROUND ||
             context.acknowledgements.contains(TaskStartAcknowledgement.GAME_NOT_RUNNING_WITHOUT_WAKE_UP)
         ) {
             return TaskStartDecision.Ready(plan)

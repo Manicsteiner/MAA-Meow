@@ -45,8 +45,8 @@ class AppWatchdog(
     fun startWatching() {
         stopWatching()
 
-        val clientType = chainState.getClientTypeOrNull()
-        val packageName = clientType?.let { Packages[it] }
+        val clientType = chainState.getClientType()
+        val packageName = Packages[clientType]
         if (packageName == null) {
             Timber.w(
                 "AppWatchdog: cannot resolve package name for clientType=%s, skipping",

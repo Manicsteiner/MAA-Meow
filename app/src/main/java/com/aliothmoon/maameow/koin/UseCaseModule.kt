@@ -7,5 +7,5 @@ import org.koin.dsl.module
 
 val useCaseModule = module {
     factory { AnalyzeTaskChainUseCase() }
-    factory { PrepareTaskStartUseCase(get(), get()) }
+    factory { PrepareTaskStartUseCase(get(), get(), get(), get()) }
 }

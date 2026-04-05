@@ -62,6 +62,8 @@ class TaskChainState(private val context: Context) {
     private val _isLoaded = MutableStateFlow(false)
     val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
 
+    private val _lastUsedClientType = MutableStateFlow<String?>(null)
+
     init {
         scope.launch {
             val prefs = context.store.data.first()
@@ -184,7 +186,20 @@ class TaskChainState(private val context: Context) {
     }
 
     fun getClientTypeOrNull(): String? {
-        return findFirstConfig<WakeUpConfig>()?.clientType
+        return findFirstEnabledConfig<WakeUpConfig>()?.clientType
+            ?: _lastUsedClientType.value
+    }
+
+    fun getLastUsedClientType(): String? = _lastUsedClientType.value
+
+    fun saveLastUsedClientType(clientType: String) {
+        _lastUsedClientType.value = clientType
+    }
+
+    inline fun <reified T : TaskParamProvider> findFirstEnabledConfig(): T? {
+        return chain.value
+            .filter { it.enabled }
+            .firstNotNullOfOrNull { it.config as? T }
     }
 
     fun grantGameBatteryExemption(clientType: String) {

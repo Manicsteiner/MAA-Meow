@@ -293,6 +293,7 @@ class MaaCompositionService(
         maa: MaaCoreService,
         tasks: List<MaaTaskParams>,
         successMessage: String,
+        mode: RunMode,
     ): StartResult {
         taskChainStatusTracker.clear()
         tasks.forEach { t ->
@@ -306,7 +307,9 @@ class MaaCompositionService(
             return failStart("MaaCore 启动失败", "START_ERROR", StartResult.StartError)
         }
         setRunState(MaaExecutionState.RUNNING)
-        appWatchdog.startWatching()
+        if (mode == RunMode.BACKGROUND) {
+            appWatchdog.startWatching()
+        }
         sessionLogger.appendAndWait(successMessage, LogLevel.SUCCESS)
         return StartResult.Success(maa.GetVersion())
     }
@@ -338,7 +341,11 @@ class MaaCompositionService(
                     mode,
                     clientType
                 )?.let { return@useRemoteService it }
-                appendTasksAndStart(maa, tasks, successMessage)
+                val result = appendTasksAndStart(maa, tasks, successMessage, mode)
+                if (result is StartResult.Success) {
+                    taskChainState.saveLastUsedClientType(clientType)
+                }
+                result
             }
         }
     }

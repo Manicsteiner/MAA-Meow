@@ -17,7 +17,10 @@ class AnalyzeTaskChainUseCase {
         const val EMPTY_PARAMS_MESSAGE = "当前没有可执行的任务（可能被周计划过滤）"
     }
 
-    operator fun invoke(chain: List<TaskChainNode>): AnalyzeTaskChainResult {
+    operator fun invoke(
+        chain: List<TaskChainNode>,
+        fallbackClientType: String? = null,
+    ): AnalyzeTaskChainResult {
         val enabledNodes = chain.filter { it.enabled }.sortedBy { it.order }
         if (enabledNodes.isEmpty()) {
             return AnalyzeTaskChainResult.Blocked(
@@ -33,7 +36,7 @@ class AnalyzeTaskChainUseCase {
             )
         }
 
-        val clientType = resolveClientType(enabledNodes)
+        val clientType = resolveClientType(enabledNodes, fallbackClientType)
         val creditFightAvailability = resolveMallCreditFightAvailability(enabledNodes)
         val serverDayOfWeek = ServerTimezone.getYjDayOfWeek(clientType)
 
@@ -76,8 +79,13 @@ class AnalyzeTaskChainUseCase {
         return null
     }
 
-    private fun resolveClientType(nodes: List<TaskChainNode>): String {
-        return nodes.firstNotNullOfOrNull { (it.config as? WakeUpConfig)?.clientType } ?: "Official"
+    private fun resolveClientType(
+        nodes: List<TaskChainNode>,
+        fallbackClientType: String?,
+    ): String {
+        return nodes.firstNotNullOfOrNull { (it.config as? WakeUpConfig)?.clientType }
+            ?: fallbackClientType
+            ?: "Official"
     }
 
     private fun isSkippedByWeeklySchedule(node: TaskChainNode, serverDayOfWeek: DayOfWeek): Boolean {
