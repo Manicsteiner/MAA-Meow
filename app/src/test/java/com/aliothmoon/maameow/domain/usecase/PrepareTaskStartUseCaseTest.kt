@@ -3,22 +3,26 @@ package com.aliothmoon.maameow.domain.usecase
 import com.aliothmoon.maameow.data.model.AwardConfig
 import com.aliothmoon.maameow.data.model.TaskChainNode
 import com.aliothmoon.maameow.data.model.WakeUpConfig
+import com.aliothmoon.maameow.domain.models.RunMode
 import com.aliothmoon.maameow.domain.service.AppAliveChecker
 import com.aliothmoon.maameow.remote.AppAliveStatus
 import junit.framework.TestCase.assertEquals
 import junit.framework.TestCase.assertTrue
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 
 class PrepareTaskStartUseCaseTest {
 
     private val analyzeTaskChainUseCase = AnalyzeTaskChainUseCase()
+    private val backgroundMode = MutableStateFlow(RunMode.BACKGROUND)
 
     @Test
     fun manualStart_requiresConfirmation_whenGameIsDeadAndNoWakeUpLaunchConfigured() = runBlocking {
         val useCase = PrepareTaskStartUseCase(
             analyzeTaskChainUseCase = analyzeTaskChainUseCase,
             appAliveChecker = FakeAppAliveChecker(AppAliveStatus.DEAD),
+            runMode = backgroundMode,
         )
 
         val result = useCase(
@@ -41,6 +45,7 @@ class PrepareTaskStartUseCaseTest {
         val useCase = PrepareTaskStartUseCase(
             analyzeTaskChainUseCase = analyzeTaskChainUseCase,
             appAliveChecker = FakeAppAliveChecker(AppAliveStatus.DEAD),
+            runMode = backgroundMode,
         )
 
         val result = useCase(
@@ -62,6 +67,7 @@ class PrepareTaskStartUseCaseTest {
         val useCase = PrepareTaskStartUseCase(
             analyzeTaskChainUseCase = analyzeTaskChainUseCase,
             appAliveChecker = FakeAppAliveChecker(AppAliveStatus.DEAD),
+            runMode = backgroundMode,
         )
 
         val result = useCase(
@@ -81,6 +87,7 @@ class PrepareTaskStartUseCaseTest {
         val useCase = PrepareTaskStartUseCase(
             analyzeTaskChainUseCase = analyzeTaskChainUseCase,
             appAliveChecker = checker,
+            runMode = backgroundMode,
         )
 
         val result = useCase(
@@ -103,6 +110,7 @@ class PrepareTaskStartUseCaseTest {
         val useCase = PrepareTaskStartUseCase(
             analyzeTaskChainUseCase = analyzeTaskChainUseCase,
             appAliveChecker = FakeAppAliveChecker(AppAliveStatus.UNKNOWN),
+            runMode = backgroundMode,
         )
 
         val result = useCase(
@@ -118,6 +126,7 @@ class PrepareTaskStartUseCaseTest {
         val useCase = PrepareTaskStartUseCase(
             analyzeTaskChainUseCase = analyzeTaskChainUseCase,
             appAliveChecker = FakeAppAliveChecker(AppAliveStatus.ALIVE),
+            runMode = backgroundMode,
         )
 
         val result = useCase(

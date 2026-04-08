@@ -6,15 +6,22 @@ import com.aliothmoon.maameow.data.model.CopilotConfig
 import com.aliothmoon.maameow.data.model.copilot.CopilotListItem
 import com.aliothmoon.maameow.data.model.copilot.CopilotTaskData
 import com.aliothmoon.maameow.data.model.copilot.DifficultyFlags
+import com.aliothmoon.maameow.constant.Packages
+import com.aliothmoon.maameow.data.preferences.TaskChainState
 import com.aliothmoon.maameow.data.repository.CopilotRepository
 import com.aliothmoon.maameow.data.resource.ResourceDataManager
+import com.aliothmoon.maameow.domain.service.AppAliveChecker
 import com.aliothmoon.maameow.domain.service.CopilotManager
 import com.aliothmoon.maameow.domain.service.CopilotRequestException
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.domain.service.OperatorSummaryData
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
+import com.aliothmoon.maameow.remote.AppAliveStatus
 import com.aliothmoon.maameow.maa.callback.CopilotRuntimeStateStore
 import com.aliothmoon.maameow.maa.task.MaaTaskType
+import com.aliothmoon.maameow.presentation.view.panel.PanelDialogConfirmAction
+import com.aliothmoon.maameow.presentation.view.panel.PanelDialogType
+import com.aliothmoon.maameow.presentation.view.panel.PanelDialogUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -95,6 +102,8 @@ class CopilotViewModel(
     private val repository: CopilotRepository,
     private val resourceDataManager: ResourceDataManager,
     private val runtimeStateStore: CopilotRuntimeStateStore,
+    private val appAliveChecker: AppAliveChecker,
+    private val chainState: TaskChainState,
 ) : ViewModel() {
 
     companion object {
@@ -119,8 +128,12 @@ class CopilotViewModel(
     private val _state = MutableStateFlow(CopilotUiState())
     val state: StateFlow<CopilotUiState> = _state.asStateFlow()
 
+    private val _dialog = MutableStateFlow<PanelDialogUiState?>(null)
+    val dialog: StateFlow<PanelDialogUiState?> = _dialog.asStateFlow()
+
     val maaState: StateFlow<MaaExecutionState> = compositionService.state
 
+    private var gameNotRunningAcknowledged = false
     private val pendingCopilotIds = mutableListOf<Int>()
     private val recentlyRatedCopilotIds = mutableSetOf<Int>()
     private val ratingInFlightCopilotIds = mutableSetOf<Int>()
@@ -793,10 +806,43 @@ class CopilotViewModel(
         persistTaskList()
     }
 
+    fun onDialogConfirm() {
+        when (_dialog.value?.confirmAction) {
+            PanelDialogConfirmAction.CONFIRM_PENDING_START -> {
+                _dialog.value = null
+                gameNotRunningAcknowledged = true
+                onStart()
+            }
+            else -> {
+                _dialog.value = null
+            }
+        }
+    }
+
+    fun onDialogDismiss() {
+        _dialog.value = null
+    }
+
     fun onStart() {
         viewModelScope.launch {
             val snapshot = _state.value
             if (!validateStart(snapshot)) return@launch
+
+            if (!gameNotRunningAcknowledged) {
+                val pkg = Packages[chainState.getClientType()]
+                if (pkg != null && appAliveChecker.isAppAlive(pkg) == AppAliveStatus.DEAD) {
+                    _dialog.value = PanelDialogUiState(
+                        type = PanelDialogType.WARNING,
+                        title = "启动警告",
+                        message = GAME_NOT_RUNNING_WARNING,
+                        confirmText = "仍然启动",
+                        dismissText = "取消",
+                        confirmAction = PanelDialogConfirmAction.CONFIRM_PENDING_START,
+                    )
+                    return@launch
+                }
+            }
+            gameNotRunningAcknowledged = false
 
             val config = buildEffectiveConfig(snapshot)
             val tasks = if (snapshot.useCopilotList) {
@@ -860,7 +906,13 @@ class CopilotViewModel(
         }
 
         if (snapshot.currentCopilot == null || snapshot.currentFilePath.isBlank()) {
-            _state.update { it.copy(statusMessage = MSG_COPILOT_EMPTY) }
+            _dialog.value = PanelDialogUiState(
+                type = PanelDialogType.WARNING,
+                title = "提示",
+                message = "作业为空，请先读取作业",
+                confirmText = "知道了",
+                confirmAction = PanelDialogConfirmAction.DISMISS_ONLY,
+            )
             return false
         }
 

@@ -5,6 +5,9 @@ import com.aliothmoon.maameow.presentation.view.panel.PanelDialogConfirmAction
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogType
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogUiState
 
+internal const val GAME_NOT_RUNNING_WARNING =
+    "检测到游戏未运行，继续执行可能直接失败，是否仍然启动？"
+
 internal fun resolveTaskStartFailureMessage(result: MaaCompositionService.StartResult): String? {
     return when (result) {
         is MaaCompositionService.StartResult.Success -> null

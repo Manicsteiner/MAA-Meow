@@ -2,11 +2,18 @@ package com.aliothmoon.maameow.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aliothmoon.maameow.constant.Packages
+import com.aliothmoon.maameow.data.preferences.TaskChainState
 import com.aliothmoon.maameow.data.resource.ActivityManager
+import com.aliothmoon.maameow.domain.service.AppAliveChecker
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
+import com.aliothmoon.maameow.remote.AppAliveStatus
 import com.aliothmoon.maameow.maa.callback.ToolboxResultCollector
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
+import com.aliothmoon.maameow.presentation.view.panel.PanelDialogConfirmAction
+import com.aliothmoon.maameow.presentation.view.panel.PanelDialogType
+import com.aliothmoon.maameow.presentation.view.panel.PanelDialogUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +46,8 @@ class ToolboxViewModel(
     private val compositionService: MaaCompositionService,
     val collector: ToolboxResultCollector,
     activityManager: ActivityManager,
+    private val appAliveChecker: AppAliveChecker,
+    private val chainState: TaskChainState,
 ) : ViewModel() {
 
     val miniGame = MiniGameDelegate(activityManager, compositionService, viewModelScope)
@@ -48,6 +57,11 @@ class ToolboxViewModel(
 
     private val _statusMessage = MutableStateFlow("")
     val statusMessage: StateFlow<String> = _statusMessage.asStateFlow()
+
+    private val _dialog = MutableStateFlow<PanelDialogUiState?>(null)
+    val dialog: StateFlow<PanelDialogUiState?> = _dialog.asStateFlow()
+
+    private var gameNotRunningAcknowledged = false
 
     // ==================== 公招识别配置 ====================
 
@@ -65,12 +79,43 @@ class ToolboxViewModel(
     // ==================== 统一启动/停止 ====================
 
     fun onStart() {
+        viewModelScope.launch {
+            if (!gameNotRunningAcknowledged) {
+                val pkg = Packages[chainState.getClientType()]
+                if (pkg != null && appAliveChecker.isAppAlive(pkg) == AppAliveStatus.DEAD) {
+                    _dialog.value = PanelDialogUiState(
+                        type = PanelDialogType.WARNING,
+                        title = "启动警告",
+                        message = GAME_NOT_RUNNING_WARNING,
+                        confirmText = "仍然启动",
+                        dismissText = "取消",
+                        confirmAction = PanelDialogConfirmAction.CONFIRM_PENDING_START,
+                    )
+                    return@launch
+                }
+            }
+            gameNotRunningAcknowledged = false
+            doStart()
+        }
+    }
+
+    private fun doStart() {
         when (_currentTab.value) {
             ToolboxTab.MINI_GAME -> miniGame.onStart()
             ToolboxTab.RECRUIT_CALC -> onStartRecruitCalc()
             ToolboxTab.DEPOT -> onStartDepot()
             ToolboxTab.OPER_BOX -> onStartOperBox()
         }
+    }
+
+    fun onDialogConfirm() {
+        _dialog.value = null
+        gameNotRunningAcknowledged = true
+        onStart()
+    }
+
+    fun onDialogDismiss() {
+        _dialog.value = null
     }
 
     fun onStop() {

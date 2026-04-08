@@ -151,6 +151,8 @@ fun BackgroundTaskView(
     var showCloseConfirm by remember { mutableStateOf(false) }
     var showMoreActions by remember { mutableStateOf(false) }
 
+    val copilotDialog by copilotViewModel.dialog.collectAsStateWithLifecycle()
+    val toolboxDialog by toolboxViewModel.dialog.collectAsStateWithLifecycle()
     val nodes by viewModel.chainState.chain.collectAsStateWithLifecycle()
     val profiles by viewModel.chainState.profiles.collectAsStateWithLifecycle()
     val activeProfileId by viewModel.chainState.activeProfileId.collectAsStateWithLifecycle()
@@ -654,7 +656,15 @@ fun BackgroundTaskView(
             }
         }
 
-        state.dialog?.let { dialog ->
+        val activeDialog = state.dialog ?: copilotDialog ?: toolboxDialog
+        val activeDialogCallbacks = when {
+            state.dialog != null -> viewModel::onDialogDismiss to viewModel::onDialogConfirm
+            copilotDialog != null -> copilotViewModel::onDialogDismiss to copilotViewModel::onDialogConfirm
+            toolboxDialog != null -> toolboxViewModel::onDialogDismiss to toolboxViewModel::onDialogConfirm
+            else -> null
+        }
+        activeDialog?.let { dialog ->
+            val (onDismiss, onConfirm) = activeDialogCallbacks!!
             val confirmColor = when (dialog.type) {
                 PanelDialogType.SUCCESS -> MaterialTheme.colorScheme.primary
                 PanelDialogType.WARNING -> MaterialTheme.colorScheme.tertiary
@@ -664,8 +674,8 @@ fun BackgroundTaskView(
                 visible = true,
                 title = dialog.title,
                 message = AnnotatedString(dialog.message),
-                onDismissRequest = viewModel::onDialogDismiss,
-                onConfirm = viewModel::onDialogConfirm,
+                onDismissRequest = onDismiss,
+                onConfirm = onConfirm,
                 confirmText = dialog.confirmText,
                 dismissText = dialog.dismissText,
                 icon = when (dialog.type) {

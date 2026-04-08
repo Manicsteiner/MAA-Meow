@@ -10,7 +10,7 @@ import timber.log.Timber
 class PrepareTaskStartUseCase(
     private val analyzeTaskChainUseCase: AnalyzeTaskChainUseCase,
     private val appAliveChecker: AppAliveChecker,
-    private val appSettingsManager: AppSettingsManager,
+    private val appSettings: AppSettingsManager,
 ) {
     companion object {
         const val NO_WAKE_UP_WARNING_MESSAGE =
@@ -33,8 +33,9 @@ class PrepareTaskStartUseCase(
             }
         }
 
+        val runMode = appSettings.runMode.value
         if (plan.launchesGame ||
-            appSettingsManager.runMode.value == RunMode.FOREGROUND ||
+            runMode == RunMode.FOREGROUND ||
             context.acknowledgements.contains(TaskStartAcknowledgement.GAME_NOT_RUNNING_WITHOUT_WAKE_UP)
         ) {
             return TaskStartDecision.Ready(plan)
@@ -42,7 +43,10 @@ class PrepareTaskStartUseCase(
 
         val packageName = plan.gamePackageName
         if (packageName == null) {
-            Timber.w("PrepareTaskStart: cannot resolve package name for clientType=%s", plan.clientType)
+            Timber.w(
+                "PrepareTaskStart: cannot resolve package name for clientType=%s",
+                plan.clientType
+            )
             return TaskStartDecision.Ready(plan)
         }
 
