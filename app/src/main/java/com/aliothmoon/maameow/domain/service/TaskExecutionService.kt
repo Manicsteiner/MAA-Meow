@@ -79,6 +79,10 @@ class TaskExecutionService : Service() {
                         updateNotification("正在启动...")
                     }
 
+                    MaaExecutionState.STOPPING -> {
+                        updateNotification("正在停止...")
+                    }
+
                     MaaExecutionState.RUNNING -> {
                         val now = System.currentTimeMillis()
                         if (now - lastUpdateTime >= MIN_UPDATE_INTERVAL_MS) {

@@ -462,7 +462,7 @@ class HomeViewModel(
 
     fun checkRunModeChangeEnabled(): Boolean {
         val value = compositionService.state.value
-        return !(value == MaaExecutionState.RUNNING || value == MaaExecutionState.STARTING)
+        return !(value == MaaExecutionState.RUNNING || value == MaaExecutionState.STARTING || value == MaaExecutionState.STOPPING)
     }
 
 

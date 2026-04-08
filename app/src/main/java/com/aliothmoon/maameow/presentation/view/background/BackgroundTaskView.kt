@@ -481,7 +481,7 @@ fun BackgroundTaskView(
                                                 else -> {}
                                             }
                                         },
-                                        enabled = maaState != MaaExecutionState.RUNNING && maaState != MaaExecutionState.STARTING,
+                                        enabled = maaState != MaaExecutionState.RUNNING && maaState != MaaExecutionState.STARTING && maaState != MaaExecutionState.STOPPING,
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(8.dp)
                                     ) {
@@ -512,7 +512,15 @@ fun BackgroundTaskView(
                                             contentColor = MaterialTheme.colorScheme.error
                                         )
                                     ) {
-                                        Text("停止任务")
+                                        if (maaState == MaaExecutionState.STOPPING) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(20.dp),
+                                                color = MaterialTheme.colorScheme.error,
+                                                strokeWidth = 2.dp
+                                            )
+                                        } else {
+                                            Text("停止任务")
+                                        }
                                     }
 
                                     IconButton(
