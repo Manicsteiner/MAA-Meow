@@ -18,6 +18,9 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.aliothmoon.maameow.domain.service.MaaSessionLogger
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class ScreenSaverOverlayManager(
     private val context: Context,
@@ -31,6 +34,9 @@ class ScreenSaverOverlayManager(
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
 
+    private val _showing = MutableStateFlow(false)
+    val showing: StateFlow<Boolean> = _showing.asStateFlow()
+
     init {
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
@@ -39,7 +45,7 @@ class ScreenSaverOverlayManager(
     override val lifecycle: Lifecycle get() = lifecycleRegistry
     override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
 
-    fun isShowing(): Boolean = composeView != null
+    fun isShowing(): Boolean = _showing.value
 
     fun show(activity: Activity? = null) {
         if (isShowing()) return
@@ -69,6 +75,7 @@ class ScreenSaverOverlayManager(
             windowManager.addView(composeView, layoutParams)
             lifecycleRegistry.currentState = Lifecycle.State.STARTED
             lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+            _showing.value = true
         } catch (e: Exception) {
             e.printStackTrace()
             hide()
@@ -91,6 +98,7 @@ class ScreenSaverOverlayManager(
             e.printStackTrace()
         } finally {
             composeView = null
+            _showing.value = false
         }
     }
 
@@ -101,7 +109,8 @@ class ScreenSaverOverlayManager(
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                // WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                0x00080000
 
         return WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,

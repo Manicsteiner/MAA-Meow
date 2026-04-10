@@ -3,6 +3,7 @@ package com.aliothmoon.maameow.presentation.viewmodel
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.aliothmoon.maameow.BuildConfig
 import com.aliothmoon.maameow.data.model.update.UpdateChannel
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.data.preferences.ConfigBackupManager
@@ -91,7 +92,11 @@ class SettingsViewModel(
     }
 
     val autoCheckUpdate: StateFlow<Boolean> = appSettingsManager.autoCheckUpdate
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            !BuildConfig.DEBUG
+        )
 
     fun setAutoCheckUpdate(enabled: Boolean) {
         viewModelScope.launch {
@@ -136,7 +141,11 @@ class SettingsViewModel(
     }
 
     val themeMode: StateFlow<AppSettingsManager.ThemeMode> = appSettingsManager.themeMode
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettingsManager.ThemeMode.WHITE)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            AppSettingsManager.ThemeMode.WHITE
+        )
 
     fun setThemeMode(mode: AppSettingsManager.ThemeMode) {
         viewModelScope.launch {
