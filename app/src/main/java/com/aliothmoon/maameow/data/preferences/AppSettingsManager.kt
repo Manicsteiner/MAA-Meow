@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
+import com.aliothmoon.maameow.constant.DefaultDisplayConfig
 import com.aliothmoon.maameow.data.model.update.UpdateChannel
 import com.aliothmoon.maameow.data.model.update.UpdateSource
 import com.aliothmoon.maameow.domain.models.AppSettings
@@ -333,6 +334,25 @@ class AppSettingsManager(private val context: Context) {
     suspend fun setEventNotificationLevel(level: EventNotificationLevel) {
         with(AppSettingsSchema) {
             context.dataStore.edit { it[eventNotificationLevel] = level.name }
+        }
+    }
+
+    // 后台虚拟屏分辨率
+    val backgroundResolution: StateFlow<DefaultDisplayConfig.ResolutionPreference> = settings
+        .map {
+            runCatching { DefaultDisplayConfig.ResolutionPreference.valueOf(it.backgroundResolution) }
+                .getOrDefault(DefaultDisplayConfig.ResolutionPreference.P720)
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope, SharingStarted.Eagerly,
+            runCatching { DefaultDisplayConfig.ResolutionPreference.valueOf(initialSettings.backgroundResolution) }
+                .getOrDefault(DefaultDisplayConfig.ResolutionPreference.P720)
+        )
+
+    suspend fun setBackgroundResolution(pref: DefaultDisplayConfig.ResolutionPreference) {
+        with(AppSettingsSchema) {
+            context.dataStore.edit { it[backgroundResolution] = pref.name }
         }
     }
 

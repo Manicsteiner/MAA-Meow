@@ -119,6 +119,7 @@ import androidx.compose.material.icons.filled.StayCurrentPortrait
 import androidx.compose.material.icons.filled.TouchApp
 import androidx.compose.ui.graphics.vector.ImageVector
 
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.aliothmoon.maameow.presentation.view.panel.ToolboxPanel
 
@@ -240,6 +241,7 @@ fun BackgroundTaskView(
 
     var isSurfaceAvailable by remember { mutableStateOf(false) }
     var lastSentSurface by remember { mutableStateOf<Surface?>(null) }
+    val currentResolution by rememberUpdatedState(displayResolution)
 
     val previewContent = remember {
         movableContentOf {
@@ -257,10 +259,8 @@ fun BackgroundTaskView(
                                         isSurfaceAvailable = true
                                         innerScope.launch {
                                             delay(50)
-                                            holder.setFixedSize(
-                                                DefaultDisplayConfig.WIDTH,
-                                                DefaultDisplayConfig.HEIGHT
-                                            )
+                                            val res = currentResolution
+                                            holder.setFixedSize(res.width, res.height)
                                         }
                                     }
 
@@ -268,7 +268,8 @@ fun BackgroundTaskView(
                                         holder: SurfaceHolder, format: Int, width: Int, height: Int
                                     ) {
                                         Timber.d("Surface size changed to $width x $height")
-                                        if (width == DefaultDisplayConfig.WIDTH && height == DefaultDisplayConfig.HEIGHT) {
+                                        val res = currentResolution
+                                        if (width == res.width && height == res.height) {
                                             if (lastSentSurface != holder.surface) {
                                                 lastSentSurface = holder.surface
                                                 viewModel.onSurfaceAvailable(holder.surface)

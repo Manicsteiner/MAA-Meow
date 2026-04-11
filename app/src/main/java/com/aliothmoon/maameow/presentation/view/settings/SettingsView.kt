@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.aliothmoon.maameow.BuildConfig
+import com.aliothmoon.maameow.constant.DefaultDisplayConfig
 import com.aliothmoon.maameow.data.model.update.UpdateChannel
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.domain.models.RemoteBackend
@@ -78,6 +79,7 @@ fun SettingsView(
     val skipShizukuCheck by viewModel.skipShizukuCheck.collectAsStateWithLifecycle()
     val updateChannel by viewModel.updateChannel.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+    val backgroundResolution by viewModel.backgroundResolution.collectAsStateWithLifecycle()
     val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
     val showRestartDialog by viewModel.showRestartDialog.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
@@ -266,6 +268,12 @@ fun SettingsView(
                         contentColor = contentColor,
                         selectedMode = themeMode,
                         onModeSelected = { viewModel.setThemeMode(it) }
+                    )
+                    SettingsDivider(contentColor)
+                    SettingBackgroundResolutionItem(
+                        contentColor = contentColor,
+                        selectedPreference = backgroundResolution,
+                        onPreferenceSelected = { viewModel.setBackgroundResolution(it) }
                     )
                     SettingSwitchItem(
                         title = "跳过 Shizuku 检查",
@@ -561,6 +569,66 @@ private fun SettingChannelItem(
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
                         text = channel.displayName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingBackgroundResolutionItem(
+    contentColor: Color,
+    selectedPreference: DefaultDisplayConfig.ResolutionPreference,
+    onPreferenceSelected: (DefaultDisplayConfig.ResolutionPreference) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = MaaDesignTokens.Spacing.listItemVertical),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "后台分辨率",
+                style = MaterialTheme.typography.bodyLarge,
+                color = contentColor
+            )
+            Text(
+                text = "仅后台模式生效",
+                style = MaterialTheme.typography.bodySmall,
+                color = contentColor.copy(alpha = 0.6f)
+            )
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val options = listOf(
+                DefaultDisplayConfig.ResolutionPreference.P720 to "720p",
+                DefaultDisplayConfig.ResolutionPreference.P1080 to "1080p"
+            )
+            options.forEach { (pref, label) ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .selectable(
+                            selected = pref == selectedPreference,
+                            onClick = { onPreferenceSelected(pref) },
+                            role = Role.RadioButton
+                        )
+                ) {
+                    RadioButton(
+                        selected = pref == selectedPreference,
+                        onClick = null
+                    )
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Text(
+                        text = label,
                         style = MaterialTheme.typography.bodyMedium,
                         color = contentColor
                     )

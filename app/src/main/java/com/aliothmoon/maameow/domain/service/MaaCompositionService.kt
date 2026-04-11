@@ -356,14 +356,16 @@ class MaaCompositionService(
         service: RemoteService,
         clientType: String
     ): DefaultDisplayConfig.Resolution {
-        val r = DefaultDisplayConfig.resolveResolution(clientType)
+        val preference = appSettings.backgroundResolution.value
+        val r = DefaultDisplayConfig.resolveResolution(clientType, preference)
         service.setVirtualDisplayResolution(r.width, r.height, r.dpi)
         Timber.i(
-            "Virtual display resolution: %dx%d@%d for client=%s",
+            "Virtual display resolution: %dx%d@%d for client=%s, pref=%s",
             r.width,
             r.height,
             r.dpi,
-            clientType
+            clientType,
+            preference
         )
         _displayResolution.value = r
         return r

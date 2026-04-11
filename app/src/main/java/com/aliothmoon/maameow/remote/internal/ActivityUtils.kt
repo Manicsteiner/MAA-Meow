@@ -19,7 +19,12 @@ object ActivityUtils {
             if (displayId != 0) {
                 launchOptions.setLaunchDisplayId(displayId)
             }
-            val ret = am.startActivity(intent, launchOptions.toBundle())
+            val ret = try {
+                am.startActivity(intent, launchOptions.toBundle())
+            } catch (e: Exception) {
+                Ln.w("startActivity failed, returning -1", e)
+                -1
+            }
             if (ret < 0) {
                 Ln.w("startActivity returned error code $ret, fallback to am command")
                 return startViaAmCommand(intent, displayId)

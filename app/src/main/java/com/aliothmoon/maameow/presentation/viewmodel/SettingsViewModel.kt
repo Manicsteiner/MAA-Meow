@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aliothmoon.maameow.BuildConfig
+import com.aliothmoon.maameow.constant.DefaultDisplayConfig
 import com.aliothmoon.maameow.data.model.update.UpdateChannel
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.data.preferences.ConfigBackupManager
@@ -150,6 +151,20 @@ class SettingsViewModel(
     fun setThemeMode(mode: AppSettingsManager.ThemeMode) {
         viewModelScope.launch {
             appSettingsManager.setThemeMode(mode)
+        }
+    }
+
+    val backgroundResolution: StateFlow<DefaultDisplayConfig.ResolutionPreference> =
+        appSettingsManager.backgroundResolution
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5000),
+                DefaultDisplayConfig.ResolutionPreference.P720
+            )
+
+    fun setBackgroundResolution(pref: DefaultDisplayConfig.ResolutionPreference) {
+        viewModelScope.launch {
+            appSettingsManager.setBackgroundResolution(pref)
         }
     }
 }
