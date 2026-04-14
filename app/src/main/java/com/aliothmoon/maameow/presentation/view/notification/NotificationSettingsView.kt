@@ -172,7 +172,7 @@ fun NotificationSettingsView(
                 Spacer(Modifier.height(MaaDesignTokens.Spacing.sm))
                 InfoCard(
                     title = "",
-                    contentPadding = MaaDesignTokens.Spacing.md
+                    contentPadding = PaddingValues(MaaDesignTokens.Spacing.md)
                 ) {
                     Row(
                         modifier = Modifier

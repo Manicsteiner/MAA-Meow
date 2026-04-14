@@ -183,7 +183,11 @@ fun SettingsView(
                 InfoCard(
                     title = "",
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    contentColor = contentColor
+                    contentColor = contentColor,
+                    contentPadding = PaddingValues(
+                        horizontal = MaaDesignTokens.Card.innerPadding,
+                        vertical = MaaDesignTokens.Spacing.listItemVertical
+                    )
                 ) {
                     SettingClickItem(
                         title = stringResource(R.string.settings_reinit_resource_title),
@@ -224,7 +228,11 @@ fun SettingsView(
                 InfoCard(
                     title = "",
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    contentColor = contentColor
+                    contentColor = contentColor,
+                    contentPadding = PaddingValues(
+                        horizontal = MaaDesignTokens.Card.innerPadding,
+                        vertical = MaaDesignTokens.Spacing.listItemVertical
+                    )
                 ) {
                     SettingClickItem(
                         title = stringResource(R.string.settings_log_history_title),
@@ -278,7 +286,11 @@ fun SettingsView(
                 InfoCard(
                     title = "",
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    contentColor = contentColor
+                    contentColor = contentColor,
+                    contentPadding = PaddingValues(
+                        horizontal = MaaDesignTokens.Card.innerPadding,
+                        vertical = MaaDesignTokens.Spacing.listItemVertical
+                    )
                 ) {
                     SettingRemoteBackendItem(
                         contentColor = contentColor,
@@ -303,6 +315,7 @@ fun SettingsView(
                         selectedPreference = backgroundResolution,
                         onPreferenceSelected = { viewModel.setBackgroundResolution(it) }
                     )
+                    SettingsDivider(contentColor)
                     SettingSwitchItem(
                         title = stringResource(R.string.settings_skip_shizuku_check),
                         contentColor = contentColor,
@@ -319,7 +332,11 @@ fun SettingsView(
                 InfoCard(
                     title = "",
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    contentColor = contentColor
+                    contentColor = contentColor,
+                    contentPadding = PaddingValues(
+                        horizontal = MaaDesignTokens.Card.innerPadding,
+                        vertical = MaaDesignTokens.Spacing.listItemVertical
+                    )
                 ) {
                     SettingClickItem(
                         title = stringResource(R.string.settings_export_config_title),
@@ -345,9 +362,12 @@ fun SettingsView(
                 InfoCard(
                     title = "",
                     modifier = Modifier.padding(horizontal = 16.dp),
-                    contentColor = contentColor
+                    contentColor = contentColor,
+                    contentPadding = PaddingValues(
+                        horizontal = MaaDesignTokens.Card.innerPadding,
+                        vertical = MaaDesignTokens.Spacing.listItemVertical
+                    )
                 ) {
-
                     SettingInfoRow(
                         label = stringResource(R.string.settings_about_version),
                         value = BuildConfig.VERSION_NAME,
@@ -378,7 +398,7 @@ fun SettingsView(
                             .clickable {
                                 Misc.openUriSafely(context, "https://github.com/Aliothmoon/MAA-Meow")
                             }
-                            .padding(vertical = 8.dp),
+                            .padding(vertical = MaaDesignTokens.Spacing.listItemVertical),
                         textAlign = TextAlign.Center
                     )
                 }
@@ -527,7 +547,7 @@ private fun SettingInfoRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = MaaDesignTokens.Spacing.listItemVertical),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
@@ -642,11 +662,6 @@ private fun SettingBackgroundResolutionItem(
                 style = MaterialTheme.typography.bodyLarge,
                 color = contentColor
             )
-            Text(
-                text = stringResource(R.string.settings_background_resolution_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = contentColor.copy(alpha = 0.6f)
-            )
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -758,11 +773,6 @@ private fun SettingRemoteBackendItem(
                 text = stringResource(R.string.settings_startup_backend_title),
                 style = MaterialTheme.typography.bodyLarge,
                 color = contentColor
-            )
-            Text(
-                text = stringResource(R.string.settings_startup_backend_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = contentColor.copy(alpha = 0.7f)
             )
         }
         Row(

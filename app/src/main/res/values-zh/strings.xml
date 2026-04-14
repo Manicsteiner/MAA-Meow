@@ -249,7 +249,6 @@
     <string name="settings_language_zh">中文</string>
     <string name="settings_language_en">English</string>
     <string name="settings_background_resolution_title">后台分辨率</string>
-    <string name="settings_background_resolution_desc">仅后台模式生效</string>
     <string name="settings_skip_shizuku_check">跳过 Shizuku 检查</string>
 
     <!-- settings: data section -->
