@@ -21,6 +21,7 @@ import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import timber.log.Timber
 
 class ScreenSaverOverlayManager(
     private val context: Context,
@@ -45,11 +46,7 @@ class ScreenSaverOverlayManager(
     override val lifecycle: Lifecycle get() = lifecycleRegistry
     override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
 
-    fun isShowing(): Boolean = _showing.value
-
     fun show(activity: Activity? = null) {
-        if (isShowing()) return
-
         activity?.window?.let { window ->
             val controller = WindowCompat.getInsetsController(window, window.decorView)
             controller.hide(WindowInsetsCompat.Type.systemBars())
@@ -77,14 +74,12 @@ class ScreenSaverOverlayManager(
             lifecycleRegistry.currentState = Lifecycle.State.RESUMED
             _showing.value = true
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.e(e, "Failed to show screen saver overlay")
             hide()
         }
     }
 
     fun hide() {
-        if (!isShowing()) return
-
         // 恢复系统栏
         insetsController?.show(WindowInsetsCompat.Type.systemBars())
         insetsController = null
@@ -95,7 +90,7 @@ class ScreenSaverOverlayManager(
 
             windowManager.removeView(composeView)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Timber.e(e, "Failed to hide screen saver overlay")
         } finally {
             composeView = null
             _showing.value = false

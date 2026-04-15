@@ -16,6 +16,7 @@ import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.domain.service.MaaSessionLogger
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.domain.usecase.PrepareTaskStartUseCase
+import com.aliothmoon.maameow.overlay.screensaver.HardwareScreenOffManager
 import com.aliothmoon.maameow.domain.usecase.TaskStartAcknowledgement
 import com.aliothmoon.maameow.domain.usecase.TaskStartContext
 import com.aliothmoon.maameow.domain.usecase.TaskStartDecision
@@ -48,6 +49,7 @@ class BackgroundTaskViewModel(
     private val compositionService: MaaCompositionService,
     private val sessionLogger: MaaSessionLogger,
     private val appSettingsManager: AppSettingsManager,
+    private val hardwareScreenOffManager: HardwareScreenOffManager,
     scheduleRepository: ScheduleStrategyRepository,
     triggerLogger: ScheduleTriggerLogger,
     private val application: Context,
@@ -230,7 +232,7 @@ class BackgroundTaskViewModel(
 
     fun onScreenOff() {
         runCatching {
-            RemoteServiceManager.getInstanceOrNull()?.setDisplayPower(false)
+            hardwareScreenOffManager.activate()
         }.onFailure {
             Timber.e(it, "onScreenOff failed")
         }
