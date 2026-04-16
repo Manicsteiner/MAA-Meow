@@ -55,6 +55,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import android.content.Intent
 import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -74,6 +75,7 @@ import java.time.Instant
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -526,15 +528,15 @@ fun ScheduleEditView(
                         runCatching {
                             context.startActivity(
                                 Intent(
-                                    android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                                    android.net.Uri.parse("package:${context.packageName}")
+                                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                    "package:${context.packageName}".toUri()
                                 )
                             )
                         }
                     } else if (state.needExactAlarm && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         runCatching {
                             context.startActivity(
-                                Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
                             )
                         }
                     }

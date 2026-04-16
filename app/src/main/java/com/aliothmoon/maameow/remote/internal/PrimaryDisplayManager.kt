@@ -45,8 +45,8 @@ object PrimaryDisplayManager {
         }
         val info = getDisplayInfo()
         val oldInfo = displayInfo.get()
-        if (info.size != oldInfo?.size) {
-            Ln.i("Display changed: ${oldInfo?.size} -> ${info.size}, triggering restart")
+        if (info.size() != oldInfo?.size()) {
+            Ln.i("Display changed: ${oldInfo?.size()} -> ${info.size()}, triggering restart")
             displayInfo.set(info)
             restart()
         }
@@ -88,8 +88,8 @@ object PrimaryDisplayManager {
 
     private fun startInternal(): Int {
         val info = displayInfo.get()
-        val width = info.size.width
-        val height = info.size.height
+        val width = info.size().width()
+        val height = info.size().height()
         val surface = NativeBridgeLib.setupNativeCapturer(width, height)
         createVirtualDisplay(surface, info)
         return DISPLAY_ID
@@ -102,8 +102,8 @@ object PrimaryDisplayManager {
     }
 
     private fun createVirtualDisplay(surface: Surface, displayInfo: DisplayInfo) {
-        val width = displayInfo.size.width
-        val height = displayInfo.size.height
+        val width = displayInfo.size().width()
+        val height = displayInfo.size().height()
         try {
             val vd = ServiceManager.getDisplayManager()
                 .createVirtualDisplay(
@@ -120,8 +120,8 @@ object PrimaryDisplayManager {
                 val vd = createDisplay()
                 display.set(vd)
 
-                val deviceSize = displayInfo.size
-                val layerStack = displayInfo.layerStack
+                val deviceSize = displayInfo.size()
+                val layerStack = displayInfo.layerStack()
                 val rect = deviceSize.toRect()
                 setDisplaySurface(vd, surface, rect, rect, layerStack)
                 Ln.d("Display: using SurfaceControl API")

@@ -97,6 +97,14 @@ fun UpdateCard(
     val updateSource by viewModel.updateSource.collectAsStateWithLifecycle()
     val mirrorChyanCdk by viewModel.mirrorChyanCdk.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    
+    val resourceUpToDateMessage = stringResource(R.string.update_toast_resource_up_to_date)
+    val appUpToDateMessage = stringResource(R.string.update_toast_app_up_to_date)
+    val resourceUpdateCompleteMessage = stringResource(R.string.update_toast_resource_update_complete)
+    val apkDownloadCompleteMessage = stringResource(R.string.update_toast_apk_download_complete)
+    val resourceCheckFailedFormat = stringResource(R.string.update_toast_check_resource_failed)
+    val appCheckFailedFormat = stringResource(R.string.update_toast_check_app_failed)
+    val resourceUpdateFailedFormat = stringResource(R.string.update_toast_resource_update_failed)
 
     var resourceErrorMessage by remember { mutableStateOf<String?>(null) }
     var appErrorMessage by remember { mutableStateOf<String?>(null) }
@@ -108,17 +116,14 @@ fun UpdateCard(
             is UpdateCheckResult.UpToDate -> {
                 Toast.makeText(
                     context,
-                    context.getString(R.string.update_toast_resource_up_to_date),
+                    resourceUpToDateMessage,
                     Toast.LENGTH_SHORT
                 ).show()
                 viewModel.dismissResourceCheckResult()
             }
 
             is UpdateCheckResult.Error -> {
-                resourceErrorMessage = context.getString(
-                    R.string.update_toast_check_resource_failed,
-                    result.error.message.orEmpty()
-                )
+                resourceErrorMessage = resourceCheckFailedFormat.format(result.error.message.orEmpty())
                 viewModel.dismissResourceCheckResult()
             }
 
@@ -133,17 +138,14 @@ fun UpdateCard(
             is UpdateCheckResult.UpToDate -> {
                 Toast.makeText(
                     context,
-                    context.getString(R.string.update_toast_app_up_to_date),
+                    appUpToDateMessage,
                     Toast.LENGTH_SHORT
                 ).show()
                 viewModel.dismissAppCheckResult()
             }
 
             is UpdateCheckResult.Error -> {
-                appErrorMessage = context.getString(
-                    R.string.update_toast_check_app_failed,
-                    result.error.message.orEmpty()
-                )
+                appErrorMessage = appCheckFailedFormat.format(result.error.message.orEmpty())
                 viewModel.dismissAppCheckResult()
             }
 
@@ -156,16 +158,13 @@ fun UpdateCard(
     LaunchedEffect(resourceUpdateState) {
         when (val state = resourceUpdateState) {
             is UpdateProcessState.Failed -> {
-                resourceErrorMessage = context.getString(
-                    R.string.update_toast_resource_update_failed,
-                    state.error.message.orEmpty()
-                )
+                resourceErrorMessage = resourceUpdateFailedFormat.format(state.error.message.orEmpty())
             }
 
             is UpdateProcessState.Success -> {
                 Toast.makeText(
                     context,
-                    context.getString(R.string.update_toast_resource_update_complete),
+                    resourceUpdateCompleteMessage,
                     Toast.LENGTH_SHORT
                 ).show()
                 viewModel.reset()
@@ -184,7 +183,7 @@ fun UpdateCard(
             is UpdateProcessState.Success -> {
                 Toast.makeText(
                     context,
-                    context.getString(R.string.update_toast_apk_download_complete),
+                    apkDownloadCompleteMessage,
                     Toast.LENGTH_SHORT
                 ).show()
                 viewModel.resetAppUpdate()

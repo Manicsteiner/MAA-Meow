@@ -184,12 +184,27 @@ fun BackgroundTaskView(
         }
     }
     val context = LocalContext.current
+    val serviceDiedMessage = stringResource(R.string.bg_toast_service_died)
+    val appDiedMessage = stringResource(R.string.bg_toast_app_died)
+    val permissionNotAcquiredFormat = stringResource(R.string.bg_toast_permission_not_acquired)
+    val currentStartupBackend by rememberUpdatedState(permissions.startupBackend)
+    val currentPermissionLabel by rememberUpdatedState(
+        context.remoteBackendPermissionLabel(
+            currentStartupBackend
+        )
+    )
 
     if (!permissions.remoteAccessGranted) {
         var isRequestingRemoteAccess by remember { mutableStateOf(false) }
         ShizukuPermissionDialog(
-            title = stringResource(R.string.bg_shizuku_permission_title, permissions.startupBackend.display),
-            message = stringResource(R.string.bg_shizuku_permission_message, permissions.startupBackend.display),
+            title = stringResource(
+                R.string.bg_shizuku_permission_title,
+                permissions.startupBackend.display
+            ),
+            message = stringResource(
+                R.string.bg_shizuku_permission_message,
+                permissions.startupBackend.display
+            ),
             isRequesting = isRequestingRemoteAccess,
             onConfirm = {
                 if (isRequestingRemoteAccess) return@ShizukuPermissionDialog
@@ -200,10 +215,7 @@ fun BackgroundTaskView(
                     if (!granted) {
                         Toast.makeText(
                             context,
-                            context.getString(
-                                R.string.bg_toast_permission_not_acquired,
-                                context.remoteBackendPermissionLabel(permissions.startupBackend)
-                            ),
+                            permissionNotAcquiredFormat.format(currentPermissionLabel),
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -228,7 +240,7 @@ fun BackgroundTaskView(
         dispatcher.serviceDiedEvent.collect {
             Toast.makeText(
                 context,
-                context.getString(R.string.bg_toast_service_died),
+                serviceDiedMessage,
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -238,7 +250,7 @@ fun BackgroundTaskView(
         appWatchdog.appDiedEvent.collect {
             Toast.makeText(
                 context,
-                context.getString(R.string.bg_toast_app_died),
+                appDiedMessage,
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -379,178 +391,178 @@ fun BackgroundTaskView(
                             .weight(1f)
                     ) {
                         HorizontalPager(
-                                state = pagerState,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .weight(1f),
-                                userScrollEnabled = true,
-                                beyondViewportPageCount = 0
-                            ) { page ->
-                                when (page) {
-                                    0 -> {
-                                        Row(modifier = Modifier.fillMaxSize()) {
-                                            TaskListPanel(
-                                                nodes = nodes,
-                                                selectedNodeId = state.selectedNodeId,
-                                                isEditMode = state.isEditMode,
-                                                isAddingTask = state.isAddingTask,
-                                                isProfileMode = state.isProfileMode,
-                                                onNodeEnabledChange = viewModel::onNodeEnabledChange,
-                                                onNodeSelected = viewModel::onNodeSelected,
-                                                onNodeMove = viewModel::onNodeMove,
-                                                onToggleEditMode = viewModel::onToggleEditMode,
-                                                onToggleAddingTask = viewModel::onToggleAddingTask,
-                                                onToggleProfileMode = viewModel::onToggleProfileMode,
-                                                modifier = Modifier.fillMaxHeight(),
+                            state = pagerState,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            userScrollEnabled = true,
+                            beyondViewportPageCount = 0
+                        ) { page ->
+                            when (page) {
+                                0 -> {
+                                    Row(modifier = Modifier.fillMaxSize()) {
+                                        TaskListPanel(
+                                            nodes = nodes,
+                                            selectedNodeId = state.selectedNodeId,
+                                            isEditMode = state.isEditMode,
+                                            isAddingTask = state.isAddingTask,
+                                            isProfileMode = state.isProfileMode,
+                                            onNodeEnabledChange = viewModel::onNodeEnabledChange,
+                                            onNodeSelected = viewModel::onNodeSelected,
+                                            onNodeMove = viewModel::onNodeMove,
+                                            onToggleEditMode = viewModel::onToggleEditMode,
+                                            onToggleAddingTask = viewModel::onToggleAddingTask,
+                                            onToggleProfileMode = viewModel::onToggleProfileMode,
+                                            modifier = Modifier.fillMaxHeight(),
+                                        )
+
+                                        Spacer(modifier = Modifier.width(8.dp))
+
+                                        Card(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight(),
+                                            colors = CardDefaults.cardColors(
+                                                containerColor = MaterialTheme.colorScheme.surface
                                             )
-
-                                            Spacer(modifier = Modifier.width(8.dp))
-
-                                            Card(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .fillMaxHeight(),
-                                                colors = CardDefaults.cardColors(
-                                                    containerColor = MaterialTheme.colorScheme.surface
+                                        ) {
+                                            Column(modifier = Modifier.padding(top = 10.dp)) {
+                                                TaskConfigPanel(
+                                                    selectedNode = selectedNode,
+                                                    isEditMode = state.isEditMode,
+                                                    isAddingTask = state.isAddingTask,
+                                                    isProfileMode = state.isProfileMode,
+                                                    profiles = profiles,
+                                                    activeProfileId = activeProfileId,
+                                                    onConfigChange = { config ->
+                                                        val nodeId =
+                                                            selectedNode?.id
+                                                                ?: return@TaskConfigPanel
+                                                        viewModel.onNodeConfigChange(
+                                                            nodeId,
+                                                            config
+                                                        )
+                                                    },
+                                                    onAddNode = { viewModel.onAddNode(it) },
+                                                    onRemoveNode = { viewModel.onRemoveNode(it) },
+                                                    onRenameNode = { id, name ->
+                                                        viewModel.onRenameNode(
+                                                            id,
+                                                            name
+                                                        )
+                                                    },
+                                                    onSwitchProfile = {
+                                                        viewModel.onSwitchProfile(
+                                                            it
+                                                        )
+                                                    },
+                                                    onRenameProfile = { id, name ->
+                                                        viewModel.onRenameProfile(
+                                                            id,
+                                                            name
+                                                        )
+                                                    },
+                                                    onDuplicateProfile = {
+                                                        viewModel.onDuplicateProfile(
+                                                            it
+                                                        )
+                                                    },
+                                                    onDeleteProfile = {
+                                                        viewModel.onDeleteProfile(
+                                                            it
+                                                        )
+                                                    },
+                                                    onCreateProfile = { viewModel.onCreateProfile() }
                                                 )
-                                            ) {
-                                                Column(modifier = Modifier.padding(top = 10.dp)) {
-                                                    TaskConfigPanel(
-                                                        selectedNode = selectedNode,
-                                                        isEditMode = state.isEditMode,
-                                                        isAddingTask = state.isAddingTask,
-                                                        isProfileMode = state.isProfileMode,
-                                                        profiles = profiles,
-                                                        activeProfileId = activeProfileId,
-                                                        onConfigChange = { config ->
-                                                            val nodeId =
-                                                                selectedNode?.id
-                                                                    ?: return@TaskConfigPanel
-                                                            viewModel.onNodeConfigChange(
-                                                                nodeId,
-                                                                config
-                                                            )
-                                                        },
-                                                        onAddNode = { viewModel.onAddNode(it) },
-                                                        onRemoveNode = { viewModel.onRemoveNode(it) },
-                                                        onRenameNode = { id, name ->
-                                                            viewModel.onRenameNode(
-                                                                id,
-                                                                name
-                                                            )
-                                                        },
-                                                        onSwitchProfile = {
-                                                            viewModel.onSwitchProfile(
-                                                                it
-                                                            )
-                                                        },
-                                                        onRenameProfile = { id, name ->
-                                                            viewModel.onRenameProfile(
-                                                                id,
-                                                                name
-                                                            )
-                                                        },
-                                                        onDuplicateProfile = {
-                                                            viewModel.onDuplicateProfile(
-                                                                it
-                                                            )
-                                                        },
-                                                        onDeleteProfile = {
-                                                            viewModel.onDeleteProfile(
-                                                                it
-                                                            )
-                                                        },
-                                                        onCreateProfile = { viewModel.onCreateProfile() }
-                                                    )
-                                                }
                                             }
                                         }
-                                    }
-
-                                    1 -> AutoBattlePanel(modifier = Modifier.fillMaxSize())
-                                    2 -> ToolboxPanel(modifier = Modifier.fillMaxSize())
-                                    3 -> {
-                                        val runtimeLogs by viewModel.logs.collectAsStateWithLifecycle()
-                                        LogPanel(
-                                            logs = runtimeLogs,
-                                            onClearLogs = { viewModel.onClearLogs() },
-                                            onClose = { viewModel.onTabChange(PanelTab.TASKS) })
                                     }
                                 }
-                            }
 
-                            if (canShowTaskActions) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                val focusManager = LocalFocusManager.current
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Button(
-                                        onClick = {
-                                            focusManager.clearFocus()
-                                            when (state.current) {
-                                                PanelTab.TASKS -> viewModel.onStartTasks()
-                                                PanelTab.AUTO_BATTLE -> copilotViewModel.onStart()
-                                                PanelTab.TOOLS -> toolboxViewModel.onStart()
-                                                else -> {}
-                                            }
-                                        },
-                                        enabled = maaState != MaaExecutionState.RUNNING && maaState != MaaExecutionState.STARTING && maaState != MaaExecutionState.STOPPING,
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        if (maaState == MaaExecutionState.STARTING) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(20.dp),
-                                                color = MaterialTheme.colorScheme.onPrimary,
-                                                strokeWidth = 2.dp
-                                            )
-                                        } else {
-                                            Text(stringResource(R.string.task_btn_start))
-                                        }
-                                    }
-
-                                    OutlinedButton(
-                                        onClick = {
-                                            when (state.current) {
-                                                PanelTab.TASKS -> viewModel.onStopTasks()
-                                                PanelTab.AUTO_BATTLE -> copilotViewModel.onStop()
-                                                PanelTab.TOOLS -> toolboxViewModel.onStop()
-                                                else -> {}
-                                            }
-                                        },
-                                        enabled = maaState == MaaExecutionState.RUNNING,
-                                        modifier = Modifier.weight(1f),
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(
-                                            contentColor = MaterialTheme.colorScheme.error
-                                        )
-                                    ) {
-                                        if (maaState == MaaExecutionState.STOPPING) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(20.dp),
-                                                color = MaterialTheme.colorScheme.error,
-                                                strokeWidth = 2.dp
-                                            )
-                                        } else {
-                                            Text(stringResource(R.string.task_btn_stop))
-                                        }
-                                    }
-
-                                    IconButton(
-                                        onClick = { showMoreActions = !showMoreActions },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.MoreVert,
-                                            contentDescription = stringResource(R.string.task_more_actions_cd)
-                                        )
-                                    }
+                                1 -> AutoBattlePanel(modifier = Modifier.fillMaxSize())
+                                2 -> ToolboxPanel(modifier = Modifier.fillMaxSize())
+                                3 -> {
+                                    val runtimeLogs by viewModel.logs.collectAsStateWithLifecycle()
+                                    LogPanel(
+                                        logs = runtimeLogs,
+                                        onClearLogs = { viewModel.onClearLogs() },
+                                        onClose = { viewModel.onTabChange(PanelTab.TASKS) })
                                 }
                             }
                         }
+
+                        if (canShowTaskActions) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            val focusManager = LocalFocusManager.current
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Button(
+                                    onClick = {
+                                        focusManager.clearFocus()
+                                        when (state.current) {
+                                            PanelTab.TASKS -> viewModel.onStartTasks()
+                                            PanelTab.AUTO_BATTLE -> copilotViewModel.onStart()
+                                            PanelTab.TOOLS -> toolboxViewModel.onStart()
+                                            else -> {}
+                                        }
+                                    },
+                                    enabled = maaState != MaaExecutionState.RUNNING && maaState != MaaExecutionState.STARTING && maaState != MaaExecutionState.STOPPING,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    if (maaState == MaaExecutionState.STARTING) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Text(stringResource(R.string.task_btn_start))
+                                    }
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        when (state.current) {
+                                            PanelTab.TASKS -> viewModel.onStopTasks()
+                                            PanelTab.AUTO_BATTLE -> copilotViewModel.onStop()
+                                            PanelTab.TOOLS -> toolboxViewModel.onStop()
+                                            else -> {}
+                                        }
+                                    },
+                                    enabled = maaState == MaaExecutionState.RUNNING,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error
+                                    )
+                                ) {
+                                    if (maaState == MaaExecutionState.STOPPING) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(20.dp),
+                                            color = MaterialTheme.colorScheme.error,
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Text(stringResource(R.string.task_btn_stop))
+                                    }
+                                }
+
+                                IconButton(
+                                    onClick = { showMoreActions = !showMoreActions },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.MoreVert,
+                                        contentDescription = stringResource(R.string.task_more_actions_cd)
+                                    )
+                                }
+                            }
+                        }
+                    }
                 } else {
                     // 初始化中的骨架占位
                     Box(
@@ -654,6 +666,7 @@ fun BackgroundTaskView(
                                                 viewModel.onTouchMove(vx, vy)
                                             }
                                         }
+
                                         PointerEventType.Release -> viewModel.onTouchUp(vx, vy)
                                     }
                                 }
@@ -807,119 +820,119 @@ private fun BackgroundMoreActionsOverlay(
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
             border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
         ) {
-                Column(modifier = Modifier.padding(10.dp)) {
-                    // 标题与快速操作组
-                    Text(
-                        text = stringResource(R.string.bg_actions_title),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
+            Column(modifier = Modifier.padding(10.dp)) {
+                // 标题与快速操作组
+                Text(
+                    text = stringResource(R.string.bg_actions_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    ActionTile(
+                        icon = Icons.Filled.PowerSettingsNew,
+                        label = stringResource(R.string.bg_action_screen_off),
+                        onClick = {
+                            if (useHardwareScreenOff) onScreenOff() else onShowScreenSaver()
+                        },
+                        modifier = Modifier.weight(1f),
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onSurface
                     )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        ActionTile(
-                            icon = Icons.Filled.PowerSettingsNew,
-                            label = stringResource(R.string.bg_action_screen_off),
-                            onClick = {
-                                if (useHardwareScreenOff) onScreenOff() else onShowScreenSaver()
-                            },
-                            modifier = Modifier.weight(1f),
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onSurface
-                        )
-                        ActionTile(
-                            icon = Icons.AutoMirrored.Filled.ExitToApp,
-                            label = stringResource(R.string.bg_action_close_game),
-                            onClick = onCloseApp,
-                            modifier = Modifier.weight(1f),
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.error
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        ActionTile(
-                            icon = if (isGameMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                            label = if (isGameMuted)
-                                stringResource(R.string.bg_action_game_muted)
-                            else
-                                stringResource(R.string.bg_action_mute_game),
-                            onClick = onToggleGameSound,
-                            modifier = Modifier.weight(1f),
-                            containerColor = if (isGameMuted) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary,
-                            contentColor = if (isGameMuted) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        thickness = 0.5.dp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Text(
-                        text = stringResource(R.string.bg_auto_settings_title),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    SettingSwitchRow(
-                        icon = Icons.Filled.NotificationsPaused,
-                        label = stringResource(R.string.bg_auto_mute_on_launch),
-                        checked = muteOnGameLaunch,
-                        onCheckedChange = {
-                            coroutineScope.launch { appSettingsManager.setMuteOnGameLaunch(it) }
-                        }
-                    )
-                    SettingSwitchRow(
-                        icon = Icons.Filled.Cancel,
-                        label = stringResource(R.string.bg_auto_close_on_end),
-                        checked = closeAppOnTaskEnd,
-                        onCheckedChange = {
-                            coroutineScope.launch { appSettingsManager.setCloseAppOnTaskEnd(it) }
-                        }
-                    )
-                    SettingSwitchRow(
-                        icon = Icons.Filled.StayCurrentPortrait,
-                        label = stringResource(R.string.bg_auto_hardware_screen_off),
-                        checked = useHardwareScreenOff,
-                        onCheckedChange = { checked ->
-                            if (checked) {
-                                showHardwareScreenOffConfirm = true
-                            } else {
-                                coroutineScope.launch {
-                                    appSettingsManager.setUseHardwareScreenOff(
-                                        false
-                                    )
-                                }
-                            }
-                        }
-                    )
-                    SettingSwitchRow(
-                        icon = Icons.Filled.TouchApp,
-                        label = stringResource(R.string.bg_auto_show_touch_preview),
-                        checked = showTouchPreview,
-                        onCheckedChange = {
-                            coroutineScope.launch { appSettingsManager.setShowTouchPreview(it) }
-                        }
+                    ActionTile(
+                        icon = Icons.AutoMirrored.Filled.ExitToApp,
+                        label = stringResource(R.string.bg_action_close_game),
+                        onClick = onCloseApp,
+                        modifier = Modifier.weight(1f),
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.error
                     )
                 }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    ActionTile(
+                        icon = if (isGameMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                        label = if (isGameMuted)
+                            stringResource(R.string.bg_action_game_muted)
+                        else
+                            stringResource(R.string.bg_action_mute_game),
+                        onClick = onToggleGameSound,
+                        modifier = Modifier.weight(1f),
+                        containerColor = if (isGameMuted) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.secondary,
+                        contentColor = if (isGameMuted) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    thickness = 0.5.dp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = stringResource(R.string.bg_auto_settings_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                SettingSwitchRow(
+                    icon = Icons.Filled.NotificationsPaused,
+                    label = stringResource(R.string.bg_auto_mute_on_launch),
+                    checked = muteOnGameLaunch,
+                    onCheckedChange = {
+                        coroutineScope.launch { appSettingsManager.setMuteOnGameLaunch(it) }
+                    }
+                )
+                SettingSwitchRow(
+                    icon = Icons.Filled.Cancel,
+                    label = stringResource(R.string.bg_auto_close_on_end),
+                    checked = closeAppOnTaskEnd,
+                    onCheckedChange = {
+                        coroutineScope.launch { appSettingsManager.setCloseAppOnTaskEnd(it) }
+                    }
+                )
+                SettingSwitchRow(
+                    icon = Icons.Filled.StayCurrentPortrait,
+                    label = stringResource(R.string.bg_auto_hardware_screen_off),
+                    checked = useHardwareScreenOff,
+                    onCheckedChange = { checked ->
+                        if (checked) {
+                            showHardwareScreenOffConfirm = true
+                        } else {
+                            coroutineScope.launch {
+                                appSettingsManager.setUseHardwareScreenOff(
+                                    false
+                                )
+                            }
+                        }
+                    }
+                )
+                SettingSwitchRow(
+                    icon = Icons.Filled.TouchApp,
+                    label = stringResource(R.string.bg_auto_show_touch_preview),
+                    checked = showTouchPreview,
+                    onCheckedChange = {
+                        coroutineScope.launch { appSettingsManager.setShowTouchPreview(it) }
+                    }
+                )
             }
         }
+    }
 
     if (showHardwareScreenOffConfirm) {
         AdaptiveTaskPromptDialog(

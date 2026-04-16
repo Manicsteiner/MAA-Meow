@@ -76,6 +76,7 @@ fun LogHistoryView(
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    val exportChooserTitle = stringResource(R.string.settings_log_export_chooser_title)
 
     // 拦截系统返回键：详情页时先回到列表
     BackHandler(enabled = selectedLogEntries != null) {
@@ -103,7 +104,7 @@ fun LogHistoryView(
                         context.startActivity(
                             Intent.createChooser(
                                 intent,
-                                context.getString(R.string.settings_log_export_chooser_title)
+                                exportChooserTitle
                             )
                         )
                     }

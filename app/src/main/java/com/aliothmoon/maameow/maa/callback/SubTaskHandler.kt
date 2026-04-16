@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import com.alibaba.fastjson2.JSONArray
 import timber.log.Timber
+import java.util.Locale
 
 /**
  * SubTask 级别回调处理器
@@ -391,7 +392,13 @@ class SubTaskHandler(
                 val facility = subDetails?.getString("facility") ?: ""
                 val index = (subDetails?.getIntValue("index") ?: 0) + 1
                 append(
-                    "${str("ThisFacility")}${str(facility)} ${String.format("%02d", index)}",
+                    "${str("ThisFacility")}${str(facility)} ${
+                        String.format(
+                            Locale.US,
+                            "%02d",
+                            index
+                        )
+                    }",
                     LogLevel.TRACE
                 )
             }
