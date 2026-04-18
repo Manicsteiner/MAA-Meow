@@ -3,6 +3,7 @@ package com.aliothmoon.maameow.data.datasource
 import android.content.Context
 import com.aliothmoon.maameow.data.api.HttpClientHelper
 import com.aliothmoon.maameow.data.api.await
+import com.aliothmoon.maameow.data.config.ResourceVersionHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
@@ -10,10 +11,6 @@ import timber.log.Timber
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 class ResourceDownloader(
@@ -22,32 +19,11 @@ class ResourceDownloader(
 ) {
 
     companion object {
-        private val VERSION_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
-        private val DISPLAY_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        fun formatVersionForDisplay(version: String): String =
+            ResourceVersionHelper.formatVersionForDisplay(version)
 
-        fun formatVersionForDisplay(version: String): String {
-            return runCatching {
-                LocalDateTime.parse(version, VERSION_FORMATTER)
-                    .atZone(ZoneOffset.UTC)
-                    .withZoneSameInstant(ZoneId.systemDefault())
-                    .format(DISPLAY_FORMATTER)
-            }.getOrDefault(version)
-        }
-
-        fun compareVersions(v1: String, v2: String): Int {
-            return try {
-                val v1t = runCatching {
-                    LocalDateTime.parse(v1, VERSION_FORMATTER)
-                }.getOrDefault(LocalDateTime.MIN)
-                val v2t = runCatching {
-                    LocalDateTime.parse(v2, VERSION_FORMATTER)
-                }.getOrDefault(LocalDateTime.MIN)
-                v1t.compareTo(v2t)
-            } catch (e: Exception) {
-                Timber.w(e, "版本比较失败: v1=$v1, v2=$v2")
-                0
-            }
-        }
+        fun compareVersions(v1: String, v2: String): Int =
+            ResourceVersionHelper.compareVersions(v1, v2)
     }
 
     suspend fun downloadToTempFile(

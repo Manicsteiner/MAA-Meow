@@ -1,12 +1,15 @@
 package com.aliothmoon.maameow.data.config
 
 import android.content.Context
+import com.alibaba.fastjson2.JSON
 import com.aliothmoon.maameow.constant.MaaFiles.APP_VERSION_FILE
+import com.aliothmoon.maameow.constant.MaaFiles.ASSET_VERSION_FILE
 import com.aliothmoon.maameow.constant.MaaFiles.CACHE
 import com.aliothmoon.maameow.constant.MaaFiles.DEBUG
 import com.aliothmoon.maameow.constant.MaaFiles.MAA
 import com.aliothmoon.maameow.constant.MaaFiles.RESOURCE
 import com.aliothmoon.maameow.constant.MaaFiles.VERSION_FILE
+import timber.log.Timber
 import java.io.File
 
 class MaaPathConfig(private val context: Context) {
@@ -57,9 +60,39 @@ class MaaPathConfig(private val context: Context) {
     private val versionFile: File
         get() = File(resourceDir, VERSION_FILE)
 
-    /** 资源是否已就绪（资源存在且 APP 版本匹配） */
+    private val bundledResourceVersion: String? by lazy {
+        try {
+            context.assets.open(ASSET_VERSION_FILE).bufferedReader().use { reader ->
+                JSON.parseObject(reader.readText())?.getString("last_updated")
+            }
+        } catch (e: Exception) {
+            Timber.w(e, "读取内置资源版本失败")
+            null
+        }
+    }
+
+    /** 资源是否已就绪（资源存在 且 APP 版本匹配 且 内置资源不比磁盘新） */
     val isResourceReady: Boolean
-        get() = versionFile.exists() && isAppVersionCurrent()
+        get() = versionFile.exists()
+                && isAppVersionCurrent()
+                && !isBundledResourceNewer()
+
+    private fun isBundledResourceNewer(): Boolean {
+        val bundled = bundledResourceVersion ?: return false
+        val disk = readDiskResourceVersion() ?: return false
+        return ResourceVersionHelper.compareVersions(bundled, disk) > 0
+    }
+
+    private fun readDiskResourceVersion(): String? {
+        return try {
+            val file = versionFile
+            if (!file.exists()) return null
+            JSON.parseObject(file.readText())?.getString("last_updated")
+        } catch (e: Exception) {
+            Timber.w(e, "读取磁盘资源版本失败")
+            null
+        }
+    }
 
     private fun isAppVersionCurrent(): Boolean {
         val file = File(rootDir, APP_VERSION_FILE)
