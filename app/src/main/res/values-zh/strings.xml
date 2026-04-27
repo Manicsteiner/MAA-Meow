@@ -6,6 +6,7 @@
 
     <!-- connection -->
     <string name="maa_resolution_not_supported">应用分辨率不支持，请设置为 720p 或更高，且为 16:9 比例，推荐使用 1280x720 或 1920x1080</string>
+    <string name="maa_resolution_not_supported_current_resolution">当前分辨率: %1$dx%2$d</string>
     <string name="maa_resolution_acquisition_failure">获取分辨率获取失败，建议重启应用再次尝试</string>
     <string name="maa_reconnect_success">重连成功，继续任务</string>
     <string name="maa_reconnect_failed">重连失败，连接断开！</string>
@@ -125,7 +126,8 @@
     <!-- subtask_extra_fight -->
     <string name="maa_start_combat">开始战斗: </string>
     <string name="maa_medicine_used">已使用理智药</string>
-    <string name="maa_expiring_medicine_used">已使用 48 小时内过期的理智药</string>
+    <string name="maa_expiring_medicine_used">已使用过期的理智药</string>
+    <string name="maa_expiring_medicine_used_days">已使用 %1$d 天内过期的理智药</string>
     <string name="maa_fight_times_unused">已完成 %1$s 次战斗, 下次将执行 %2$s 倍率代理, 进入后将完成 %3$s 次战斗, 超过 %4$s 次限制, 不进入战斗</string>
 
     <!-- subtask_extra_reclamation -->
@@ -664,8 +666,14 @@
     <string name="panel_fight_custom_stage_code_tip">启用后可手动输入关卡代码，支持简写（如「龙门币」→「CE-6」）</string>
     <string name="panel_fight_use_alternate_stage">使用备选关卡</string>
     <string name="panel_fight_use_alternate_stage_tip">首选关卡不可用时自动使用备选关卡</string>
-    <string name="panel_fight_use_expiring_medicine">使用即将过期的理智药</string>
-    <string name="panel_fight_use_expiring_medicine_tip">优先使用 48 小时内过期的理智药</string>
+    <string name="panel_fight_use_expiring_medicine">无限吃 N 小时内过期的理智药</string>
+    <string name="panel_fight_use_expiring_medicine_tip">优先使用指定时间内过期的理智药</string>
+    <string name="panel_fight_medicine_expire_days">过期时间</string>
+    <string name="panel_fight_use_expire_medicine_for_activity">活动结束前 48H 吃当周过期理智药</string>
+    <string name="panel_fight_use_expire_medicine_for_activity_tip">当活动即将在 2 天内结束时，自动使用本周内到期的理智药</string>
+    <string name="panel_fight_activity_days_left_open">剩余天数: </string>
+    <string name="panel_fight_activity_less_than_one_day">不到 1 天</string>
+    <string name="panel_fight_no_activity">暂无活动</string>
     <string name="panel_fight_hide_unavailable_stage">隐藏不可用关卡</string>
     <string name="panel_fight_hide_unavailable_stage_tip">在关卡列表中隐藏当前不可用的关卡</string>
     <string name="panel_fight_hide_series">隐藏代理倍率</string>

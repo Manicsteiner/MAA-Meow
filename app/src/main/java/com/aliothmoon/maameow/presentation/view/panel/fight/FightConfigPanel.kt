@@ -54,12 +54,18 @@ import com.aliothmoon.maameow.domain.enums.UiUsageConstants
 import com.aliothmoon.maameow.presentation.components.CheckBoxWithExpandableTip
 import com.aliothmoon.maameow.presentation.components.CheckBoxWithLabel
 import com.aliothmoon.maameow.presentation.components.ITextFieldWithFocus
+import com.aliothmoon.maameow.presentation.components.SelectableChipGroup
 import com.aliothmoon.maameow.presentation.components.tip.ExpandableTipContent
 import com.aliothmoon.maameow.presentation.components.tip.ExpandableTipIcon
 import com.aliothmoon.maameow.theme.MaaThemeAlphas
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
+
+private val MEDICINE_EXPIRE_DAY_OPTIONS = listOf(
+    1 to "24h", 2 to "48h", 3 to "72h", 4 to "96h",
+    5 to "120h", 6 to "144h", 7 to "168h"
+)
 
 @Composable
 fun FightConfigPanel(
@@ -245,13 +251,55 @@ fun FightConfigPanel(
 //                            AllowUseStoneSaveSection(config, onConfigChange)
 //                        }
                         item {
-                            // 使用即将过期的理智药
-                            CheckBoxWithExpandableTip(
-                                checked = config.useExpiringMedicine,
-                                onCheckedChange = { onConfigChange(config.copy(useExpiringMedicine = it)) },
-                                label = stringResource(R.string.panel_fight_use_expiring_medicine),
-                                tipText = stringResource(R.string.panel_fight_use_expiring_medicine_tip)
-                            )
+                            Column {
+                                // 使用即将过期的理智药
+                                CheckBoxWithExpandableTip(
+                                    checked = config.useExpiringMedicine,
+                                    onCheckedChange = { onConfigChange(config.copy(useExpiringMedicine = it)) },
+                                    label = stringResource(R.string.panel_fight_use_expiring_medicine),
+                                    tipText = stringResource(R.string.panel_fight_use_expiring_medicine_tip)
+                                )
+                                AnimatedVisibility(
+                                    visible = config.useExpiringMedicine,
+                                    enter = expandVertically(),
+                                    exit = shrinkVertically()
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        SelectableChipGroup(
+                                            label = stringResource(R.string.panel_fight_medicine_expire_days),
+                                            selectedValue = config.medicineExpireDays,
+                                            options = MEDICINE_EXPIRE_DAY_OPTIONS,
+                                            onSelected = { onConfigChange(config.copy(medicineExpireDays = it)) }
+                                        )
+                                        CheckBoxWithExpandableTip(
+                                            checked = config.useExpireMedicineForActivity,
+                                            onCheckedChange = { onConfigChange(config.copy(useExpireMedicineForActivity = it)) },
+                                            label = stringResource(R.string.panel_fight_use_expire_medicine_for_activity),
+                                            tipText = stringResource(R.string.panel_fight_use_expire_medicine_for_activity_tip)
+                                        )
+                                        val summaries = remember { activityManager.getOpenActivitySummaries() }
+                                        val daysLeftLabel = stringResource(R.string.panel_fight_activity_days_left_open)
+                                        val lessThanOneDay = stringResource(R.string.panel_fight_activity_less_than_one_day)
+                                        if (summaries.isNotEmpty()) {
+                                            summaries.forEach { s ->
+                                                val dayText = if (s.daysLeft > 0) "${s.daysLeft}+" else lessThanOneDay
+                                                Text(
+                                                    text = "｢${s.name}｣ $daysLeftLabel$dayText",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = if (s.isExpiringSoon) MaterialTheme.colorScheme.error
+                                                    else MaterialTheme.colorScheme.tertiary
+                                                )
+                                            }
+                                        } else {
+                                            Text(
+                                                text = stringResource(R.string.panel_fight_no_activity),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.outline
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                         item {
                             // 隐藏不可用关卡

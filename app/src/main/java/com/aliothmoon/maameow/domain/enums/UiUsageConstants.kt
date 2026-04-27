@@ -141,10 +141,12 @@ object UiUsageConstants {
         const val MULTI_TASKS_SHARE_TIP = "以下选项为多任务共用"
 
         // 策略模式列表（按主题动态变化）
+        private val BASE_MODES = listOf("Exp", "Investment", "Collectible", "Squad", "Exploration")
+
         fun getModeKeysForTheme(theme: String): List<String> = when (theme) {
-            "JieGarden" -> listOf("Exp", "Investment", "Collectible", "FindPlaytime")
-            "Sami" -> listOf("Exp", "Investment", "Collectible", "Squad", "Exploration", "CLP_PDS")
-            else -> listOf("Exp", "Investment", "Collectible", "Squad", "Exploration")
+            "Sami" -> BASE_MODES + "CLP_PDS"
+            "JieGarden" -> BASE_MODES + "FindPlaytime"
+            else -> BASE_MODES
         }
 
         // 验证模式是否对当前主题有效

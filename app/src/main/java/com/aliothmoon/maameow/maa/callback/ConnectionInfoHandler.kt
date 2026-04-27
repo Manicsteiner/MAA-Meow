@@ -29,10 +29,14 @@ class ConnectionInfoHandler(
             }
 
             "UnsupportedResolution" -> {
-                sessionLogger.append(
-                    str("ResolutionNotSupported"),
-                    LogLevel.ERROR
-                )
+                val width = innerDetails?.getIntValue("width") ?: 0
+                val height = innerDetails?.getIntValue("height") ?: 0
+                val msg = if (width > 0 && height > 0) {
+                    "${str("ResolutionNotSupported")} (${str("ResolutionNotSupportedCurrentResolution", width, height)})"
+                } else {
+                    str("ResolutionNotSupported")
+                }
+                sessionLogger.append(msg, LogLevel.ERROR)
             }
 
             "ResolutionError" -> {

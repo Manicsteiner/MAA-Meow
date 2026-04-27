@@ -526,4 +526,39 @@ class ActivityManager(
 
         return lines
     }
+
+    // ============ 活动感知过期药辅助 ============
+
+    data class ActivitySummary(
+        val name: String,
+        val daysLeft: Long,
+        val isExpiringSoon: Boolean
+    )
+
+    fun isAnyActivityExpiringSoon(): Boolean {
+        return _activityStages.value.any { stage ->
+            stage.activity?.let { it.isOpen && it.getDaysLeft() < 2 } == true
+        }
+    }
+
+    fun getActivityAwareExpireDays(): Int {
+        if (!isAnyActivityExpiringSoon()) return 0
+        val yjDow = getYjDayOfWeek()
+        return ((7 - yjDow.value + 7) % 7) + 1
+    }
+
+    fun getOpenActivitySummaries(): List<ActivitySummary> {
+        return _activityStages.value
+            .mapNotNull { it.activity }
+            .filter { it.isOpen }
+            .distinctBy { it.name }
+            .map { info ->
+                val days = info.getDaysLeft()
+                ActivitySummary(
+                    name = info.name,
+                    daysLeft = days,
+                    isExpiringSoon = days < 2
+                )
+            }
+    }
 }

@@ -615,10 +615,11 @@ class SubTaskHandler(
 
         when {
             count == -1 -> append("${str("MedicineUsed")} Unknown times", LogLevel.ERROR)
-            isExpiring -> append(
-                "${str("ExpiringMedicineUsed")} (+$count, ${str("Total")}: $medicineUsedTotal)",
-                LogLevel.INFO
-            )
+            isExpiring -> {
+                val days = subDetails.getIntValue("expire_days")
+                val prefix = if (days > 0) str("ExpiringMedicineUsedDays", days) else str("ExpiringMedicineUsed")
+                append("$prefix (+$count, ${str("Total")}: $medicineUsedTotal)", LogLevel.INFO)
+            }
 
             else -> append(
                 "${str("MedicineUsed")} (+$count, ${str("Total")}: $medicineUsedTotal)",

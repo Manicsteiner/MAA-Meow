@@ -192,10 +192,18 @@ data class FightConfig(
 
     /**
      * 使用即将过期的理智药
-     *
-     * 说明: 优先使用48小时内过期的理智药
      */
     val useExpiringMedicine: Boolean = false,
+
+    /**
+     * 吃药临期天数 (1-7)
+     */
+    val medicineExpireDays: Int = 2,
+
+    /**
+     * 活动即将结束时自动延长过期药天数
+     */
+    val useExpireMedicineForActivity: Boolean = false,
 
     /**
      * 隐藏不可用关卡
@@ -322,17 +330,24 @@ data class FightConfig(
         val actualMedicine = if (useMedicine) medicineNumber else 0
         val actualStone = if (useStone) stoneNumber else 0
 
-        // 临期药品: WPF 使用固定大数 9999 (line 725)
-        val expiringMedicine = if (useExpiringMedicine) 9999 else 0
-
         // 次数: WPF 不限制时使用 Int.MAX_VALUE (line 724)
         val actualTimes = if (hasTimesLimited) maxTimes else Int.MAX_VALUE
 
         val paramsJson = buildJsonObject {
             put("stage", stage)
             put("medicine", actualMedicine)
-            if (expiringMedicine > 0) {
-                put("expiring_medicine", expiringMedicine)
+            if (useExpiringMedicine) {
+                var expireDays = medicineExpireDays.coerceIn(1, 7)
+                if (useExpireMedicineForActivity) {
+                    val am = GlobalContext.getOrNull()?.getOrNull<ActivityManager>()
+                    if (am != null) {
+                        val activityExpireDays = am.getActivityAwareExpireDays()
+                        if (activityExpireDays > 0) {
+                            expireDays = maxOf(expireDays, activityExpireDays)
+                        }
+                    }
+                }
+                put("medicine_expire_days", expireDays)
             }
             put("stone", actualStone)
             put("times", actualTimes)
