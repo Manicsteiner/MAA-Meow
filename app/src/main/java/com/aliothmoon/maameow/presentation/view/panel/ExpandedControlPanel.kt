@@ -169,6 +169,7 @@ fun ExpandedControlPanel(
                                     onDuplicateProfile = viewModel::onDuplicateProfile,
                                     onDeleteProfile = viewModel::onDeleteProfile,
                                     onCreateProfile = viewModel::onCreateProfile,
+                                    onReorderProfile = viewModel::onReorderProfile,
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxHeight()

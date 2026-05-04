@@ -567,6 +567,7 @@
     <string name="panel_profile_title">配置管理</string>
     <string name="panel_profile_delete_title">确认删除</string>
     <string name="panel_profile_delete_message">确定要删除配置「%1$s」吗？此操作不可撤销。</string>
+    <string name="panel_profile_drag_handle">长按拖动排序</string>
 
     <!-- panel: oper box -->
     <string name="panel_operbox_tab_owned">已拥有 (%1$d)</string>

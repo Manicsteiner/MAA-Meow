@@ -344,6 +344,29 @@ class TaskChainState(
         return newProfile.id
     }
 
+    suspend fun reorderProfiles(fromIndex: Int, toIndex: Int) {
+        val current = _profiles.value
+        if (fromIndex !in current.indices || toIndex !in current.indices) {
+            Timber.w(
+                "reorderProfiles: invalid index from=%d to=%d size=%d",
+                fromIndex, toIndex, current.size
+            )
+            return
+        }
+        if (fromIndex == toIndex) return
+
+        // 顺便把当前未保存的链快照写回 active profile, 避免重排时丢失正在编辑的内容
+        val savedProfiles = current.map { p ->
+            if (p.id == _activeProfileId.value) p.copy(chain = _chain.value) else p
+        }.toMutableList()
+        val moved = savedProfiles.removeAt(fromIndex)
+        savedProfiles.add(toIndex, moved)
+
+        _profiles.value = savedProfiles
+        persistProfiles(savedProfiles, _activeProfileId.value)
+        Timber.d("Reordered profile from %d to %d", fromIndex, toIndex)
+    }
+
     // ========== 内部工具方法 ==========
 
     private suspend inline fun updateChain(

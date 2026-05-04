@@ -512,6 +512,7 @@
     <string name="panel_profile_title">Profile Management</string>
     <string name="panel_profile_delete_title">Confirm Delete</string>
     <string name="panel_profile_delete_message">Delete profile \"%1$s\"? This action cannot be undone.</string>
+    <string name="panel_profile_drag_handle">Long-press to reorder</string>
 
     <!-- panel: oper box -->
     <string name="panel_operbox_tab_owned">Owned (%1$d)</string>

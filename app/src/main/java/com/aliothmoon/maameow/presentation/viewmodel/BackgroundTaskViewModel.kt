@@ -317,6 +317,13 @@ class BackgroundTaskViewModel(
         }
     }
 
+    fun onReorderProfile(fromIndex: Int, toIndex: Int) {
+        viewModelScope.launch {
+            runCatching { chainState.reorderProfiles(fromIndex, toIndex) }
+                .onFailure { e -> Timber.e(e, "Failed to reorder profile: ${e.message}") }
+        }
+    }
+
     fun onToggleAddingTask() {
         _state.update { it.copy(isAddingTask = !it.isAddingTask, selectedNodeId = null) }
         Timber.d("Adding task mode toggled: %s", _state.value.isAddingTask)

@@ -85,6 +85,7 @@ fun TaskConfigPanel(
     onDuplicateProfile: (String) -> Unit,
     onDeleteProfile: (String) -> Unit,
     onCreateProfile: () -> Unit,
+    onReorderProfile: (Int, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier) {
@@ -98,7 +99,8 @@ fun TaskConfigPanel(
                     onRename = onRenameProfile,
                     onDuplicate = onDuplicateProfile,
                     onDelete = onDeleteProfile,
-                    onCreate = onCreateProfile
+                    onCreate = onCreateProfile,
+                    onReorder = onReorderProfile
                 )
             }
             // 编辑模式：正在新增任务

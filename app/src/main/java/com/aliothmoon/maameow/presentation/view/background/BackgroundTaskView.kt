@@ -472,7 +472,10 @@ fun BackgroundTaskView(
                                                             it
                                                         )
                                                     },
-                                                    onCreateProfile = { viewModel.onCreateProfile() }
+                                                    onCreateProfile = { viewModel.onCreateProfile() },
+                                                    onReorderProfile = { from, to ->
+                                                        viewModel.onReorderProfile(from, to)
+                                                    }
                                                 )
                                             }
                                         }

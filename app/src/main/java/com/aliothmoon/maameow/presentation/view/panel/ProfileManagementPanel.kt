@@ -6,6 +6,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,11 +17,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragIndicator
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
@@ -47,6 +50,8 @@ import com.aliothmoon.maameow.R
 import com.aliothmoon.maameow.data.model.TaskProfile
 import com.aliothmoon.maameow.presentation.components.AdaptiveTaskPromptDialog
 import com.aliothmoon.maameow.presentation.components.ITextField
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /**
  * 右侧 Profile 管理面板
@@ -60,6 +65,7 @@ fun ProfileManagementPanel(
     onDuplicate: (String) -> Unit,
     onDelete: (String) -> Unit,
     onCreate: () -> Unit,
+    onReorder: (Int, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var editingProfileId by remember { mutableStateOf<String?>(null) }
@@ -95,37 +101,47 @@ fun ProfileManagementPanel(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Profile 列表
+        // Profile 列表 (支持长按拖动排序)
+        val lazyListState = rememberLazyListState()
+        val reorderableState = rememberReorderableLazyListState(
+            lazyListState = lazyListState,
+            onMove = { from, to -> onReorder(from.index, to.index) }
+        )
         LazyColumn(
+            state = lazyListState,
             modifier = Modifier.fillMaxWidth().weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(profiles, key = { it.id }) { profile ->
-                val isActive = profile.id == activeProfileId
-                val isEditing = profile.id == editingProfileId
+            itemsIndexed(profiles, key = { _, item -> item.id }) { _, profile ->
+                ReorderableItem(reorderableState, key = profile.id) { isDragging ->
+                    val isActive = profile.id == activeProfileId
+                    val isEditing = profile.id == editingProfileId
 
-                ProfileCard(
-                    profile = profile,
-                    isActive = isActive,
-                    isEditing = isEditing,
-                    editingName = if (isEditing) editingName else profile.name,
-                    canDelete = profiles.size > 1,
-                    onSwitch = { onSwitch(profile.id) },
-                    onStartRename = {
-                        editingProfileId = profile.id
-                        editingName = profile.name
-                    },
-                    onRenameChange = { editingName = it },
-                    onRenameConfirm = {
-                        val trimmed = editingName.trim()
-                        if (trimmed.isNotEmpty() && trimmed.length <= 20 && trimmed != profile.name) {
-                            onRename(profile.id, trimmed)
-                        }
-                        editingProfileId = null
-                    },
-                    onDuplicate = { onDuplicate(profile.id) },
-                    onDelete = { deleteConfirmProfileId = profile.id }
-                )
+                    ProfileCard(
+                        profile = profile,
+                        isActive = isActive,
+                        isEditing = isEditing,
+                        isDragging = isDragging,
+                        editingName = if (isEditing) editingName else profile.name,
+                        canDelete = profiles.size > 1,
+                        dragHandleModifier = Modifier.longPressDraggableHandle(),
+                        onSwitch = { onSwitch(profile.id) },
+                        onStartRename = {
+                            editingProfileId = profile.id
+                            editingName = profile.name
+                        },
+                        onRenameChange = { editingName = it },
+                        onRenameConfirm = {
+                            val trimmed = editingName.trim()
+                            if (trimmed.isNotEmpty() && trimmed.length <= 20 && trimmed != profile.name) {
+                                onRename(profile.id, trimmed)
+                            }
+                            editingProfileId = null
+                        },
+                        onDuplicate = { onDuplicate(profile.id) },
+                        onDelete = { deleteConfirmProfileId = profile.id }
+                    )
+                }
             }
         }
     }
@@ -155,8 +171,10 @@ private fun ProfileCard(
     profile: TaskProfile,
     isActive: Boolean,
     isEditing: Boolean,
+    isDragging: Boolean,
     editingName: String,
     canDelete: Boolean,
+    dragHandleModifier: Modifier,
     onSwitch: () -> Unit,
     onStartRename: () -> Unit,
     onRenameChange: (String) -> Unit,
@@ -180,16 +198,33 @@ private fun ProfileCard(
             BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
         } else {
             BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-        }
+        },
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isDragging) 4.dp else 0.dp
+        )
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            // 主行: RadioButton + 名称 + 操作按钮
+            // 主行: 拖动手柄 + RadioButton + 名称 + 操作按钮
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // 拖动手柄: 仅此处长按拖动, 避免与卡片 clickable 切换冲突
+                Box(
+                    modifier = dragHandleModifier
+                        .size(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.DragIndicator,
+                        contentDescription = stringResource(R.string.panel_profile_drag_handle),
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 RadioButton(
                     selected = isActive,
                     onClick = onSwitch,
