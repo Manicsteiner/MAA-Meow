@@ -583,7 +583,18 @@ class SubTaskHandler(
             }
         }
 
-        if (curTimes >= 0) sb.append("\n${str("CurTimes")} : $curTimes")
+        if (curTimes > 0) sb.append("\n${str("CurTimes")} : $curTimes")
+
+        // 剿灭周进度 (v6.9.0+): annihilation_weekly_process = [当前, 上限]
+        val annihilationProcess = subDetails?.getJSONArray("annihilation_weekly_process")
+        if (annihilationProcess != null && annihilationProcess.size == 2) {
+            val cur = annihilationProcess.getIntValue(0)
+            val total = annihilationProcess.getIntValue(1)
+            if (cur >= 0 && total > 0) {
+                sb.append("\n${str("AnnihilationMode")} : $cur / $total")
+            }
+        }
+
         sessionLogger.append(sb.toString(), LogLevel.TRACE)
     }
 

@@ -16,7 +16,8 @@ object MiniGameTextRegistry {
         "MiniGame@RM-1" to "次生预案 RM-1",
         "MiniGame@AT@ConversationRoom" to "AT-相谈室",
         "MiniGame@ALL@GreenGrass" to "争锋频道：青草城",
-        "MiniGame@ALL@HoneyFruit" to "争锋频道：蜜果城"
+        "MiniGame@ALL@HoneyFruit" to "争锋频道：蜜果城",
+        "MiniGame@ALL@IvyVine" to "争锋频道：绿藤城"
     )
 
     private val tipByKey = mapOf(
@@ -32,7 +33,8 @@ object MiniGameTextRegistry {
         "MiniGame@RM-1Tip" to "刷 RM-TR-1 大约 3 小时，营建策略中，石材开采 线点到底，\n特约任命指定维什戴尔，然后尽量精二专三，携带 1 技能，\n带满 12 个干员，其余 11 个的费用需要低于维什戴尔，\n生产模块各带 1 个，手动进入关卡并退出，\n让 RM-1 位于屏幕中央，运行 MAA。",
         "MiniGame@AT@ConversationRoomTip" to "在活动主界面（右下角有 ｢开始营业｣ 处）开始任务。",
         "MiniGame@ALL@GreenGrassTip" to "手动跳过教程对话，然后可以直接退出。\n在活动主界面（右下角有 ｢加入赛事｣ 处）开始任务。\n\n跟着鸭总喝口汤。",
-        "MiniGame@ALL@HoneyFruitTip" to "手动跳过教程对话，然后可以直接退出。\n在活动主界面（右下角有 ｢加入赛事｣ 处）开始任务。\n\n跟着鸭总喝口汤。"
+        "MiniGame@ALL@HoneyFruitTip" to "手动跳过教程对话，然后可以直接退出。\n在活动主界面（右下角有 ｢加入赛事｣ 处）开始任务。\n\n跟着鸭总喝口汤。",
+        "MiniGame@ALL@IvyVineTip" to "手动跳过教程对话，然后可以直接退出。\n在活动主界面（右下角有 ｢加入赛事｣ 处）开始任务。\n\n跟着鸭总喝口汤。"
     )
 
     private val displayByValue = mapOf(
@@ -48,7 +50,8 @@ object MiniGameTextRegistry {
         "MiniGame@RM-1" to "次生预案 RM-1",
         "MiniGame@AT@ConversationRoom" to "AT-相谈室",
         "MiniGame@ALL@GreenGrass" to "争锋频道：青草城",
-        "MiniGame@ALL@HoneyFruit" to "争锋频道：蜜果城"
+        "MiniGame@ALL@HoneyFruit" to "争锋频道：蜜果城",
+        "MiniGame@ALL@IvyVine" to "争锋频道：绿藤城"
     )
 
     private val tipByValue = mapOf(
@@ -64,7 +67,8 @@ object MiniGameTextRegistry {
         "MiniGame@RM-1" to "刷 RM-TR-1 大约 3 小时，营建策略中，石材开采 线点到底，\n特约任命指定维什戴尔，然后尽量精二专三，携带 1 技能，\n带满 12 个干员，其余 11 个的费用需要低于维什戴尔，\n生产模块各带 1 个，手动进入关卡并退出，\n让 RM-1 位于屏幕中央，运行 MAA。",
         "MiniGame@AT@ConversationRoom" to "在活动主界面（右下角有 ｢开始营业｣ 处）开始任务。",
         "MiniGame@ALL@GreenGrass" to "手动跳过教程对话，然后可以直接退出。\n在活动主界面（右下角有 ｢加入赛事｣ 处）开始任务。\n\n跟着鸭总喝口汤。",
-        "MiniGame@ALL@HoneyFruit" to "手动跳过教程对话，然后可以直接退出。\n在活动主界面（右下角有 ｢加入赛事｣ 处）开始任务。\n\n跟着鸭总喝口汤。"
+        "MiniGame@ALL@HoneyFruit" to "手动跳过教程对话，然后可以直接退出。\n在活动主界面（右下角有 ｢加入赛事｣ 处）开始任务。\n\n跟着鸭总喝口汤。",
+        "MiniGame@ALL@IvyVine" to "手动跳过教程对话，然后可以直接退出。\n在活动主界面（右下角有 ｢加入赛事｣ 处）开始任务。\n\n跟着鸭总喝口汤。"
     )
 
     fun resolveDisplay(display: String?, displayKey: String?, value: String?): String {

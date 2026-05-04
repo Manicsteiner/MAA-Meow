@@ -90,6 +90,7 @@
     <string name="maa_cur_times">当前次数</string>
     <string name="maa_furniture_drop">家具</string>
     <string name="maa_no_drop">无</string>
+    <string name="maa_annihilation_mode">剿灭</string>
     <string name="maa_account_switch">账号切换</string>
     <string name="maa_stage_info_error">关卡识别错误</string>
     <string name="maa_stage_queue">关卡队列:</string>
@@ -911,8 +912,8 @@
     <string name="panel_recruit_selected_count">已选 %1$d 个</string>
     <string name="panel_recruit_refresh_level3">自动刷新3星Tags</string>
     <string name="panel_recruit_force_refresh">无招聘许可时继续尝试刷新 Tags</string>
-    <string name="panel_recruit_not_choose_level1">手动确认 1 星</string>
-    <string name="panel_recruit_not_choose_level1_tip">勾选时识别到1星词条时跳过该次招募，未勾选时将忽略1星词条</string>
+    <string name="panel_recruit_not_choose_level1">保留 1 星词条并跳过该栏位</string>
+    <string name="panel_recruit_not_choose_level1_tip">勾选时识别到 1 星词条时跳过该次招募栏位（保留默认 9 小时），未勾选时将忽略 1 星词条</string>
     <string name="panel_recruit_choose_level3">自动确认 3 星</string>
     <string name="panel_recruit_choose_level4">自动确认 4 星</string>
     <string name="panel_recruit_choose_level5">自动确认 5 星</string>
