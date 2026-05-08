@@ -15,6 +15,7 @@ import com.aliothmoon.maameow.domain.models.RunMode
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
 import com.aliothmoon.maameow.maa.AsstMsg
 import com.aliothmoon.maameow.maa.MaaInstanceOptions.ANDROID
+import com.aliothmoon.maameow.maa.MaaInstanceOptions.DEPLOYMENT_WITH_PAUSE
 import com.aliothmoon.maameow.maa.MaaInstanceOptions.TOUCH_MODE
 import com.aliothmoon.maameow.maa.callback.MaaCallbackDispatcher
 import com.aliothmoon.maameow.maa.callback.MaaExecutionStateHolder
@@ -288,6 +289,10 @@ class MaaCompositionService(
                 buildConnectConfig(r.width, r.height, displayId)
             }
         }
+        // 每次连接前同步「干员部署按住-暂停」开关 (对应 Core ControlFeat::SWIPE_WITH_PAUSE),
+        // 用户改了设置下次启动任务即生效
+        val pauseEnabled = appSettings.deploymentWithPause.value
+        maa.SetInstanceOption(DEPLOYMENT_WITH_PAUSE, if (pauseEnabled) "1" else "0")
         return asyncConnect(maa, config)
     }
 
