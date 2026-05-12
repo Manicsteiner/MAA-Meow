@@ -247,7 +247,6 @@ class TaskChainState(
             RemoteServiceManager.getInstanceOrNull()?.grantPermissions(
                 PermissionGrantRequest(
                     packageName = pkg,
-                    uid = 0,
                     permissions =
                         PermissionGrantRequest.PERM_BATTERY
                                 or PermissionGrantRequest.PERM_BACKGROUND
