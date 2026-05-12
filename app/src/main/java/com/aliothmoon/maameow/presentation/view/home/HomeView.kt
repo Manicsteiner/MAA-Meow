@@ -157,9 +157,9 @@ fun HomeView(
         val appVersionLine = result.appUpdate?.let {
             stringResource(R.string.dialog_update_app_version_line, it.version)
         }.orEmpty()
-        val resourceVersionLine = result.resourceUpdate?.let {
+        val resourceMessage = result.resourceUpdate?.let {
             val display = ResourceDownloader.formatVersionForDisplay(it.version)
-            stringResource(R.string.dialog_update_resource_version_line, display)
+            stringResource(R.string.update_confirm_message_resource, display)
         }.orEmpty()
         val releaseNote = result.appUpdate?.releaseNote
         AdaptiveTaskPromptDialog(
@@ -181,7 +181,7 @@ fun HomeView(
             content = {
                 Column {
                     Text(
-                        text = appVersionLine + resourceVersionLine,
+                        text = appVersionLine + resourceMessage,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
