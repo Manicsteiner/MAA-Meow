@@ -5,6 +5,7 @@ import android.os.IBinder
 import android.os.Process
 import com.aliothmoon.maameow.BuildConfig
 import com.aliothmoon.maameow.RemoteService
+import com.aliothmoon.maameow.constant.MaaFiles
 import com.aliothmoon.maameow.domain.models.RemoteBackend
 import com.aliothmoon.maameow.remote.RemoteServiceImpl
 import com.aliothmoon.maameow.root.RootServiceBootstrapRegistry
@@ -90,6 +91,7 @@ object RootRemoteServiceConnector : RemoteServiceConnectorBackend {
                 RootServiceBootstrapRegistry.unregister(token)
                 if (activeLaunch?.token == token) {
                     activeLaunch = null
+                    dumpDebugLog()
                     callbacks.onError(backend, throwable)
                 }
             }
@@ -133,6 +135,7 @@ object RootRemoteServiceConnector : RemoteServiceConnectorBackend {
         check(launcherFile.exists()) { "root launcher not found: ${launcherFile.absolutePath}" }
         val launcherPath = launcherFile.absolutePath
         val uid = Process.myUid()
+        val logFile = debugLogFile()
         return buildString {
             append(shellQuote(launcherPath))
             append(" --apk=")
@@ -149,11 +152,33 @@ object RootRemoteServiceConnector : RemoteServiceConnectorBackend {
             append(shellQuote(RemoteServiceImpl::class.java.name))
             append(" --uid=")
             append(uid)
+            append(" --log-file=")
+            append(shellQuote(logFile.absolutePath))
             if (BuildConfig.DEBUG) {
                 append(" --debug-name=")
                 append(shellQuote(processName))
             }
             append(" >/dev/null 2>&1 &")
+        }
+    }
+
+    private fun debugLogFile(): File {
+        val dir = File(appContext.getExternalFilesDir(null), "${MaaFiles.MAA}/${MaaFiles.DEBUG}")
+        dir.mkdirs()
+        return File(dir, "root_launch_debug.log")
+    }
+
+    private fun dumpDebugLog() {
+        val log = debugLogFile()
+        if (!log.exists()) {
+            Timber.e("Root launch debug log not found: %s", log.absolutePath)
+            return
+        }
+        val content = runCatching { log.readText().trim() }.getOrNull()
+        if (content.isNullOrBlank()) {
+            Timber.e("Root launch debug log is empty (launcher may have crashed before opening it)")
+        } else {
+            Timber.e("Root launch debug log (%s):\n%s", log.absolutePath, content)
         }
     }
 

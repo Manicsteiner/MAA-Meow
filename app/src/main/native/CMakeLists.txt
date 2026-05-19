@@ -39,4 +39,4 @@ set_target_properties(launcher PROPERTIES
         LINKER_LANGUAGE C)
 
 target_link_libraries(bridge log android jnigraphics mediandk EGL GLESv2)
-target_link_libraries(launcher log dl)
+target_link_libraries(launcher log)

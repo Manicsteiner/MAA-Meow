@@ -39,7 +39,14 @@ public final class RootUserService {
             setAppName(appName, userId);
 
             Context packageContext = createPackageContextAsUser(systemContext, parsed.packageName, userId);
-            Application application = makeApplication(activityThread, packageContext);
+            Application application = null;
+            try {
+                application = makeApplication(activityThread, packageContext);
+            } catch (Throwable tr) {
+                // 部分 OEM（如 MIUI）修改了 LoadedApk.makeApplication，在 shell 身份下
+                // 因 theme/系统文件缺失导致初始化失败；packageContext 本身可用，直接降级
+                Ln.w(TAG + ": makeApplication failed, falling back to packageContext", tr);
+            }
             Context constructorContext = application != null ? application : packageContext;
             ClassLoader classLoader = constructorContext.getClassLoader();
             Class<?> serviceClass = classLoader.loadClass(parsed.className);

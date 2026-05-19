@@ -16,20 +16,25 @@ public final class RootServiceStarter {
     }
 
     public static void main(String[] args) {
+        System.err.println("[RootServiceStarter] main() entry");
         if (Looper.getMainLooper() == null) {
             Looper.prepareMainLooper();
         }
 
         RootUserService.CreatedService createdService = RootUserService.create(args);
         if (createdService == null) {
+            System.err.println("[RootServiceStarter] RootUserService.create() returned null");
             System.exit(1);
             return;
         }
+        System.err.println("[RootServiceStarter] RootUserService.create() ok, token=" + createdService.token());
 
         if (!sendBinder(createdService)) {
+            System.err.println("[RootServiceStarter] sendBinder() failed");
             System.exit(1);
             return;
         }
+        System.err.println("[RootServiceStarter] sendBinder() ok, entering Looper");
 
         Looper.loop();
         System.exit(0);
