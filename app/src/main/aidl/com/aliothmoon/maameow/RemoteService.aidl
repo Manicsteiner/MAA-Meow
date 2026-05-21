@@ -60,4 +60,6 @@ interface RemoteService {
     boolean startActivity(in Intent intent) = 27;
 
     boolean isPackageInstalled(String packageName) = 28;
+
+    boolean isAppOnVirtualDisplay(String packageName) = 29;
 }

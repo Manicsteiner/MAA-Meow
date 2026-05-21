@@ -1097,6 +1097,7 @@
     <string name="task_start_error_no_executable_tasks">There are no executable tasks in the current task chain</string>
     <string name="task_start_error_scheduled_no_wakeup">Wake Up is not configured and the game is not running. This scheduled run was cancelled</string>
     <string name="task_start_error_scheduled_game_not_installed">The game package for the current client type was not detected. Check the client type in Wake Up. This scheduled run was cancelled</string>
+    <string name="task_start_error_game_not_on_background_display">In background mode, the game must be launched by the Wake Up task. Please close the game and enable \"Start Game\" in Wake Up</string>
     <string name="task_start_error_resource_load_failed">Resource loading failed. Try reinitializing resources</string>
     <string name="task_start_error_maa_create_instance">MaaCore initialization failed. Restart the app</string>
     <string name="task_start_error_set_touch_mode">Failed to set touch mode. Restart the app</string>

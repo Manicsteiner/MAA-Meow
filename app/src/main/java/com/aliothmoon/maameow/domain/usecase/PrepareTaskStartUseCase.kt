@@ -82,7 +82,18 @@ class PrepareTaskStartUseCase(
                 TaskStartDecision.Ready(plan)
             }
 
-            else -> TaskStartDecision.Ready(plan)
+            else -> {
+                // 游戏进程存在，后台模式下进一步确认游戏是否跑在目标 VD 上
+                if (runMode == RunMode.BACKGROUND) {
+                    val onVd = appAliveChecker.isAppOnBackgroundDisplay(packageName)
+                    if (onVd == false) {
+                        return TaskStartDecision.Blocked(
+                            reason = TaskStartDecisionReason.GAME_NOT_ON_BACKGROUND_DISPLAY,
+                        )
+                    }
+                }
+                TaskStartDecision.Ready(plan)
+            }
         }
     }
 
@@ -113,6 +124,7 @@ enum class TaskStartDecisionReason {
     NO_EXECUTABLE_TASKS,
     GAME_NOT_RUNNING_WITHOUT_WAKE_UP,
     GAME_NOT_INSTALLED,
+    GAME_NOT_ON_BACKGROUND_DISPLAY,
 }
 
 sealed interface TaskStartDecision {

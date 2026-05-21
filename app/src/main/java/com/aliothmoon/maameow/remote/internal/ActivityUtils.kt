@@ -1,7 +1,9 @@
 package com.aliothmoon.maameow.remote.internal
 
+import android.app.ActivityManager
 import android.app.ActivityOptions
 import android.content.Intent
+import android.os.Build
 import com.aliothmoon.maameow.third.FakeContext
 import com.aliothmoon.maameow.third.Ln
 import com.aliothmoon.maameow.third.wrappers.ServiceManager
@@ -68,6 +70,39 @@ object ActivityUtils {
 
         return startActivity(intent, displayId)
     }
+
+    /**
+     * 检查指定包名的应用是否有活动 task 运行在给定 displayId 上。
+     * API 28 无 TaskInfo.displayId 字段（@hide），宽松返回 true（不拦截）。
+     * 任何异常也宽松返回 true，避免误伤。
+     */
+    fun isAppOnDisplay(packageName: String, targetDisplayId: Int): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return true
+        return runCatching {
+            val am = FakeContext.get().getSystemService(ActivityManager::class.java)
+                ?: return@runCatching true
+            @Suppress("DEPRECATION")
+            am.getRunningTasks(100).any { task ->
+                task.topActivity?.packageName == packageName
+                    && getTaskDisplayId(task) == targetDisplayId
+            }
+        }.getOrDefault(true)
+    }
+
+    private val taskDisplayIdField by lazy {
+        runCatching {
+            var cls: Class<*>? = ActivityManager.RunningTaskInfo::class.java
+            var field: java.lang.reflect.Field? = null
+            while (cls != null && field == null) {
+                field = runCatching { cls.getDeclaredField("displayId") }.getOrNull()
+                cls = cls.superclass
+            }
+            field?.also { it.isAccessible = true }
+        }.onFailure { Ln.w("taskDisplayIdField: reflection failed", it) }.getOrNull()
+    }
+
+    private fun getTaskDisplayId(task: ActivityManager.RunningTaskInfo): Int =
+        runCatching { taskDisplayIdField?.getInt(task) ?: -1 }.getOrDefault(-1)
 
     private fun startViaAmCommand(intent: Intent, displayId: Int): Boolean {
         try {

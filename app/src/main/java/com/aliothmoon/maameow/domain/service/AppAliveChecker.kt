@@ -8,6 +8,8 @@ import timber.log.Timber
 
 interface AppAliveChecker {
     suspend fun isAppAlive(packageName: String): Int
+    // null = 无法判断（宽松放行），false = 确认不在 VD 上
+    suspend fun isAppOnBackgroundDisplay(packageName: String): Boolean?
 }
 
 class RemoteAppAliveChecker : AppAliveChecker {
@@ -20,4 +22,13 @@ class RemoteAppAliveChecker : AppAliveChecker {
             AppAliveStatus.UNKNOWN
         }
     }
+
+    override suspend fun isAppOnBackgroundDisplay(packageName: String): Boolean? =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                RemoteServiceManager.getInstanceOrNull()?.isAppOnVirtualDisplay(packageName)
+            }.onFailure {
+                Timber.w(it, "isAppOnBackgroundDisplay: IPC failure for %s", packageName)
+            }.getOrNull()
+        }
 }

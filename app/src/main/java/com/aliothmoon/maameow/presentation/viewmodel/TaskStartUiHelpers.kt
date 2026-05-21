@@ -54,6 +54,10 @@ internal fun Context.resolveTaskStartDecisionMessage(decision: TaskStartDecision
             TaskStartDecisionReason.GAME_NOT_INSTALLED -> {
                 uiTextOf(R.string.task_start_warning_game_not_installed)
             }
+
+            TaskStartDecisionReason.GAME_NOT_ON_BACKGROUND_DISPLAY -> {
+                uiTextOf(R.string.task_start_error_game_not_on_background_display)
+            }
         }
 
         is TaskStartDecision.Blocked -> when (decision.reason) {
@@ -75,6 +79,10 @@ internal fun Context.resolveTaskStartDecisionMessage(decision: TaskStartDecision
 
             TaskStartDecisionReason.GAME_NOT_INSTALLED -> {
                 uiTextOf(R.string.task_start_error_scheduled_game_not_installed)
+            }
+
+            TaskStartDecisionReason.GAME_NOT_ON_BACKGROUND_DISPLAY -> {
+                uiTextOf(R.string.task_start_error_game_not_on_background_display)
             }
         }
     }

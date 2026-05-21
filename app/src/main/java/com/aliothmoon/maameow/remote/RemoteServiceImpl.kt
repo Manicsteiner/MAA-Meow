@@ -263,6 +263,12 @@ class RemoteServiceImpl : RemoteService.Stub() {
         Ln.i("$TAG: heartbeat received, app pid=$pid")
     }
 
+    override fun isAppOnVirtualDisplay(packageName: String): Boolean {
+        val targetDisplayId = VirtualDisplayManager.getDisplayId()
+        if (targetDisplayId == DefaultDisplayConfig.DISPLAY_NONE) return true
+        return ActivityUtils.isAppOnDisplay(packageName, targetDisplayId)
+    }
+
     override fun isPackageInstalled(packageName: String): Boolean {
         return try {
             FakeContext.get().packageManager.getPackageInfo(packageName, 0)
