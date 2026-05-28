@@ -136,6 +136,14 @@ android {
     androidResources {
         localeFilters += listOf("zh", "en")
     }
+
+    lint {
+        // AGP 9 强制使用 K2 UAST，其在分析 .gradle.kts 构建脚本时会崩溃
+        // (findFirCompiledSymbol on non-compiled declaration)，导致 release
+        // 构建的 lintVitalRelease 失败。旧的 android.lint.useK2Uast=false 开关
+        // 在 AGP 9 已失效，故关闭 release 期间自动触发的 lint-vital 检查。
+        checkReleaseBuilds = false
+    }
 }
 
 kotlin {
