@@ -6,14 +6,17 @@ import com.aliothmoon.maameow.domain.enums.InfrastRoomType
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
 import com.aliothmoon.maameow.data.model.TaskParamProvider
+import com.aliothmoon.maameow.utils.JsonUtils
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import java.io.File
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import timber.log.Timber
 
 /**
  * 基建换班配置
@@ -241,12 +244,17 @@ data class InfrastConfig(
      */
     private fun resolveCustomPlanIndex(): Int {
         if (customInfrastPlanSelect >= 0) return customInfrastPlanSelect
-        if (customPlanPeriods.isEmpty()) return 0
+
+        // customPlanPeriods 由 UI 面板解析后填充, 但它是 @Transient 不持久化。
+        // 定时冷启动等未经过配置面板的场景下它为空, 此时直接读文件兜底,
+        // 否则时间轮换会恒定回退到班次 0。
+        val effectivePeriods = customPlanPeriods.ifEmpty { loadPeriodsFromFile() }
+        if (effectivePeriods.isEmpty()) return 0
 
         val now = LocalTime.now()
         val formatter = DateTimeFormatter.ofPattern("H:mm")
 
-        for ((index, periods) in customPlanPeriods.withIndex()) {
+        for ((index, periods) in effectivePeriods.withIndex()) {
             for (period in periods) {
                 if (period.size < 2) continue
                 val start = runCatching { LocalTime.parse(period[0], formatter) }.getOrNull() ?: continue
@@ -260,5 +268,26 @@ data class InfrastConfig(
             }
         }
         return 0
+    }
+
+    /**
+     * 从自定义基建配置文件读取各计划的时间段。
+     *
+     * 用于 [resolveCustomPlanIndex] 在 customPlanPeriods 为空时兜底, 保证时间轮换
+     * (customInfrastPlanSelect == -1) 在定时冷启动等场景仍能按当前时间正确选班次。
+     *
+     * 对齐上游 WPF InfrastTask.OnDeserialized: 计划时间段始终以文件为准, 用时即时解析。
+     * 文件缺失或解析失败时返回空, 由调用方回退到班次 0。
+     */
+    private fun loadPeriodsFromFile(): List<List<List<String>>> {
+        if (customInfrastFile.isBlank()) return emptyList()
+        return runCatching {
+            JsonUtils.common
+                .decodeFromString<CustomInfrastConfig>(File(customInfrastFile).readText())
+                .plans.map { it.period }
+        }.getOrElse {
+            Timber.w(it, "读取自定义基建时间段失败: %s", customInfrastFile)
+            emptyList()
+        }
     }
 }
