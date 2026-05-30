@@ -784,7 +784,7 @@ fun AutoBattlePanel(
 
 
             item {
-                var expanded by remember { mutableStateOf(false) }
+                var expanded by remember { mutableStateOf(true) }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
