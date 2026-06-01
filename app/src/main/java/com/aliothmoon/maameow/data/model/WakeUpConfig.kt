@@ -42,7 +42,7 @@ data class WakeUpConfig(
      * 对应 WPF: AccountName
      * MaaCore JSON: account_name
      *
-     * 仅 Official / Bilibili 生效，其他服将忽略该字段
+     * Official / Bilibili / txwy 生效，其他服将忽略该字段
      */
     val accountName: String = ""
 ) : TaskParamProvider {
@@ -79,7 +79,7 @@ data class WakeUpConfig(
     fun getServerType(): String = Companion.getServerType(clientType)
     override fun toTaskParams(): MaaTaskParams {
         val normalizedAccountName = accountName.trim()
-        val canSwitchAccount = clientType == "Official" || clientType == "Bilibili"
+        val canSwitchAccount = clientType == "Official" || clientType == "Bilibili" || clientType == "txwy"
         val paramsJson = buildJsonObject {
             put("client_type", clientType)
             put("start_game_enabled", startGameEnabled)

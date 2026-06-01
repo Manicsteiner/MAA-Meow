@@ -626,7 +626,7 @@
     <string name="panel_fight_series_no_switch">Do not switch</string>
     <string name="panel_fight_stage_reset_current">Cur/Last</string>
     <string name="panel_fight_stage_reset_ignore">Do not switch</string>
-    <string name="panel_fight_stage_reset_title">When stage is closed, reset to</string>
+    <string name="panel_fight_stage_reset_title">When activity stage is closed, reset to</string>
     <string name="panel_fight_stage_selection_title">Stage</string>
     <string name="panel_fight_stage_plan_tip">Executes the first open stage. If all stages are closed, skips the current task.\nCurrent execution: %1$s</string>
     <string name="panel_fight_stage_selection_tip">Manual stage code entry supports common aliases.\nFor example: Lungmen Dollars → CE-6, EXP → LS-6.</string>
@@ -1056,6 +1056,7 @@
     <string name="notification_label_secret">Secret</string>
     <string name="notification_placeholder_optional_signing_secret">Optional, signing secret</string>
     <string name="notification_label_webhook_url">Webhook URL</string>
+    <string name="notification_label_webhook_headers">Webhook Headers</string>
     <string name="notification_label_smtp_server">SMTP Server</string>
     <string name="notification_label_smtp_port">Port</string>
     <string name="notification_use_ssl">Use SSL</string>

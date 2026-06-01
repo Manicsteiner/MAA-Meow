@@ -429,6 +429,14 @@ private fun ProviderConfig(
             )
             Spacer(Modifier.height(MaaDesignTokens.Spacing.sm))
             ITextField(
+                value = settings.customWebhookHeaders,
+                onValueChange = { viewModel.updateSettings { copy(customWebhookHeaders = it) } },
+                label = stringResource(R.string.notification_label_webhook_headers),
+                singleLine = false,
+                placeholder = "Content-Type: application/json"
+            )
+            Spacer(Modifier.height(MaaDesignTokens.Spacing.sm))
+            ITextField(
                 value = settings.customWebhookBody,
                 onValueChange = { viewModel.updateSettings { copy(customWebhookBody = it) } },
                 label = stringResource(R.string.notification_label_request_body_template),

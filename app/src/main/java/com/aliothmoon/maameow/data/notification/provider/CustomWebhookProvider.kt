@@ -25,8 +25,19 @@ class CustomWebhookProvider(
             .replace("{content}", content.replace("\r", "").replace("\n", "\\n"))
             .replace("{time}", now)
 
+        val headers = settings.customWebhookHeaders
+            .replace("\r", "")
+            .split("\n")
+            .filter { it.contains(":") }
+            .mapNotNull { line ->
+                val idx = line.indexOf(':')
+                if (idx <= 0) null
+                else line.substring(0, idx).trim() to line.substring(idx + 1).trim()
+            }
+            .toMap()
+
         return runCatching {
-            httpClient.post(url, body).use { response ->
+            httpClient.post(url, body, headers = headers).use { response ->
                 response.isSuccessful
             }
         }.getOrElse {

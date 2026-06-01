@@ -45,7 +45,7 @@ fun WakeUpConfigPanel(
     val state = compositionService.state.collectAsStateWithLifecycle()
     val isTaskActive =
         state.value == MaaExecutionState.STARTING || state.value == MaaExecutionState.RUNNING
-    val showAccountSwitchInput = config.clientType == "Official" || config.clientType == "Bilibili"
+    val showAccountSwitchInput = config.clientType == "Official" || config.clientType == "Bilibili" || config.clientType == "txwy"
 
     Column(
         modifier = Modifier

@@ -63,8 +63,8 @@ import org.koin.compose.koinInject
 
 
 private val MEDICINE_EXPIRE_DAY_OPTIONS = listOf(
-    1 to "24h", 2 to "48h", 3 to "72h", 4 to "96h",
-    5 to "120h", 6 to "144h", 7 to "168h"
+    1 to "24h x 1", 2 to "24h x 2", 3 to "24h x 3", 4 to "24h x 4",
+    5 to "24h x 5", 6 to "24h x 6", 7 to "24h x 7"
 )
 
 @Composable

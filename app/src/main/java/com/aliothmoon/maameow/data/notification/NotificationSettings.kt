@@ -38,5 +38,6 @@ data class NotificationSettings(
     @PrefKey(default = "") val gotifyServer: String = "",
     @PrefKey(default = "") val gotifyToken: String = "",
     @PrefKey(default = "") val customWebhookUrl: String = "",
+    @PrefKey(default = "") val customWebhookHeaders: String = "",
     @PrefKey(default = "") val customWebhookBody: String = "",
 )
