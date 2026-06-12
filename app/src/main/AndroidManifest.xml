@@ -76,12 +76,11 @@
             android:theme="@style/Theme.MaaMeow.Starting">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <intent-filter>
                 <action android:name="com.aliothmoon.maameow.action.LAUNCH_PROFILE" />
-
+                <action android:name="com.aliothmoon.maameow.action.SHOW_SCHEDULE_EXECUTION" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
