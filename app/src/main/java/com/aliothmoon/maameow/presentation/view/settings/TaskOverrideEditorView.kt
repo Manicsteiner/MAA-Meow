@@ -1,6 +1,5 @@
 package com.aliothmoon.maameow.presentation.view.settings
 
-import android.util.TypedValue
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -170,7 +169,7 @@ fun TaskOverrideEditorView(
 
                     CodeEditor(ctx).apply {
                         typefaceText = android.graphics.Typeface.MONOSPACE
-                        setTextSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 13f, ctx.resources.displayMetrics))
+                        setTextSize(13f) // sora-editor 内部按 sp 处理，不使用 applyDimension
                         setPinLineNumber(true)
                         colorScheme = TextMateColorScheme.create(ThemeRegistry.getInstance())
                         setEditorLanguage(TextMateLanguage.create("source.json", true))
