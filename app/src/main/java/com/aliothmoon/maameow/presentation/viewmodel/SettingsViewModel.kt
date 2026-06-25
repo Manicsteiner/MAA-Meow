@@ -266,4 +266,19 @@ class SettingsViewModel(
             appSettingsManager.setUseSystemMonetColor(enabled)
         }
     }
+
+    // ============ Font Size Scale ============
+    val fontSizeScale: StateFlow<Int> = appSettingsManager.fontSizeScale
+    fun setFontSizeScale(scale: Int) {
+        viewModelScope.launch {
+            appSettingsManager.setFontSizeScale(scale)
+        }
+    }
+    // 成就 Snackbar 提示开关
+    val showAchievementSnackbar: StateFlow<Boolean> = appSettingsManager.showAchievementSnackbar
+    fun setShowAchievementSnackbar(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettingsManager.setShowAchievementSnackbar(enabled)
+        }
+    }
 }

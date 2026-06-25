@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material3.CircularProgressIndicator
 import android.os.Build
@@ -30,9 +29,14 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +56,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.aliothmoon.maameow.BuildConfig
@@ -109,6 +114,8 @@ fun SettingsView(
     val updateChannel by viewModel.updateChannel.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val useSystemMonetColor by viewModel.useSystemMonetColor.collectAsStateWithLifecycle()
+    val fontSizeScale by viewModel.fontSizeScale.collectAsStateWithLifecycle()
+    val showAchievementSnackbar by viewModel.showAchievementSnackbar.collectAsStateWithLifecycle()
     val backgroundResolution by viewModel.backgroundResolution.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
     val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
@@ -319,9 +326,7 @@ fun SettingsView(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = stringResource(R.string.settings_title),
-                navigationIcon = Icons.AutoMirrored.Filled.ArrowBack,
-                onNavigationClick = { navController.navigateUp() }
+                title = stringResource(R.string.settings_title)
             )
         }
     ) { paddingValues ->
@@ -436,6 +441,36 @@ fun SettingsView(
                 }
             }
 
+            // 显示设置
+            item {
+                SectionHeader(stringResource(R.string.settings_section_display))
+                InfoCard(
+                    title = "",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    contentColor = contentColor,
+                    contentPadding = PaddingValues(
+                        horizontal = MaaDesignTokens.Card.innerPadding,
+                        vertical = MaaDesignTokens.Spacing.listItemVertical
+                    )
+                ) {
+                    SettingLanguageItem(
+                        contentColor = contentColor,
+                        selectedLanguage = language,
+                        onLanguageSelected = { viewModel.setLanguage(it) }
+                    )
+                    SettingsDivider(contentColor)
+                    SettingThemeSection(
+                        contentColor = contentColor,
+                        selectedMode = themeMode,
+                        onModeSelected = { viewModel.setThemeMode(it) },
+                        useSystemMonetColor = useSystemMonetColor,
+                        onMonetColorChanged = { viewModel.setUseSystemMonetColor(it) },
+                        fontSizeScale = fontSizeScale,
+                        onFontSizeScaleChanged = { viewModel.setFontSizeScale(it) }
+                    )
+                }
+            }
+
             // 其他设置
             item {
                 SectionHeader(stringResource(R.string.settings_section_other))
@@ -503,45 +538,6 @@ fun SettingsView(
                             }
                         }
                     }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        SettingSwitchItem(
-                            title = stringResource(R.string.settings_monet_color_title),
-                            description = stringResource(R.string.settings_monet_color_desc),
-                            contentColor = contentColor,
-                            checked = useSystemMonetColor,
-                            onCheckedChange = { viewModel.setUseSystemMonetColor(it) }
-                        )
-                        SettingsDivider(contentColor)
-                    }
-                    SettingClickItem(
-                        title = stringResource(R.string.settings_achievement_title),
-                        description = stringResource(R.string.settings_achievement_desc),
-                        contentColor = contentColor
-                    ) {
-                        navController.navigate(Routes.ACHIEVEMENT)
-                    }
-                    if (BuildConfig.DEBUG) {
-                        SettingsDivider(contentColor)
-                        SettingClickItem(
-                            title = stringResource(R.string.settings_achievement_debug_title),
-                            description = stringResource(R.string.settings_achievement_debug_desc),
-                            contentColor = contentColor
-                        ) {
-                            navController.navigate(Routes.ACHIEVEMENT_DEBUG)
-                        }
-                    }
-                    SettingsDivider(contentColor)
-                    SettingThemeModeItem(
-                        contentColor = contentColor,
-                        selectedMode = themeMode,
-                        onModeSelected = { viewModel.setThemeMode(it) }
-                    )
-                    SettingsDivider(contentColor)
-                    SettingLanguageItem(
-                        contentColor = contentColor,
-                        selectedLanguage = language,
-                        onLanguageSelected = { viewModel.setLanguage(it) }
-                    )
                     SettingsDivider(contentColor)
                     SettingBackgroundResolutionItem(
                         contentColor = contentColor,
@@ -634,6 +630,68 @@ fun SettingsView(
                 }
             }
 
+            // 通知
+            item {
+                SectionHeader(stringResource(R.string.settings_section_notification))
+                InfoCard(
+                    title = "",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    contentColor = contentColor,
+                    contentPadding = PaddingValues(
+                        horizontal = MaaDesignTokens.Card.innerPadding,
+                        vertical = MaaDesignTokens.Spacing.listItemVertical
+                    )
+                ) {
+                    SettingClickItem(
+                        title = stringResource(R.string.settings_notification_title),
+                        description = stringResource(R.string.settings_notification_desc),
+                        contentColor = contentColor
+                    ) {
+                        navController.navigate(Routes.NOTIFICATION)
+                    }
+                }
+            }
+
+            // 成就
+            item {
+                SectionHeader(stringResource(R.string.settings_section_achievement))
+                InfoCard(
+                    title = "",
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    contentColor = contentColor,
+                    contentPadding = PaddingValues(
+                        horizontal = MaaDesignTokens.Card.innerPadding,
+                        vertical = MaaDesignTokens.Spacing.listItemVertical
+                    )
+                ) {
+                    SettingClickItem(
+                        title = stringResource(R.string.settings_achievement_title),
+                        description = stringResource(R.string.settings_achievement_desc),
+                        contentColor = contentColor
+                    ) {
+                        navController.navigate(Routes.ACHIEVEMENT)
+                    }
+                    SettingsDivider(contentColor)
+                    SettingSwitchItem(
+                        title = stringResource(R.string.settings_achievement_snackbar_title),
+                        description = stringResource(R.string.settings_achievement_snackbar_desc),
+                        contentColor = contentColor,
+                        checked = showAchievementSnackbar,
+                        onCheckedChange = { viewModel.setShowAchievementSnackbar(it) }
+                    )
+                    if (BuildConfig.DEBUG) {
+                        SettingsDivider(contentColor)
+                        SettingClickItem(
+                            title = stringResource(R.string.settings_achievement_debug_title),
+                            description = stringResource(R.string.settings_achievement_debug_desc),
+                            contentColor = contentColor
+                        ) {
+                            navController.navigate(Routes.ACHIEVEMENT_DEBUG)
+                        }
+                    }
+                }
+            }
+
             // 关于
             item {
                 SectionHeader(stringResource(R.string.settings_section_about))
@@ -698,22 +756,28 @@ fun SettingsView(
 }
 
 @Composable
-private fun SettingThemeModeItem(
+private fun SettingThemeSection(
     contentColor: Color,
     selectedMode: AppSettingsManager.ThemeMode,
-    onModeSelected: (AppSettingsManager.ThemeMode) -> Unit
+    onModeSelected: (AppSettingsManager.ThemeMode) -> Unit,
+    useSystemMonetColor: Boolean,
+    onMonetColorChanged: (Boolean) -> Unit,
+    fontSizeScale: Int,
+    onFontSizeScaleChanged: (Int) -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = MaaDesignTokens.Spacing.listItemVertical),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // 标题
         Text(
             text = stringResource(R.string.settings_theme_title),
             style = MaterialTheme.typography.bodyLarge,
             color = contentColor
         )
+        // 主题模式选择
         Row(modifier = Modifier.fillMaxWidth()) {
             val modes = listOf(
                 AppSettingsManager.ThemeMode.SYSTEM to stringResource(R.string.settings_theme_system),
@@ -748,6 +812,33 @@ private fun SettingThemeModeItem(
                 }
             }
         }
+        // 莫奈主题色（SDK >= S）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_monet_color_title),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = contentColor
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_monet_color_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = contentColor.copy(alpha = 0.6f)
+                    )
+                }
+                Switch(checked = useSystemMonetColor, onCheckedChange = onMonetColorChanged)
+            }
+        }
+        // 页面缩放
+        FontSizeSetting(
+            contentColor = contentColor,
+            value = fontSizeScale,
+            onValueChange = onFontSizeScaleChanged
+        )
     }
 }
 
@@ -776,6 +867,97 @@ private fun SettingClickItem(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = contentColor.copy(alpha = 0.7f)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 字体大小（页面缩放）设置：整数 80~110，默认 100。
+ * 松手后才提交全局缩放。滑块下方带实时预览框。
+ */
+@Composable
+private fun FontSizeSetting(
+    contentColor: Color,
+    value: Int,
+    onValueChange: (Int) -> Unit
+) {
+    var sliderValue by remember { mutableStateOf(value.toFloat()) }
+    LaunchedEffect(value) {
+        sliderValue = value.toFloat()
+    }
+    val current = sliderValue.roundToInt().coerceIn(AppSettingsManager.FONT_SIZE_SCALE_MIN, AppSettingsManager.FONT_SIZE_SCALE_MAX)
+
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_font_size_title),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = contentColor
+                )
+                Text(
+                    text = stringResource(R.string.settings_font_size_summary),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor.copy(alpha = 0.6f)
+                )
+            }
+            Text(
+                text = current.toString(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = contentColor
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Slider(
+            value = sliderValue,
+            onValueChange = { sliderValue = it },
+            onValueChangeFinished = {
+                onValueChange(sliderValue.roundToInt().coerceIn(
+                    AppSettingsManager.FONT_SIZE_SCALE_MIN,
+                    AppSettingsManager.FONT_SIZE_SCALE_MAX
+                ))
+            },
+            valueRange = AppSettingsManager.FONT_SIZE_SCALE_MIN.toFloat()..AppSettingsManager.FONT_SIZE_SCALE_MAX.toFloat(),
+            steps = 0,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            listOf(AppSettingsManager.FONT_SIZE_SCALE_MIN, 90, 100, AppSettingsManager.FONT_SIZE_SCALE_MAX).forEach { kp ->
+                Text(
+                    text = kp.toString(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = contentColor.copy(alpha = 0.5f)
+                )
+            }
+        }
+        // 实时预览框：previewDensity 已被全局缩放（D0 * value/100），
+        // 故按 current/value 还原到 D0 * current/100，避免与全局缩放叠加造成重复缩放。
+        val previewDensity = LocalDensity.current
+        CompositionLocalProvider(
+            LocalDensity provides Density(
+                density = previewDensity.density * current / value.toFloat(),
+                fontScale = previewDensity.fontScale
+            )
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_font_size_preview_text),
+                    modifier = Modifier.padding(16.dp),
+                    color = contentColor
                 )
             }
         }
@@ -1093,6 +1275,7 @@ private fun SettingRemoteBackendItem(
         }
     }
 }
+
 
 private data class ShizukuLaunchAppOption(
     val label: String,
