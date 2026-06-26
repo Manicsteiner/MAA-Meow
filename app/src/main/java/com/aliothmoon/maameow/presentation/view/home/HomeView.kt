@@ -78,6 +78,7 @@ import com.aliothmoon.maameow.presentation.components.ChangelogDialog
 import com.aliothmoon.maameow.presentation.components.ResourceInitDialog
 import com.aliothmoon.maameow.presentation.components.UpdateCard
 import com.aliothmoon.maameow.presentation.state.StatusColorType
+import com.aliothmoon.maameow.presentation.state.UiEffect
 import com.aliothmoon.maameow.presentation.viewmodel.HomeViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.UpdateViewModel
 import com.aliothmoon.maameow.utils.Misc
@@ -85,6 +86,7 @@ import com.aliothmoon.maameow.utils.i18n.UiText
 import com.aliothmoon.maameow.utils.i18n.asString
 import com.aliothmoon.maameow.utils.i18n.overlayControlModeDisplayName
 import com.aliothmoon.maameow.utils.i18n.remoteBackendPermissionLabel
+import com.aliothmoon.maameow.utils.i18n.resolve
 import com.aliothmoon.maameow.utils.i18n.runModeDisplayName
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -122,6 +124,18 @@ fun HomeView(
     LaunchedEffect(Unit) {
         updateViewModel.toastMessage.collect { message ->
             Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    LaunchedEffect(viewModel) {
+        viewModel.effects.collect { effect ->
+            when (effect) {
+                is UiEffect.Toast -> Toast.makeText(
+                    context,
+                    effect.message.resolve(context),
+                    if (effect.long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT,
+                ).show()
+            }
         }
     }
 
@@ -266,7 +280,7 @@ fun HomeView(
                         permissionState = permissionState,
                         isShowAccessibility = uiState.runMode == RunMode.FOREGROUND && uiState.overlayControlMode == OverlayControlMode.ACCESSIBILITY,
                         isGranting = uiState.isGranting,
-                        onRequestRemoteAccess = { viewModel.onRequestRemoteAccess(context) },
+                        onRequestRemoteAccess = { viewModel.onRequestRemoteAccess() },
                         onRequestOverlay = { viewModel.onRequestOverlay(context) },
                         onRequestStorage = { viewModel.onRequestStorage(context) },
                         onRequestBatteryWhitelist = { viewModel.onRequestBatteryWhitelist(context) },
@@ -293,7 +307,7 @@ fun HomeView(
                             isShowControlOverlay = uiState.isShowControlOverlay,
                             isLoading = uiState.isLoading,
                             onChangeTo16x9Resolution = { viewModel.onChangeTo16x9Resolution(context) },
-                            onResetResolution = { viewModel.onResetResolution(context) },
+                            onResetResolution = { viewModel.onResetResolution() },
                             onControlOverlayModeChanged = { viewModel.onControlOverlayModeChanged(it) },
                             onToggleOverlay = {
                                 if (uiState.isShowControlOverlay) {

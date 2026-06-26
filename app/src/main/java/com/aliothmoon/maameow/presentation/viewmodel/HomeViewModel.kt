@@ -2,8 +2,6 @@ package com.aliothmoon.maameow.presentation.viewmodel
 
 import android.content.Context
 import android.os.Build
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aliothmoon.maameow.R
@@ -23,15 +21,17 @@ import com.aliothmoon.maameow.manager.ShizukuInstallHelper
 import com.aliothmoon.maameow.overlay.OverlayController
 import com.aliothmoon.maameow.presentation.state.HomeUiState
 import com.aliothmoon.maameow.presentation.state.StatusColorType
+import com.aliothmoon.maameow.presentation.state.UiEffect
 import com.aliothmoon.maameow.utils.Misc
-import com.aliothmoon.maameow.utils.i18n.UiText
 import com.aliothmoon.maameow.utils.i18n.remoteBackendPermissionLabel
 import com.aliothmoon.maameow.utils.i18n.uiTextOf
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,6 +53,9 @@ class HomeViewModel(
         HomeUiState(serviceStatusText = uiTextOf(R.string.home_status_disconnected))
     )
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    private val _effects = Channel<UiEffect>(Channel.BUFFERED)
+    val effects = _effects.receiveAsFlow()
 
     init {
         observeResourceUpdateState()
@@ -76,45 +79,59 @@ class HomeViewModel(
     private fun observeServiceStatus() {
         viewModelScope.launch {
             combine(
-                RemoteServiceManager.state,
-                resourceLoader.state,
-                compositionService.state
+                RemoteServiceManager.state, resourceLoader.state, compositionService.state
             ) { serviceState, resourceState, executionState ->
                 Timber.i("ServiceState collect $serviceState $resourceState $executionState")
-                val remoteServiceActive = serviceState is RemoteServiceManager.ServiceState.Connected ||
-                        serviceState is RemoteServiceManager.ServiceState.Connecting
+                val remoteServiceActive =
+                    serviceState is RemoteServiceManager.ServiceState.Connected || serviceState is RemoteServiceManager.ServiceState.Connecting
                 val status = when {
-                    serviceState is RemoteServiceManager.ServiceState.Died ||
-                            serviceState is RemoteServiceManager.ServiceState.Error ->
-                        Triple(uiTextOf(R.string.home_status_service_error), StatusColorType.ERROR, false)
+                    serviceState is RemoteServiceManager.ServiceState.Died || serviceState is RemoteServiceManager.ServiceState.Error -> Triple(
+                        uiTextOf(R.string.home_status_service_error), StatusColorType.ERROR, false
+                    )
 
-                    serviceState is RemoteServiceManager.ServiceState.Connecting ->
-                        Triple(uiTextOf(R.string.home_status_service_connecting), StatusColorType.WARNING, true)
+                    serviceState is RemoteServiceManager.ServiceState.Connecting -> Triple(
+                        uiTextOf(R.string.home_status_service_connecting),
+                        StatusColorType.WARNING,
+                        true
+                    )
 
-                    serviceState is RemoteServiceManager.ServiceState.Disconnected ->
-                        Triple(uiTextOf(R.string.home_status_disconnected), StatusColorType.NEUTRAL, false)
+                    serviceState is RemoteServiceManager.ServiceState.Disconnected -> Triple(
+                        uiTextOf(R.string.home_status_disconnected), StatusColorType.NEUTRAL, false
+                    )
 
-                    resourceState is MaaResourceLoader.State.Loading ||
-                            resourceState is MaaResourceLoader.State.Reloading ->
-                        Triple(uiTextOf(R.string.home_status_resource_loading), StatusColorType.WARNING, true)
+                    resourceState is MaaResourceLoader.State.Loading || resourceState is MaaResourceLoader.State.Reloading -> Triple(
+                        uiTextOf(R.string.home_status_resource_loading),
+                        StatusColorType.WARNING,
+                        true
+                    )
 
-                    resourceState is MaaResourceLoader.State.Failed ->
-                        Triple(uiTextOf(R.string.home_status_resource_failed), StatusColorType.ERROR, false)
+                    resourceState is MaaResourceLoader.State.Failed -> Triple(
+                        uiTextOf(R.string.home_status_resource_failed), StatusColorType.ERROR, false
+                    )
 
-                    resourceState is MaaResourceLoader.State.NotLoaded ->
-                        Triple(uiTextOf(R.string.home_status_resource_not_loaded), StatusColorType.NEUTRAL, false)
+                    resourceState is MaaResourceLoader.State.NotLoaded -> Triple(
+                        uiTextOf(R.string.home_status_resource_not_loaded),
+                        StatusColorType.NEUTRAL,
+                        false
+                    )
 
-                    executionState == MaaExecutionState.ERROR ->
-                        Triple(uiTextOf(R.string.home_status_task_error), StatusColorType.ERROR, false)
+                    executionState == MaaExecutionState.ERROR -> Triple(
+                        uiTextOf(R.string.home_status_task_error), StatusColorType.ERROR, false
+                    )
 
-                    executionState == MaaExecutionState.STARTING ->
-                        Triple(uiTextOf(R.string.home_status_task_starting), StatusColorType.WARNING, true)
+                    executionState == MaaExecutionState.STARTING -> Triple(
+                        uiTextOf(R.string.home_status_task_starting), StatusColorType.WARNING, true
+                    )
 
-                    executionState == MaaExecutionState.RUNNING ->
-                        Triple(uiTextOf(R.string.home_status_task_running), StatusColorType.PRIMARY, true)
+                    executionState == MaaExecutionState.RUNNING -> Triple(
+                        uiTextOf(R.string.home_status_task_running), StatusColorType.PRIMARY, true
+                    )
 
-                    else ->
-                        Triple(uiTextOf(R.string.home_status_ready), StatusColorType.PRIMARY, false)
+                    else -> Triple(
+                        uiTextOf(R.string.home_status_ready),
+                        StatusColorType.PRIMARY,
+                        false
+                    )
                 }
                 Pair(status, remoteServiceActive)
             }.collect { (status, remoteServiceActive) ->
@@ -183,24 +200,24 @@ class HomeViewModel(
         }
     }
 
-    fun onRequestRemoteAccess(context: Context) {
+    fun onRequestRemoteAccess() {
         viewModelScope.launch {
             val backend = permissionManager.permissions.startupBackend
             if (!permissionManager.permissions.isStartupBackendAvailable(backend)) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.home_toast_backend_unavailable, backend.display),
-                    Toast.LENGTH_SHORT
-                ).show()
+                _effects.send(
+                    UiEffect.toast(
+                        R.string.home_toast_backend_unavailable, backend.display
+                    )
+                )
                 return@launch
             }
             val granted = permissionManager.requestRemoteAccess()
             if (!granted) {
-                    Toast.makeText(
-                        context,
-                        context.getString(R.string.home_toast_backend_auth_failed, backend.display),
-                    Toast.LENGTH_SHORT
-                ).show()
+                _effects.send(
+                    UiEffect.toast(
+                        R.string.home_toast_backend_auth_failed, backend.display
+                    )
+                )
             }
         }
     }
@@ -261,14 +278,12 @@ class HomeViewModel(
                 val currentMode = appSettingsManager.overlayControlMode.value
                 if (!state.remoteAccessGranted) {
                     _uiState.update { it.copy(isLoading = false) }
-                    Toast.makeText(
-                        application,
-                        application.getString(
+                    _effects.send(
+                        UiEffect.toast(
                             R.string.home_toast_grant_permission,
                             application.remoteBackendPermissionLabel(state.startupBackend)
-                        ),
-                        Toast.LENGTH_SHORT
-                    ).show()
+                        )
+                    )
                     return@launch
                 }
 
@@ -282,15 +297,14 @@ class HomeViewModel(
 
                 if (missingPermissions.isNotEmpty()) {
                     _uiState.update { it.copy(isLoading = false) }
-                    val separator = application.getString(R.string.home_toast_missing_permissions_separator)
-                    Toast.makeText(
-                        application,
-                        application.getString(
+                    val separator =
+                        application.getString(R.string.home_toast_missing_permissions_separator)
+                    _effects.send(
+                        UiEffect.toast(
                             R.string.home_toast_missing_permissions,
                             missingPermissions.joinToString(separator)
-                        ),
-                        Toast.LENGTH_SHORT
-                    ).show()
+                        )
+                    )
                     return@launch
                 }
 
@@ -305,11 +319,11 @@ class HomeViewModel(
             } catch (e: Exception) {
                 Timber.e(e, "Error starting floating window")
                 _uiState.update { it.copy(isLoading = false) }
-                Toast.makeText(
-                    application,
-                    application.getString(R.string.home_toast_start_overlay_failed, e.message.orEmpty()),
-                    Toast.LENGTH_SHORT
-                ).show()
+                _effects.send(
+                    UiEffect.toast(
+                        R.string.home_toast_start_overlay_failed, e.message.orEmpty()
+                    )
+                )
             }
         }
     }
@@ -324,11 +338,11 @@ class HomeViewModel(
             } catch (e: Exception) {
                 Timber.e(e, "Error stopping floating window")
                 _uiState.update { it.copy(isLoading = false) }
-                Toast.makeText(
-                    application,
-                    application.getString(R.string.home_toast_stop_overlay_failed, e.message.orEmpty()),
-                    Toast.LENGTH_SHORT
-                ).show()
+                _effects.send(
+                    UiEffect.toast(
+                        R.string.home_toast_stop_overlay_failed, e.message.orEmpty()
+                    )
+                )
             }
         }
     }
@@ -338,16 +352,11 @@ class HomeViewModel(
             false
         } else {
             ShizukuInstallHelper.openShizuku(
-                application,
-                appSettingsManager.shizukuLaunchPackage.value
+                application, appSettingsManager.shizukuLaunchPackage.value
             )
         }
         if (!opened) {
-            Toast.makeText(
-                application,
-                application.getString(R.string.home_toast_open_shizuku_failed),
-                Toast.LENGTH_SHORT
-            ).show()
+            _effects.trySend(UiEffect.toast(R.string.home_toast_open_shizuku_failed))
         }
     }
 
@@ -369,11 +378,11 @@ class HomeViewModel(
                 val backend = state.startupBackend
                 if (!state.isStartupBackendAvailable(backend)) {
                     _uiState.update { it.copy(isLoading = false) }
-                    Toast.makeText(
-                        application,
-                        application.getString(R.string.home_toast_backend_unavailable, backend.display),
-                        Toast.LENGTH_SHORT
-                    ).show()
+                    _effects.send(
+                        UiEffect.toast(
+                            R.string.home_toast_backend_unavailable, backend.display
+                        )
+                    )
                     return@launch
                 }
 
@@ -381,11 +390,11 @@ class HomeViewModel(
                     val granted = permissionManager.requestRemoteAccess()
                     if (!granted) {
                         _uiState.update { it.copy(isLoading = false) }
-                        Toast.makeText(
-                            application,
-                            application.getString(R.string.home_toast_backend_auth_failed, backend.display),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        _effects.send(
+                            UiEffect.toast(
+                                R.string.home_toast_backend_auth_failed, backend.display
+                            )
+                        )
                         return@launch
                     }
                 }
@@ -397,11 +406,11 @@ class HomeViewModel(
             } catch (e: Exception) {
                 Timber.e(e, "Error opening remote service")
                 _uiState.update { it.copy(isLoading = false) }
-                Toast.makeText(
-                    application,
-                    application.getString(R.string.home_toast_open_service_failed, e.message.orEmpty()),
-                    Toast.LENGTH_SHORT
-                ).show()
+                _effects.send(
+                    UiEffect.toast(
+                        R.string.home_toast_open_service_failed, e.message.orEmpty()
+                    )
+                )
             }
         }
     }
@@ -420,11 +429,11 @@ class HomeViewModel(
             } catch (e: Exception) {
                 Timber.e(e, "Error closing remote service")
                 _uiState.update { it.copy(isLoading = false) }
-                Toast.makeText(
-                    application,
-                    application.getString(R.string.home_toast_close_service_failed, e.message.orEmpty()),
-                    Toast.LENGTH_SHORT
-                ).show()
+                _effects.send(
+                    UiEffect.toast(
+                        R.string.home_toast_close_service_failed, e.message.orEmpty()
+                    )
+                )
             }
         }
     }
@@ -437,11 +446,11 @@ class HomeViewModel(
                 if (!permissionManager.permissions.remoteAccessGranted) {
                     val ret = permissionManager.requestRemoteAccess()
                     if (!ret) {
-                        Toast.makeText(
-                            ctx,
-                            ctx.getString(R.string.home_toast_backend_not_acquired, label),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        _effects.send(
+                            UiEffect.toast(
+                                R.string.home_toast_backend_not_acquired, label
+                            )
+                        )
                         return@launch
                     }
                 }
@@ -449,8 +458,7 @@ class HomeViewModel(
                 val (width, height) = Misc.getPhysicalSize(ctx)
 
                 val (targetWidth, targetHeight) = Misc.calculate16x9Resolution(
-                    width,
-                    height
+                    width, height
                 )
                 val ret = withContext(Dispatchers.IO) {
                     useRemoteService { service ->
@@ -463,16 +471,16 @@ class HomeViewModel(
             } catch (e: Exception) {
                 Timber.e(e, "onChangeTo16x9Resolution: Error changing resolution")
                 _uiState.update { it.copy(isLoading = false) }
-                Toast.makeText(
-                    ctx,
-                    ctx.getString(R.string.home_toast_change_resolution_failed, e.message.orEmpty()),
-                    Toast.LENGTH_SHORT
-                ).show()
+                _effects.send(
+                    UiEffect.toast(
+                        R.string.home_toast_change_resolution_failed, e.message.orEmpty()
+                    )
+                )
             }
         }
     }
 
-    fun onResetResolution(ctx: Context) {
+    fun onResetResolution() {
         Timber.i("onResetResolution: Resetting resolution to default")
         viewModelScope.launch {
             try {
@@ -481,11 +489,11 @@ class HomeViewModel(
                 if (!permissionManager.permissions.remoteAccessGranted) {
                     val ret = permissionManager.requestRemoteAccess()
                     if (!ret) {
-                        Toast.makeText(
-                            ctx,
-                            ctx.getString(R.string.home_toast_backend_not_acquired, label),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        _effects.send(
+                            UiEffect.toast(
+                                R.string.home_toast_backend_not_acquired, label
+                            )
+                        )
                         return@launch
                     }
                 }
@@ -498,11 +506,11 @@ class HomeViewModel(
             } catch (e: Exception) {
                 Timber.e(e, "Error resetting resolution")
                 _uiState.update { it.copy(isLoading = false) }
-                Toast.makeText(
-                    application,
-                    application.getString(R.string.home_toast_reset_resolution_failed, e.message.orEmpty()),
-                    Toast.LENGTH_SHORT
-                ).show()
+                _effects.send(
+                    UiEffect.toast(
+                        R.string.home_toast_reset_resolution_failed, e.message.orEmpty()
+                    )
+                )
             }
         }
     }
@@ -523,11 +531,7 @@ class HomeViewModel(
         val isValid = abs(ratio - targetRatio) <= targetRatio * tolerance
 
         if (!isValid) {
-            Toast.makeText(
-                application,
-                application.getString(R.string.home_toast_not_16_9_resolution),
-                Toast.LENGTH_LONG
-            ).show()
+            _effects.trySend(UiEffect.toast(R.string.home_toast_not_16_9_resolution, long = true))
             Timber.w("resolution check failed: ${longSide}x${shortSide}, required 16:9")
         }
 

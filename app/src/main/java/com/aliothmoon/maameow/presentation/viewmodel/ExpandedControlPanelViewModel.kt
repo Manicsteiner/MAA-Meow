@@ -1,7 +1,6 @@
 package com.aliothmoon.maameow.presentation.viewmodel
 
 import android.content.Context
-import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aliothmoon.maameow.data.model.LogItem
@@ -17,18 +16,19 @@ import com.aliothmoon.maameow.domain.usecase.TaskStartContext
 import com.aliothmoon.maameow.domain.usecase.TaskStartDecision
 import com.aliothmoon.maameow.domain.usecase.TaskStartMode
 import com.aliothmoon.maameow.overlay.OverlayController
+import com.aliothmoon.maameow.presentation.state.UiEffect
 import com.aliothmoon.maameow.presentation.view.panel.FloatingPanelState
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogConfirmAction
 import com.aliothmoon.maameow.presentation.view.panel.PanelDialogUiState
 import com.aliothmoon.maameow.presentation.view.panel.PanelTab
 import com.aliothmoon.maameow.utils.i18n.resolve
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 
@@ -45,6 +45,10 @@ class ExpandedControlPanelViewModel(
     private val _state = MutableStateFlow(FloatingPanelState())
     val state: StateFlow<FloatingPanelState> = _state.asStateFlow()
     val runtimeLogs: StateFlow<List<LogItem>> = sessionLogger.logs
+
+    private val _effects = Channel<UiEffect>(Channel.BUFFERED)
+    val effects = _effects.receiveAsFlow()
+
     private var pendingStartContext: TaskStartContext? = null
 
     init {
@@ -287,13 +291,7 @@ class ExpandedControlPanelViewModel(
                     gameAliveBeforeStart = plan.gameAliveBeforeStart,
                 )
                 // 成功时用 Toast 简短提示
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(
-                        application,
-                        message.resolve(application),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+                _effects.send(UiEffect.toast(message))
             } else {
                 // 失败时通过 StateFlow 通知 UI 展示 OverlayDialog
                 Timber.w("Start failed: %s", message.resolve(application))
