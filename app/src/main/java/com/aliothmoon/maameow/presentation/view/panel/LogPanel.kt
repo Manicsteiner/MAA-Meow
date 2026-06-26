@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.List
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Info
@@ -72,9 +73,9 @@ fun LogPanel(
     var isAutoScroll by remember { mutableStateOf(true) }
     var selectedLog by remember { mutableStateOf<LogItem?>(null) }
 
-    LaunchedEffect(logs.size) {
+    LaunchedEffect(logs.size, isAutoScroll) {
         if (isAutoScroll && logs.isNotEmpty()) {
-            listState.animateScrollToItem(logs.size - 1)
+            listState.scrollToItem(logs.size - 1)
         }
     }
 
@@ -135,7 +136,7 @@ fun LogPanel(
                 }
             }
 
-            if (!isAutoScroll && logs.isNotEmpty()) {
+            if (listState.canScrollForward && logs.isNotEmpty()) {
                 IconButton(
                     onClick = { isAutoScroll = true },
                     modifier = Modifier
@@ -148,7 +149,7 @@ fun LogPanel(
                         )
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Info,
+                        imageVector = Icons.Filled.KeyboardArrowDown,
                         contentDescription = stringResource(R.string.panel_log_resume_auto_scroll),
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.size(20.dp)
