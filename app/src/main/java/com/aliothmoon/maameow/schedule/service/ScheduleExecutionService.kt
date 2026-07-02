@@ -6,7 +6,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
@@ -14,10 +13,9 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.aliothmoon.maameow.MainActivity
 import com.aliothmoon.maameow.R
-import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
-
 import com.aliothmoon.maameow.domain.models.RunMode
+import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.schedule.data.ScheduleStrategyRepository
 import com.aliothmoon.maameow.schedule.model.ExecutionResult
 import com.aliothmoon.maameow.schedule.model.ScheduleStrategy
@@ -28,10 +26,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.withTimeoutOrNull
 import org.koin.android.ext.android.inject
 import timber.log.Timber
+import kotlin.time.Duration.Companion.seconds
 
 class ScheduleExecutionService : Service() {
 
@@ -107,27 +105,34 @@ class ScheduleExecutionService : Service() {
             forceStart = strategy.forceStart,
         )
 
-        triggerLogger.append("检查锁屏状态...")
-        val keyguardManager = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
-        if (keyguardManager.isKeyguardLocked) {
-            Timber.i("$TAG: 设备锁屏中，跳过本次定时执行: %s", strategy.name)
-            triggerLogger.append("设备锁屏，跳过本次执行")
-            triggerLogger.end(ExecutionResult.SKIPPED_LOCKED, "设备处于锁屏状态")
-            val lockedMsg = getString(R.string.notification_schedule_device_locked)
-            repository.recordExecutionResult(
-                strategyId = strategy.id,
-                result = ExecutionResult.SKIPPED_LOCKED,
-                message = lockedMsg,
-            )
-            showResultNotification(
-                getString(R.string.notification_schedule_skipped),
-                getString(R.string.notification_schedule_detail, strategy.name, lockedMsg)
-            )
-            alarmManager.scheduleNext(strategy, scheduledTimeMs)
-            shutdownService()
-            return
+        // 仅后台虚拟显示器模式下允许跳过锁屏检查：前台模式锁屏通常无法正常截屏
+        val skipKeyguardCheck = appSettingsManager.runScheduleWhenLocked.value
+                && appSettingsManager.runMode.value == RunMode.BACKGROUND
+        if (skipKeyguardCheck) {
+            triggerLogger.append("已跳过锁屏检查")
+        } else {
+            triggerLogger.append("检查锁屏状态...")
+            val keyguardManager = getSystemService(KEYGUARD_SERVICE) as KeyguardManager
+            if (keyguardManager.isKeyguardLocked) {
+                Timber.i("$TAG: 设备锁屏中，跳过本次定时执行: %s", strategy.name)
+                triggerLogger.append("设备锁屏，跳过本次执行")
+                triggerLogger.end(ExecutionResult.SKIPPED_LOCKED, "设备处于锁屏状态")
+                val lockedMsg = getString(R.string.notification_schedule_device_locked)
+                repository.recordExecutionResult(
+                    strategyId = strategy.id,
+                    result = ExecutionResult.SKIPPED_LOCKED,
+                    message = lockedMsg,
+                )
+                showResultNotification(
+                    getString(R.string.notification_schedule_skipped),
+                    getString(R.string.notification_schedule_detail, strategy.name, lockedMsg)
+                )
+                alarmManager.scheduleNext(strategy, scheduledTimeMs)
+                shutdownService()
+                return
+            }
+            triggerLogger.append("设备未锁屏，连接服务...")
         }
-        triggerLogger.append("设备未锁屏，连接服务...")
 
         // 前台 + 允许前台定时：不拉起 Activity，通过 Starter 静默提交
         val isForegroundSilent = appSettingsManager.runMode.value == RunMode.FOREGROUND

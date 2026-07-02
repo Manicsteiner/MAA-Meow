@@ -284,6 +284,10 @@
     <string name="settings_deployment_with_pause_tip">部署干员前模拟按住 ESC 暂停游戏，提高部署精确度。如遇 ESC 注入异常或部分干员部署不到位，可关闭改用普通滑动</string>
     <string name="settings_force_fullscreen_on_virtual_display">强制 FULLSCREEN 模式</string>
     <string name="settings_allow_foreground_scheduled_task">允许在前台模式执行定时任务</string>
+    <string name="settings_run_schedule_when_locked">定时任务跳过锁屏检查</string>
+    <string name="dialog_run_schedule_when_locked_title">实验性功能</string>
+    <string name="dialog_run_schedule_when_locked_message">跳过锁屏检查是一项实验性功能，不保证在所有设备上正常工作，具体效果请自行确认。</string>
+    <string name="dialog_run_schedule_when_locked_confirm">仍要启用</string>
     <string name="settings_tasks_override_title">MAA 任务覆盖</string>
     <string name="settings_tasks_override_desc">如果你不知道这是什么请不要修改，会导致 MAA 无法正常工作</string>
     <string name="settings_tasks_override_edit_title">编辑配置 JSON</string>

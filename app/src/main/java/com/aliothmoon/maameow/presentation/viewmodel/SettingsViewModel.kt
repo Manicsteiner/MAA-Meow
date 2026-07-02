@@ -192,6 +192,14 @@ class SettingsViewModel(
         }
     }
 
+    val runScheduleWhenLocked: StateFlow<Boolean> = appSettingsManager.runScheduleWhenLocked
+
+    fun setRunScheduleWhenLocked(enabled: Boolean) {
+        viewModelScope.launch {
+            appSettingsManager.setRunScheduleWhenLocked(enabled)
+        }
+    }
+
     val updateChannel: StateFlow<UpdateChannel> = appSettingsManager.updateChannel
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UpdateChannel.STABLE)
 

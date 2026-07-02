@@ -524,6 +524,21 @@ class AppSettingsManager(
         }
     }
 
+    // 定时任务触发时跳过锁屏检查
+    val runScheduleWhenLocked: StateFlow<Boolean> = settings
+        .map { it.runScheduleWhenLocked.toBooleanStrictOrNull() ?: false }
+        .distinctUntilChanged()
+        .stateIn(
+            scope, SharingStarted.Eagerly,
+            initialSettings.runScheduleWhenLocked.toBooleanStrictOrNull() ?: false
+        )
+
+    suspend fun setRunScheduleWhenLocked(enabled: Boolean) {
+        with(AppSettingsSchema) {
+            context.dataStore.edit { it[runScheduleWhenLocked] = enabled.toString() }
+        }
+    }
+
 
     // 是否启用系统莫奈主题色（Android 12+ Material You）
     private fun parseUseSystemMonetColor(raw: String): Boolean =

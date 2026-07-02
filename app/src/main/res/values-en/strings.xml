@@ -86,6 +86,10 @@
     <string name="settings_deployment_with_pause_tip">Hold ESC to pause the game while deploying operators for higher precision. Disable if ESC injection misbehaves or some operators are not placed correctly; deployment will fall back to plain swipe</string>
     <string name="settings_force_fullscreen_on_virtual_display">Force FULLSCREEN mode</string>
     <string name="settings_allow_foreground_scheduled_task">Allow scheduled tasks in foreground</string>
+    <string name="settings_run_schedule_when_locked">Skip lock screen check for scheduled tasks</string>
+    <string name="dialog_run_schedule_when_locked_title">Experimental feature</string>
+    <string name="dialog_run_schedule_when_locked_message">Skipping the lock screen check is experimental and not guaranteed to work on all devices. Please verify it works on your device.</string>
+    <string name="dialog_run_schedule_when_locked_confirm">Enable anyway</string>
     <string name="settings_tasks_override_title">MAA Task Override</string>
     <string name="settings_tasks_override_desc">Do not modify unless you know what you are doing — incorrect values will break MAA</string>
     <string name="settings_tasks_override_edit_title">Edit Config JSON</string>

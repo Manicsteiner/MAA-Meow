@@ -1,8 +1,8 @@
 package com.aliothmoon.maameow.domain.models
 
+import com.aliothmoon.maameow.constant.OFFICIAL_SHIZUKU_PACKAGE
 import com.aliothmoon.preferences.PrefKey
 import com.aliothmoon.preferences.PrefSchema
-import com.aliothmoon.maameow.constant.OFFICIAL_SHIZUKU_PACKAGE
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -72,6 +72,10 @@ data class AppSettings(
     @PrefKey(default = "false") val tasksOverrideEnabled: String = "false",
 
     @PrefKey(default = "false") val allowForegroundScheduledTask: String = "false",
+
+    /** 定时任务触发时跳过锁屏检查 */
+    @PrefKey(default = "false") val runScheduleWhenLocked: String = "false",
+
     /**
      * 是否启用系统莫奈主题色（Android 12+ Material You）
      * 启用后主题跟随系统壁纸动态取色，关闭则使用内置硬编码蓝色主题

@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -113,6 +113,7 @@ fun SettingsView(
     val deploymentWithPause by viewModel.deploymentWithPause.collectAsStateWithLifecycle()
     val forceFullscreenOnVirtualDisplay by viewModel.forceFullscreenOnVirtualDisplay.collectAsStateWithLifecycle()
     val allowForegroundScheduledTask by viewModel.allowForegroundScheduledTask.collectAsStateWithLifecycle()
+    val runScheduleWhenLocked by viewModel.runScheduleWhenLocked.collectAsStateWithLifecycle()
     val tasksOverrideEnabled by viewModel.tasksOverrideEnabled.collectAsStateWithLifecycle()
     val updateChannel by viewModel.updateChannel.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
@@ -170,6 +171,7 @@ fun SettingsView(
 
     var showReInitConfirm by remember { mutableStateOf(false) }
     var showDebugModeConfirm by remember { mutableStateOf(false) }
+    var showRunScheduleWhenLockedConfirm by remember { mutableStateOf(false) }
 
     if (showRestartDialog) {
         AdaptiveTaskPromptDialog(
@@ -207,6 +209,22 @@ fun SettingsView(
             },
             onDismissRequest = { showDebugModeConfirm = false },
             confirmText = stringResource(R.string.common_confirm_restart),
+            dismissText = stringResource(R.string.common_cancel),
+            icon = Icons.Rounded.Build
+        )
+    }
+
+    if (showRunScheduleWhenLockedConfirm) {
+        AdaptiveTaskPromptDialog(
+            visible = true,
+            title = stringResource(R.string.dialog_run_schedule_when_locked_title),
+            message = stringResource(R.string.dialog_run_schedule_when_locked_message),
+            onConfirm = {
+                showRunScheduleWhenLockedConfirm = false
+                viewModel.setRunScheduleWhenLocked(true)
+            },
+            onDismissRequest = { showRunScheduleWhenLockedConfirm = false },
+            confirmText = stringResource(R.string.dialog_run_schedule_when_locked_confirm),
             dismissText = stringResource(R.string.common_cancel),
             icon = Icons.Rounded.Build
         )
@@ -549,6 +567,19 @@ fun SettingsView(
                         contentColor = contentColor,
                         checked = allowForegroundScheduledTask,
                         onCheckedChange = { viewModel.setAllowForegroundScheduledTask(it) }
+                    )
+                    ListItemDivider()
+                    SettingSwitchItem(
+                        title = stringResource(R.string.settings_run_schedule_when_locked),
+                        contentColor = contentColor,
+                        checked = runScheduleWhenLocked,
+                        onCheckedChange = { enabled ->
+                            if (enabled) {
+                                showRunScheduleWhenLockedConfirm = true
+                            } else {
+                                viewModel.setRunScheduleWhenLocked(false)
+                            }
+                        }
                     )
                     ListItemDivider()
                     SettingSwitchItem(
