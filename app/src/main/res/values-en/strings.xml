@@ -745,12 +745,10 @@
     <string name="panel_fight_primary_stage_closed">%1$s is not open today</string>
     <string name="panel_fight_primary_stage_closed_with_alternate">%1$s is not open today. An alternative stage will be used.</string>
     <string name="panel_fight_permanent_stage_blocks_alternate">Later alternative stages won\'t run (execution stage is permanent or current/last)</string>
-    <string name="panel_fight_alternate_stage2_label">Alternative Stage 2</string>
-    <string name="panel_fight_alternate_stage2_placeholder">For example: CE-5</string>
-    <string name="panel_fight_alternate_stage3_label">Alternative Stage 3</string>
-    <string name="panel_fight_alternate_stage3_placeholder">For example: CE-4</string>
-    <string name="panel_fight_alternate_stage4_label">Alternative Stage 4</string>
-    <string name="panel_fight_alternate_stage4_placeholder">For example: CE-3</string>
+    <string name="panel_fight_alternate_stage_label">Alternative Stage %1$d</string>
+    <string name="panel_fight_alternate_stage_placeholder">For example: CE-5</string>
+    <string name="panel_fight_add_alternate_stage">Add Alternative Stage</string>
+    <string name="panel_fight_remove_stage">Remove this alternative stage</string>
     <string name="panel_fight_stage_group_permanent">Permanent Stages</string>
     <string name="panel_fight_use_custom_annihilation">Custom Annihilation Stage</string>
     <string name="panel_fight_annihilation_title">Annihilation Stage</string>

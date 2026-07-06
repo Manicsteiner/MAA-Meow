@@ -125,25 +125,15 @@ data class FightConfig(
     val stage1: String = "",
 
     /**
-     * 备选关卡2
+     * 备选关卡列表（可动态增删）
      *
-     * 仅在 UseAlternateStage=true 时显示
-     */
-    val stage2: String = "",
-
-    /**
-     * 备选关卡3
+     * 迁移自 WPF FightTask.StagePlan（去掉首项主关卡后的剩余项，可为任意数量）
+     * 仅在 UseAlternateStage=true 时参与选关；每项为关卡代码，允许为空（代表「当前/上次」，与 WPF 空 StagePlanItem 一致）
      *
-     * 仅在 UseAlternateStage=true 时显示
+     * 注: 取代旧的固定 stage2/stage3/stage4 字段，不做老配置迁移
+     *     （ignoreUnknownKeys 静默忽略旧字段，升级后旧备选选择丢失，首选关卡保留）
      */
-    val stage3: String = "",
-
-    /**
-     * 备选关卡4
-     *
-     * 仅在 UseAlternateStage=true 时显示
-     */
-    val stage4: String = "",
+    val alternateStages: List<String> = emptyList(),
 
     // ============ 高级设置 - 剿灭相关 ============
 
@@ -286,7 +276,7 @@ data class FightConfig(
         // 如果不使用备选关卡，直接返回首选关卡
         if (!useAlternateStage) return stage1
 
-        var candidates = listOf(stage1, stage2, stage3, stage4).filter { it.isNotEmpty() }
+        var candidates = (listOf(stage1) + alternateStages).filter { it.isNotEmpty() }
 
         val activityManager = GlobalContext.getOrNull()?.getOrNull<ActivityManager>()
         if (activityManager != null) {

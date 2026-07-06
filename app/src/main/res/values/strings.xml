@@ -800,12 +800,10 @@
     <string name="panel_fight_primary_stage_closed">「%1$s」今日不开放</string>
     <string name="panel_fight_primary_stage_closed_with_alternate">「%1$s」今日不开放，将使用备选关卡</string>
     <string name="panel_fight_permanent_stage_blocks_alternate">其后备选关卡不会执行（执行关卡为常驻或「当前/上次」）</string>
-    <string name="panel_fight_alternate_stage2_label">备选关卡2</string>
-    <string name="panel_fight_alternate_stage2_placeholder">例如: CE-5</string>
-    <string name="panel_fight_alternate_stage3_label">备选关卡3</string>
-    <string name="panel_fight_alternate_stage3_placeholder">例如: CE-4</string>
-    <string name="panel_fight_alternate_stage4_label">备选关卡4</string>
-    <string name="panel_fight_alternate_stage4_placeholder">例如: CE-3</string>
+    <string name="panel_fight_alternate_stage_label">备选关卡%1$d</string>
+    <string name="panel_fight_alternate_stage_placeholder">例如: CE-5</string>
+    <string name="panel_fight_add_alternate_stage">添加备选关卡</string>
+    <string name="panel_fight_remove_stage">删除该备选关卡</string>
     <string name="panel_fight_stage_group_permanent">常驻关卡</string>
     <string name="panel_fight_use_custom_annihilation">使用自定义剿灭</string>
     <string name="panel_fight_annihilation_title">剿灭关卡</string>

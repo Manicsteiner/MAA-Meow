@@ -42,7 +42,12 @@ private fun findBlockingStageIndex(config: FightConfig): Int? {
         return null
     }
 
-    val stageValues = listOf(config.stage1, config.stage2, config.stage3, config.stage4)
+    // 与 getActiveStage 的候选集保持一致：不启用备选时计划仅含首选关卡（对齐 WPF UseAlternateStage 关闭时 StagePlan 仅保留首项）
+    val stageValues = if (config.useAlternateStage) {
+        listOf(config.stage1) + config.alternateStages
+    } else {
+        listOf(config.stage1)
+    }
     val firstBlankStageIndex = stageValues.indexOfFirst { it.isBlank() }
     return if (firstBlankStageIndex >= 0) {
         firstBlankStageIndex + 1
