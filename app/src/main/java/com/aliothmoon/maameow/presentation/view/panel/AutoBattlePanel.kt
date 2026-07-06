@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,7 +38,11 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -56,6 +61,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -318,65 +324,55 @@ fun AutoBattlePanel(
             }
 
             item {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Button(
-                        onClick = viewModel::onParseSingleInput,
-                        enabled = controlsEnabled,
-                        shape = compactButtonShape,
-                        contentPadding = compactButtonPadding
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // 读取类：实心主色
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
+                        CopilotActionButton(
                             text = if (state.isLoading) {
                                 stringResource(R.string.panel_autobattle_loading)
                             } else {
                                 stringResource(R.string.panel_autobattle_read_single)
                             },
-                            maxLines = 1,
-                            softWrap = false,
+                            icon = Icons.Default.Search,
+                            filled = true,
+                            enabled = controlsEnabled,
+                            onClick = viewModel::onParseSingleInput,
                         )
-                    }
-                    Button(
-                        onClick = viewModel::onParseSetInput,
-                        enabled = controlsEnabled && setImportSupported,
-                        shape = compactButtonShape,
-                        contentPadding = compactButtonPadding
-                    ) {
-                        Text(
+                        CopilotActionButton(
                             text = stringResource(R.string.panel_autobattle_read_set),
-                            maxLines = 1,
-                            softWrap = false,
+                            icon = Icons.Default.GridView,
+                            filled = true,
+                            enabled = controlsEnabled && setImportSupported,
+                            onClick = viewModel::onParseSetInput,
                         )
                     }
-                    OutlinedButton(
-                        onClick = {
-                            if (filePicker != null) {
-                                filePicker.launch(arrayOf("application/json", "application/octet-stream"))
-                            } else {
-                                Toast.makeText(context, importFloatHint, Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        enabled = controlsEnabled,
-                        shape = compactButtonShape,
-                        contentPadding = compactButtonPadding
+                    // 导入 / 外链：描边次级
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
+                        CopilotActionButton(
                             text = stringResource(R.string.copilot_import_file),
-                            maxLines = 1,
-                            softWrap = false,
+                            icon = Icons.Default.UploadFile,
+                            filled = false,
+                            enabled = controlsEnabled,
+                            onClick = {
+                                if (filePicker != null) {
+                                    filePicker.launch(arrayOf("application/json", "application/octet-stream"))
+                                } else {
+                                    Toast.makeText(context, importFloatHint, Toast.LENGTH_SHORT).show()
+                                }
+                            },
                         )
-                    }
-                    OutlinedButton(
-                        onClick = { Misc.openUriSafely(context, "https://zoot.plus") },
-                        shape = compactButtonShape,
-                        contentPadding = compactButtonPadding
-                    ) {
-                        Text(
+                        CopilotActionButton(
                             text = stringResource(R.string.panel_autobattle_station),
-                            maxLines = 1,
-                            softWrap = false,
+                            icon = Icons.Default.Public,
+                            filled = false,
+                            enabled = true,
+                            onClick = { Misc.openUriSafely(context, "https://zoot.plus") },
                         )
                     }
                 }
@@ -887,6 +883,50 @@ private fun OperatorRow(
                 }
             }
         }
+    }
+}
+
+/**
+ * 自动战斗操作按钮：等宽网格单元（RowScope.weight(1f)），图标 + 单行文字。
+ * @param filled true=实心主色（读取类主操作）；false=描边次级（导入/外链）
+ */
+@Composable
+private fun RowScope.CopilotActionButton(
+    text: String,
+    icon: ImageVector,
+    filled: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(8.dp)
+    val padding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+    val content: @Composable RowScope.() -> Unit = {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(text = text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    if (filled) {
+        Button(
+            onClick = onClick,
+            enabled = enabled,
+            shape = shape,
+            contentPadding = padding,
+            modifier = Modifier.weight(1f),
+            content = content,
+        )
+    } else {
+        OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            shape = shape,
+            contentPadding = padding,
+            modifier = Modifier.weight(1f),
+            content = content,
+        )
     }
 }
 

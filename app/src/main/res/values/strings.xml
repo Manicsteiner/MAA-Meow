@@ -480,7 +480,7 @@
 
     <!-- panel: auto battle (Copilot) -->
     <string name="panel_autobattle_read_set">读取作业集</string>
-    <string name="panel_autobattle_station">作业站</string>
+    <string name="panel_autobattle_station">打开作业站</string>
     <string name="panel_autobattle_clear_unchecked">清除未勾选</string>
     <string name="panel_autobattle_clear_list">清空列表</string>
     <string name="copilot_navigation_name_mismatch">当前作业关卡名与导航关卡名不一致，请确认是否仍可正确导航</string>
