@@ -483,9 +483,6 @@ class BackgroundTaskViewModel(
                 gameAliveBeforeStart = plan.gameAliveBeforeStart,
             )
             chainState.grantGameBatteryExemption(plan.clientType)
-        } else if (muteRequested) {
-            // 启动失败可能不产生任何执行状态迁移，会话结束回调不会触发，这里显式回收
-            gameMuteCoordinator.unmute()
         }
 
         val message = application.resolveTaskStartFailureMessage(result)

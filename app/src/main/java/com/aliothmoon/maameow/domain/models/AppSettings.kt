@@ -35,6 +35,11 @@ data class AppSettings(
 
     @PrefKey(default = "false") val muteOnGameLaunch: String = "false",
 
+    /**
+     * 游戏静音的 write-ahead 标记，非空 = 用户当前的静音意图（包名）。
+     * 只随用户显式操作（手动切换 / 启动自动静音）变化，任务结束不会自动清除（#181）；
+     * 远端服务每次连接时按此标记重发静音（见 GameMuteCoordinator.reconcileOnConnected）。
+     */
     @PrefKey(default = "") val mutedGamePackage: String = "",
 
     @PrefKey(default = "false") val closeAppOnTaskEnd: String = "false",
