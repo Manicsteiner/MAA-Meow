@@ -3,6 +3,7 @@ package com.aliothmoon.maameow.domain.service
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.FileProvider
+import com.aliothmoon.maameow.constant.LogConfig
 import com.aliothmoon.maameow.data.achievement.AchievementEvents
 import com.aliothmoon.maameow.data.achievement.AchievementRepository
 
@@ -25,6 +26,7 @@ class LogExportService(
     private val pathConfig: MaaPathConfig,
     private val appSettingsManager: AppSettingsManager,
     private val achievementRepository: AchievementRepository,
+    private val sessionLogger: MaaSessionLogger,
 ) {
     companion object {
         private const val EXPORT_DIR = "export"
@@ -49,6 +51,10 @@ class LogExportService(
 
             // 清理旧的导出文件
             cleanupOldExports(exportDir)
+
+            // 导出前清理过期的源日志
+            val cleaned = cleanupBeforeExport(dir)
+            Timber.i("Pre-export cleanup: removed $cleaned files")
 
             // 生成 ZIP 文件名
             val zipFileName = "maa_logs_${ZonedDateTime.now().format(DATE_FORMAT)}.zip"
@@ -79,15 +85,74 @@ class LogExportService(
 
 
     private fun collectAllLogFiles(debugDir: File): List<File> {
-        val exportDir = File(debugDir, EXPORT_DIR)
+        val exportPath = File(debugDir, EXPORT_DIR).invariantSeparatorsPath
+        val screenshotCutoff = System.currentTimeMillis() -
+                LogConfig.EXPORT_SCREENSHOT_DAYS * 24L * 60 * 60 * 1000
         return debugDir.walkTopDown()
-            .filter { it.isFile && !it.startsWith(exportDir) }
-            .sortedByDescending { it.lastModified() }
-            .toList()
+            .filter { it.isFile }
+            .filter { !it.invariantSeparatorsPath.startsWith(exportPath) }
+            .filter { file ->
+                val rel = file.invariantSeparatorsPath
+                when {
+                    // screenshots 目录：只打包近 N 天的，允许 PNG/JPG
+                    rel.contains("/screenshots/") ->
+                        file.lastModified() >= screenshotCutoff
+                    // logcat：无轮转，放宽单文件大小
+                    rel.contains("/logcat/") ->
+                        file.length() <= LogConfig.MAX_EXPORT_LOGCAT_FILE_SIZE
+                    // 其他目录：排除二进制图片，并按默认大小过滤
+                    else ->
+                        file.extension.lowercase() !in setOf("png", "jpg", "jpeg") &&
+                                file.length() <= LogConfig.MAX_EXPORT_SINGLE_FILE_SIZE
+                }
+            }
+            .groupBy { it.parentFile?.invariantSeparatorsPath ?: "" }
+            .flatMap { (_, fs) ->
+                val sample = fs.first()
+                val rel = sample.invariantSeparatorsPath
+                val limit = when {
+                    rel.contains("/screenshots/") ->
+                        LogConfig.MAX_EXPORT_FILES_PER_SCREENSHOT_DIR
+
+                    rel.contains("/logcat/") ||
+                            rel.contains("/gui/") ||
+                            rel.contains("/schedule/") ||
+                            rel.contains("/error_logs/") ||
+                            rel.contains("/crash_logs/") ->
+                        LogConfig.MAX_EXPORT_FILES_PER_LOG_DIR
+
+                    else ->
+                        LogConfig.MAX_EXPORT_FILES_PER_OTHER_DIR
+                }
+                fs.sortedByDescending { it.lastModified() }.take(limit)
+            }
+    }
+
+
+    /**
+     * 按重要性给文件打分，数字越小越优先入 ZIP（总量超限时优先保留）。
+     */
+    private fun exportPriority(file: File): Int {
+        val p = file.invariantSeparatorsPath
+        return when {
+            file.name.startsWith("asst") -> 0
+            p.contains("/error_logs/") -> 1
+            p.contains("/logcat/") -> 2
+            p.contains("/gui/") -> 3
+            p.contains("/crash_logs/") -> 4
+            p.contains("/schedule/") -> 5
+            p.contains("/screenshots/") -> 6
+            else -> 7
+        }
     }
 
 
     private fun createZipFile(zipFile: File, logFiles: List<File>, baseDir: File) {
+        // 按重要性优先 + 最新优先排序，确保总量超限时丢的是截图而不是核心日志
+        val ordered = logFiles.sortedWith(
+            compareBy({ exportPriority(it) }, { -it.lastModified() })
+        )
+
         ZipOutputStream(BufferedOutputStream(FileOutputStream(zipFile))).use { zos ->
             if (appSettingsManager.debugMode.value) {
                 try {
@@ -103,7 +168,14 @@ class LogExportService(
                 }
             }
 
-            for (file in logFiles) {
+            var totalSize = 0L
+            for ((idx, file) in ordered.withIndex()) {
+                if (totalSize >= LogConfig.MAX_EXPORT_TOTAL_SIZE) {
+                    Timber.w("Export zip reached MAX_EXPORT_TOTAL_SIZE, skipping remaining ${ordered.size - idx} files")
+                    break
+                }
+                totalSize += file.length()
+
                 // 使用相对路径作为 ZIP 中的路径
                 val relativePath = file.relativeTo(baseDir).path
                 val entry = ZipEntry(relativePath)
@@ -140,7 +212,27 @@ class LogExportService(
     }
 
     /**
-     * 清理旧的导出文件（只保留最近一个）
+     * 导出前清理
+     */
+    private suspend fun cleanupBeforeExport(debugDir: File): Int {
+        var deleted = sessionLogger.cleanupOldLogs(LogConfig.MAX_TASK_LOG_DAYS)
+        listOf("logcat", "screenshots", "crash_logs").forEach { sub ->
+            deleted += cleanupDirByAge(File(debugDir, sub), LogConfig.EXPORT_CLEANUP_DAYS)
+        }
+        return deleted
+    }
+
+    private fun cleanupDirByAge(dir: File, daysToKeep: Int): Int {
+        if (!dir.exists()) return 0
+        val cutoff = System.currentTimeMillis() - daysToKeep * 24L * 60 * 60 * 1000
+        return dir.walkTopDown()
+            .filter { it.isFile && it.lastModified() < cutoff }
+            .onEach { it.delete() }
+            .count()
+    }
+
+    /**
+     * 清理所有旧的导出 ZIP 文件
      */
     private fun cleanupOldExports(dir: File) {
         try {
