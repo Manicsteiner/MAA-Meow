@@ -31,4 +31,32 @@ object AppOpsHelper {
         }
         return checkPlayAudioMode(packageName, uid) == mode
     }
+
+    /**
+     * 将该包 AppOps 恢复为系统默认（`appops reset <package>`）。
+     * 成功条件：PLAY_AUDIO 不再是 IGNORED；读不到 mode 时以 shell exitCode 为准。
+     */
+    fun resetPackage(packageName: String): Boolean {
+        val exitCode = RemoteUtils.shellExec("appops reset $packageName")
+        val uid = RemoteUtils.getAppUid(packageName)
+        if (uid < 0) {
+            Ln.w("$TAG: reset $packageName exit=$exitCode, cannot verify mode (no uid)")
+            return exitCode == 0
+        }
+        val mode = checkPlayAudioMode(packageName, uid)
+        if (mode < 0) {
+            Ln.w("$TAG: reset $packageName exit=$exitCode, checkOperation failed")
+            return exitCode == 0
+        }
+        val restored = isPlayAudioRestored(mode)
+        if (restored) {
+            Ln.i("$TAG: reset $packageName ok (mode=$mode, exit=$exitCode)")
+        } else {
+            Ln.w("$TAG: reset $packageName still muted (mode=$mode, exit=$exitCode)")
+        }
+        return restored
+    }
+
+    internal fun isPlayAudioRestored(mode: Int): Boolean =
+        mode >= 0 && mode != AppOpsManager.MODE_IGNORED
 }

@@ -9,7 +9,6 @@ object GameAudioMuteController {
 
     private data class MuteRecord(
         val uid: Int,
-        val originalMode: Int,
         val playerFallback: Boolean,
     )
 
@@ -27,10 +26,8 @@ object GameAudioMuteController {
     }
 
     private fun mute(pkg: String): Boolean {
-        muted[pkg]?.let { existing ->
-            Ln.i(
-                "$TAG: $pkg already muted, preserving originalMode=${existing.originalMode}"
-            )
+        muted[pkg]?.let {
+            Ln.i("$TAG: $pkg already muted")
             return true
         }
 
@@ -39,64 +36,46 @@ object GameAudioMuteController {
             Ln.w("$TAG: mute $pkg failed - cannot resolve uid")
             return false
         }
-        // 记录原始 mode，恢复时还原原值而非硬编码 allow
-        val original = AppOpsHelper.checkPlayAudioMode(pkg, uid)
-            .takeIf { it >= 0 } ?: AppOpsManager.MODE_ALLOWED
 
         if (AppOpsHelper.setPlayAudioMode(pkg, uid, AppOpsManager.MODE_IGNORED)) {
-            muted[pkg] = MuteRecord(uid, original, playerFallback = false)
-            Ln.i("$TAG: muted $pkg via appops (uid=$uid, originalMode=$original)")
+            muted[pkg] = MuteRecord(uid, playerFallback = false)
+            Ln.i("$TAG: muted $pkg via appops (uid=$uid)")
             return true
         }
 
         Ln.w("$TAG: appops mute failed for $pkg, falling back to player volume")
         if (PlayerVolumeFallback.engage(uid)) {
-            muted[pkg] = MuteRecord(uid, original, playerFallback = true)
+            muted[pkg] = MuteRecord(uid, playerFallback = true)
             return true
         }
-        // 两条路径都失败：尽力把 appops 还原为原始值，避免半生效状态残留
-        AppOpsHelper.setPlayAudioMode(pkg, uid, original)
+        // 两条路径都失败：reset 清掉可能半生效的 appops
+        AppOpsHelper.resetPackage(pkg)
         return false
     }
 
     private fun unmute(pkg: String): Boolean {
         val record = muted[pkg]
         val uid = record?.uid ?: RemoteUtils.getAppUid(pkg)
-        if (uid < 0) {
-            Ln.w("$TAG: unmute $pkg failed - cannot resolve uid")
-            return false
-        }
 
-        if (record?.playerFallback == true) {
+        if (record?.playerFallback == true && uid >= 0) {
             PlayerVolumeFallback.disengage(uid)
-            // 尽力清理可能半生效的 appops（写成功但校验读取失败的极端情况）
-            AppOpsHelper.setPlayAudioMode(pkg, uid, record.originalMode)
-            muted.remove(pkg)
-            return true
         }
-        // AppOps 跨远端进程存活：记录丢失时只修正 MaaMeow 会设置的 IGNORED，
-        // 已恢复成 DEFAULT 等其他 mode 时保持原值，保证重复恢复幂等。
-        val target = record?.originalMode ?: targetModeForUntrackedRestore(
-            AppOpsHelper.checkPlayAudioMode(pkg, uid)
-        ) ?: run {
-            Ln.i("$TAG: $pkg is already audible; preserving current appops mode")
-            return true
-        }
-        val ok = AppOpsHelper.setPlayAudioMode(pkg, uid, target)
-        if (ok) {
-            // 校验成功才移除记录；失败时保留 originalMode，重试仍能还原原值
-            muted.remove(pkg)
-            Ln.i("$TAG: unmuted $pkg (restored mode=$target)")
-        } else {
-            Ln.w("$TAG: unmute $pkg failed to verify (target=$target)")
-        }
-        return ok
-    }
 
-    internal fun targetModeForUntrackedRestore(currentMode: Int): Int? =
-        if (currentMode >= 0 && currentMode != AppOpsManager.MODE_IGNORED) {
-            null
-        } else {
-            AppOpsManager.MODE_ALLOWED
+        val ok = AppOpsHelper.resetPackage(pkg)
+        if (ok) {
+            muted.remove(pkg)
+            Ln.i("$TAG: unmuted $pkg via appops reset")
+            return true
         }
+
+        // player 音量路径已 disengage，即使 reset 失败也视为本进程侧恢复完成
+        if (record?.playerFallback == true) {
+            muted.remove(pkg)
+            Ln.w("$TAG: unmute $pkg appops reset failed after player disengage")
+            return true
+        }
+
+        Ln.w("$TAG: unmute $pkg failed (appops reset)")
+        return false
+    }
 }
