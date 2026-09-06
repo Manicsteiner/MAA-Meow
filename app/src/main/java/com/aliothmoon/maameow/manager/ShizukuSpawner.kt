@@ -6,9 +6,10 @@ import rikka.shizuku.Shizuku
 import timber.log.Timber
 
 /**
- * Shizuku newProcess 前台拉起：adb 模式下 launcher 已是 shell 身份，直接 exec 成服务进程，
- * IRemoteProcess 追踪到的就是服务进程本身；root 模式下 launcher fork 降权后 waitpid 子进程，
- * 追踪到的是 launcher。两种情况下进程退出（exec 被拒 / 服务进程死）都经 alive 轮询秒级可见
+ * Shizuku newProcess 前台拉起：IRemoteProcess 追踪到的是 launcher，launcher fork 出服务进程后 waitpid，
+ * 服务进程退出即 launcher 退出，经 alive 轮询秒级可见
+ * 必须隔这一层：Shizuku 在 App 死亡时会 SIGTERM 追踪的进程，ART 不跑 shutdown hook，
+ * 让 launcher 挨这一刀，服务进程靠 binder 死亡回调完成静音恢复等清理
  *
  * 不经 Shizuku manager App 中转，规避 OEM 杀后台断链与 MTK makeApplication 崩溃
  * Shizuku.newProcess 已 private（API 14 计划移除），直接走 IShizukuService AIDL

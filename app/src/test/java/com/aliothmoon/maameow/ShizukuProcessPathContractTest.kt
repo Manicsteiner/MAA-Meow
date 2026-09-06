@@ -33,13 +33,14 @@ class ShizukuProcessPathContractTest {
     }
 
     @Test
-    fun launcherExecsDirectlyWhenAlreadyShell() {
+    fun launcherAlwaysForksEvenWhenAlreadyShell() {
         val source = TestSources.resolve("src/main/native/launcher.c").readText()
-        val directExec = source.indexOf("getuid() == kShellUid")
+        val shellCheck = source.indexOf("getuid() == kShellUid")
         val fork = source.indexOf("fork()")
         assertTrue(
-            "已是 shell 身份必须直接 exec 不 fork，否则 Shizuku 探活追踪的是 launcher 而非服务进程",
-            directExec >= 0 && fork >= 0 && directExec < fork,
+            "shell 身份也必须 fork：Shizuku newProcess 在 App 死亡时 SIGTERM 其追踪的进程，" +
+                "ART 不跑 shutdown hook，直接 exec 会让服务进程被硬杀、静音等清理丢失",
+            shellCheck >= 0 && fork >= 0 && fork < shellCheck,
         )
     }
 

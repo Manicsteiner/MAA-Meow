@@ -24,6 +24,6 @@ class ProcessExitedException(val exitCode: Int?) :
 
 internal fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
 
-/** SIGTERM 触发服务进程 shutdown hook 优雅清理 */
+/** 硬杀残留进程：ART 收到 SIGTERM 不跑 shutdown hook，清理不依赖此路径 */
 internal fun killByNameCommand(processName: String): String =
     "kill $(pidof ${shellQuote(processName)}) 2>/dev/null"

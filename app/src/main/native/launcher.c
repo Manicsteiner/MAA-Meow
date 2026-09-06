@@ -227,14 +227,9 @@ int main(int argc, char **argv) {
 
     LOGFI("launcher start: apk=%s uid=%d", args.apk_path, args.uid);
 
-    /* 已是 shell 身份（Shizuku adb 模式）：无需降权，直接 exec 不 fork，
-       调用方追踪到的就是服务进程本身，探活与退出码不隔一层 */
-    if (getuid() == kShellUid) {
-        LOGFI("already shell uid, exec app_process directly");
-        exec_app_process(&args);
-        return 1;
-    }
-
+    /* 始终 fork：Shizuku newProcess 在 App 死亡时会对其追踪的进程发 SIGTERM，
+       ART 收到信号直接退出不跑 shutdown hook；让 launcher 承受信号，
+       服务子进程靠 binder 死亡回调自行清理（静音恢复等）后退出 */
     pid_t child = fork();
     if (child < 0) {
         LOGFE("fork failed: %s", strerror(errno));
@@ -242,7 +237,10 @@ int main(int argc, char **argv) {
     }
 
     if (child == 0) {
-        if (!args.keep_root) {
+        /* 已是 shell 身份（Shizuku adb 模式）：非 root 下 setgroups 会 EPERM，跳过降权 */
+        if (getuid() == kShellUid) {
+            LOGFI("already shell uid, skip demotion");
+        } else if (!args.keep_root) {
             static const size_t kGidCount =
                     sizeof(kRequiredShellGids) / sizeof(kRequiredShellGids[0]);
 
