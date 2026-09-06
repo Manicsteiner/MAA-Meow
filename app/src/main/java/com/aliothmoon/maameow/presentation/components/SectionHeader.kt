@@ -51,12 +51,14 @@ fun CollapsibleSection(
     modifier: Modifier = Modifier,
     sectionKey: String = title,
     initiallyExpanded: Boolean = true,
+    forceExpanded: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     CollapsibleSection(
         sectionKey = sectionKey,
         modifier = modifier,
         initiallyExpanded = initiallyExpanded,
+        forceExpanded = forceExpanded,
         title = {
             Text(
                 text = title,
@@ -70,16 +72,22 @@ fun CollapsibleSection(
     )
 }
 
-/** 标题自定义版：折叠交互与无障碍语义共用，样式交给调用方 */
+/**
+ * 标题自定义版：折叠交互与无障碍语义共用，样式交给调用方
+ *
+ * @param forceExpanded 为 true 时强制展开（引导高亮分区内条目用），不覆盖用户自己的折叠选择
+ */
 @Composable
 fun CollapsibleSection(
     sectionKey: String,
     modifier: Modifier = Modifier,
     initiallyExpanded: Boolean = true,
+    forceExpanded: Boolean = false,
     title: @Composable RowScope.() -> Unit,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    var expanded by rememberSaveable(sectionKey) { mutableStateOf(initiallyExpanded) }
+    var userExpanded by rememberSaveable(sectionKey) { mutableStateOf(initiallyExpanded) }
+    val expanded = userExpanded || forceExpanded
     val expandLabel = stringResource(R.string.common_expand)
     val collapseLabel = stringResource(R.string.common_collapse)
 
@@ -90,7 +98,7 @@ fun CollapsibleSection(
                 .clickable(
                     role = Role.Button,
                     onClickLabel = if (expanded) collapseLabel else expandLabel,
-                ) { expanded = !expanded }
+                ) { userExpanded = !expanded }
                 .padding(vertical = MaaDesignTokens.Spacing.sm),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,

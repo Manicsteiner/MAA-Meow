@@ -11,6 +11,7 @@ import androidx.compose.material.icons.rounded.Dashboard
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Layers
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Tab
 import androidx.compose.material.icons.rounded.Tv
 import androidx.compose.material.icons.rounded.VerifiedUser
@@ -113,13 +114,21 @@ object OnboardingSteps {
             titleRes = R.string.onboarding_schedule_trigger_log_title,
             bodyRes = R.string.onboarding_schedule_trigger_log_body,
         ),
-        // 收尾回首页，指一下设置
+        // 回首页指一下设置入口
         OnboardingStep(
             tab = BottomNavTab.HOME,
             target = OnboardingTarget.TAB_SETTINGS,
-            icon = Icons.AutoMirrored.Rounded.HelpOutline,
+            icon = Icons.Rounded.Settings,
             titleRes = R.string.onboarding_tab_settings_title,
             bodyRes = R.string.onboarding_tab_settings_body,
+        ),
+        // 设置页：遇到问题先看常见问题，再反馈
+        OnboardingStep(
+            tab = BottomNavTab.SETTINGS,
+            target = OnboardingTarget.ABOUT_HELP,
+            icon = Icons.AutoMirrored.Rounded.HelpOutline,
+            titleRes = R.string.onboarding_about_help_title,
+            bodyRes = R.string.onboarding_about_help_body,
         ),
     )
 }

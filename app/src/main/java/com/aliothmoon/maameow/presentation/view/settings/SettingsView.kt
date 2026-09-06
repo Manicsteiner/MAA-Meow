@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -66,6 +67,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -90,6 +92,7 @@ import androidx.navigation.NavController
 import com.aliothmoon.maameow.BuildConfig
 import com.aliothmoon.maameow.R
 import com.aliothmoon.maameow.constant.DefaultDisplayConfig
+import com.aliothmoon.maameow.constant.MaaApi
 import com.aliothmoon.maameow.constant.OFFICIAL_SHIZUKU_PACKAGE
 import com.aliothmoon.maameow.constant.Routes
 import com.aliothmoon.maameow.data.model.update.UpdateChannel
@@ -113,10 +116,14 @@ import com.aliothmoon.maameow.presentation.components.ResourceInitDialog
 import com.aliothmoon.maameow.presentation.components.SettingRow
 import com.aliothmoon.maameow.presentation.components.SettingsGroupCard
 import com.aliothmoon.maameow.presentation.components.TopAppBar
+import com.aliothmoon.maameow.presentation.onboarding.LocalOnboardingState
+import com.aliothmoon.maameow.presentation.onboarding.OnboardingTarget
+import com.aliothmoon.maameow.presentation.onboarding.onboardingTarget
 import com.aliothmoon.maameow.presentation.viewmodel.AchievementEffect
 import com.aliothmoon.maameow.presentation.viewmodel.AchievementEvent
 import com.aliothmoon.maameow.presentation.viewmodel.AchievementViewModel
 import com.aliothmoon.maameow.presentation.viewmodel.SettingsViewModel
+import com.aliothmoon.maameow.theme.LocalReduceMotion
 import com.aliothmoon.maameow.theme.MaaAnimatedVisibility
 import com.aliothmoon.maameow.theme.MaaDesignTokens
 import com.aliothmoon.maameow.utils.Misc
@@ -125,11 +132,16 @@ import com.aliothmoon.maameow.utils.i18n.LocaleBootstrap.resolveSelectedLanguage
 import com.aliothmoon.maameow.utils.i18n.resolve
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.math.roundToInt
+
+// LazyColumn 里「关于」分区的项序，item 顺序变了要同步
+private const val ABOUT_ITEM_INDEX = 8
+private val ONBOARDING_ABOUT_TARGETS = setOf(OnboardingTarget.ABOUT_HELP)
 
 @Composable
 fun SettingsView(
@@ -185,6 +197,25 @@ fun SettingsView(
     var pallasFlavorDialog by remember { mutableStateOf<PallasFlavorDialog?>(null) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    // 首启引导：靶点在「关于」分区内，先滚进视野并强制展开分区；pager 重建后 effect 重跑自动补滚
+    val onboarding = LocalOnboardingState.current
+    val settingsListState = rememberLazyListState()
+    val reduceMotion = LocalReduceMotion.current
+    val onboardingInAbout =
+        onboarding?.takeIf { it.active }?.currentStep?.target in ONBOARDING_ABOUT_TARGETS
+    LaunchedEffect(onboarding, settingsListState, reduceMotion) {
+        if (onboarding == null) return@LaunchedEffect
+        snapshotFlow { onboarding.takeIf { it.active }?.currentStep?.target }
+            .collectLatest { target ->
+                if (target !in ONBOARDING_ABOUT_TARGETS) return@collectLatest
+                if (reduceMotion) {
+                    settingsListState.scrollToItem(ABOUT_ITEM_INDEX)
+                } else {
+                    settingsListState.animateScrollToItem(ABOUT_ITEM_INDEX)
+                }
+            }
+    }
 
     LaunchedEffect(achievementViewModel) {
         achievementViewModel.effects.collect { effect ->
@@ -551,6 +582,7 @@ fun SettingsView(
         val contentColor = MaterialTheme.colorScheme.onSurface
 
         LazyColumn(
+            state = settingsListState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
@@ -1050,11 +1082,12 @@ fun SettingsView(
                 }
             }
 
-            // 关于
+            // 关于（ABOUT_ITEM_INDEX 指向这一项）
             item {
                 CollapsibleSection(
                     title = stringResource(R.string.settings_section_about),
                     sectionKey = "settings_section_about",
+                    forceExpanded = onboardingInAbout,
                 ) {
                     SettingsGroupCard {
                         SettingInfoRow(
@@ -1069,20 +1102,25 @@ fun SettingsView(
                             contentColor = contentColor
                         )
                         ListItemDivider()
-                        SettingClickItem(
-                            title = stringResource(R.string.settings_about_faq_title),
-                            description = stringResource(R.string.settings_about_faq_desc),
-                            contentColor = contentColor
+                        // 两行合为一个引导靶点
+                        Column(
+                            modifier = Modifier.onboardingTarget(OnboardingTarget.ABOUT_HELP),
                         ) {
-                            Misc.openUriSafely(context, "https://docs.maameow.com/faq/getting-started/")
-                        }
-                        ListItemDivider()
-                        SettingClickItem(
-                            title = stringResource(R.string.settings_about_feedback_title),
-                            description = stringResource(R.string.settings_about_feedback_desc),
-                            contentColor = contentColor
-                        ) {
-                            Misc.openUriSafely(context, "https://github.com/Aliothmoon/MAA-Meow/issues")
+                            SettingClickItem(
+                                title = stringResource(R.string.settings_about_faq_title),
+                                description = stringResource(R.string.settings_about_faq_desc),
+                                contentColor = contentColor,
+                            ) {
+                                Misc.openUriSafely(context, MaaApi.FAQ_URL)
+                            }
+                            ListItemDivider()
+                            SettingClickItem(
+                                title = stringResource(R.string.settings_about_feedback_title),
+                                description = stringResource(R.string.settings_about_feedback_desc),
+                                contentColor = contentColor,
+                            ) {
+                                Misc.openUriSafely(context, MaaApi.FEEDBACK_URL)
+                            }
                         }
                         ListItemDivider()
                         SettingClickItem(
