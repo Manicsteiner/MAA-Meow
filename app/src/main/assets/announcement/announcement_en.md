@@ -1,20 +1,67 @@
-## Temporary Note on Proxy Multiplier Changes (NEW!!!)
+## Black Forest Money Farming
 
-After the game update on August 1, the maximum proxy battle multiplier is increased from 6 to 10.
+~~The map is too complex, so here is a quick money-farming script first.~~ The auto-roguelike money-farming strategy is out now, but this one is still handy, so it stays.
 
-Since the update also changes how the multiplier is switched in-game, MAA's current switching logic is temporarily incompatible with the new multiplier UI. Support will be added in a future release.
-
-Until then, MAA will temporarily force the "Do not switch" multiplier option. During this period, MAA will not switch the proxy multiplier after navigating to a stage — it will fight with whatever multiplier is already selected on the stage screen. If you need a specific multiplier, set it manually in-game for the stage before starting MAA's sanity farming task.
+Location: Toolbox → Mini-games → Black Forest money farming
 
 ---
 
-## Black Forest Money Farming (NEW!!!)
+## Runtime Notes
 
-The map is too complex, so here is a quick money-farming script first.
+Do not use **eye-care mode** or **smart resolution** while MaaMeow is running, as they interfere with recognition.
 
-Location: floating panel task list → Mini-game → Black Forest money farming
+For auto-battle, enable high frame rate in-game and prefer high graphics quality to avoid recognition errors.
 
-It does not use new templates, so it works without updating the app — but it needs a network connection to pull hot-update data. If you can see this announcement, your connection is fine. If the entry does not appear in the mini-game list, restart the app and try again.
+---
+
+## User Guide (NEW!!!)
+
+**📖 Docs & FAQ**  
+When something goes wrong, check `Settings → About → FAQ` first. Most issues already have an answer there.
+
+**🛟 When You Encounter Issues**  
+Go to `Settings → Logs` to review the task history and error logs and identify the cause.  
+Use `Settings → Logs → Export Log Archive` to generate a log package, then submit it via `Settings → About → Issue Report`.
+
+**⚠️ Feedback Guidelines**  
+After confirming the issue is not covered by the FAQ, file it on [GitHub](https://github.com/Aliothmoon/MAA-Meow/issues) following the [issue template](https://github.com/Aliothmoon/MAA-Meow/issues/new/choose), with the log archive attached.
+
+**💡 Contributing**  
+Contributions on [GitHub](https://github.com/Aliothmoon/MAA-Meow) are welcome. Code contributions are encouraged over issue reports.
+
+---
+
+## Update Explanation
+
+**App**: UI and feature updates for the application itself.  
+**MAA Resources**: Asset data updates, including new stage maps, drop icons, and operator tags for recruitment.  
+**Navigation Hot Update**: Triggered automatically to update event notices and stage entries.
+
+Each app release includes the latest resources at the time of release. If you don't need features requiring the latest resources, you can postpone updating; when needed, update resources in `Settings → Update`.
+
+**Download Source**: Choose GitHub or [MirrorChyan](https://mirrorchyan.com/?source=maameow-anno-en). With a CDK, MirrorChyan enables automatic updates for both the app and resources, with priority downloads via high-speed CDN.
+
+**Update Channel**: Switch between **Stable** and **Beta** in `Settings → Update → Update Channel` (beta versions have `-beta.x` in the version number). Beta builds may have more issues; Stable is recommended unless you have specific needs.
+
+---
+
+## [MAA × MirrorChyan] Community Sponsorship Program
+
+MAA has integrated [MirrorChyan](https://mirrorchyan.com/?source=maa-anno-en). Revenue from MirrorChyan is used to maintain the [MAA Official Website](https://maa.plus/), [Copilot Station](https://prts.plus/), and servers. After deducting necessary operational costs, the MAA Team donates its share of revenue, along with additional sponsorship funds provided by MirrorChyan, **entirely** to support quality Arknights community projects. MAA does not participate in the internal operations of sponsored projects.
+
+Server costs are currently covered for the following community projects:
+
+- [Penguin Statistics](https://penguin-stats.cn/)
+- [Arknights Yituliu](https://ark.yituliu.cn/)
+- [ARKREC Wiki](https://wiki.arkrec.com/)
+- [Arknights Roguelike Tactics](https://arkrog.com/)
+- [PRTS.Map](https://map.ark-nights.com/)
+- [AmiyaBot](https://www.amiyabot.com/)
+- [Arknights Toolbox](https://arkntools.app/)
+- [Lungmen Dragons](https://lungmendragons.com/)
+- [ak-roster](https://www.krooster.com/)
+
+📜 [Full Announcement](https://github.com/MaaAssistantArknights/MaaAssistantArknights/issues/12328)
 
 ---
 
@@ -28,14 +75,16 @@ Do not participate in spreading insider information. It is strictly prohibited t
 
 ## Safe Download Reminder
 
-Please download MaaMeow exclusively from **official channels**:
+Recently, third parties have been found creating fake MAA repositories, tampering with source code, and bundling malicious programs (stealing personal information, planting trojans, etc.). Please be careful.
+
+MaaMeow is completely free and open-source. We **never** require "follow, like, share, and DM" to access the installer. Please download exclusively from **official channels**:
 
 - **GitHub Release**: [github.com/Aliothmoon/MAA-Meow](https://github.com/Aliothmoon/MAA-Meow/releases)
-- **Official QQ Group**: announcements and files within the group (join via Settings → About → Feedback QQ Group)
+- **Official QQ Group**: announcements and files within the group (join via `Settings → About → QQ Group`; do not join through other channels)
 - **MirrorChyan**: the officially supported mirror download service
 
 **Avoid downloading from network drives, forum posts, or any unofficial sources.**
 
-Be cautious with all-in-one packages, modified builds, or repackaged versions — only use them if you fully trust the source and have completed your own security checks.
+Be cautious with all-in-one packages, modified builds, or repackaged versions. Only use them if you fully trust the source and have completed your own security checks.
 
 Please stay vigilant about where your files come from to protect your account and device. Feel free to pass this along to friends to help them stay safe too.
