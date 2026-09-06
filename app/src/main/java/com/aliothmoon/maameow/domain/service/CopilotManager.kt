@@ -234,14 +234,14 @@ class CopilotManager(
             return MaaTaskParams(
                 type = MaaTaskType.PARADOX_COPILOT,
                 params = buildJsonObject {
-                    put("filename", filePath)
+                    put("filename", repository.toCorePath(filePath))
                 }.toString()
             )
         }
         return MaaTaskParams(
             type = taskType,
             params = buildJsonObject {
-                put("filename", filePath)
+                put("filename", repository.toCorePath(filePath))
                 put("formation", config.formation)
                 put("support_unit_usage", if (config.useSupportUnit) config.supportUnitUsage else 0)
                 put("add_trust", config.addTrust)
@@ -276,7 +276,7 @@ class CopilotManager(
                             indexed.forEach { (i, item) ->
                                 add(buildJsonObject {
                                     put("id", i)
-                                    put("filename", item.filePath)
+                                    put("filename", repository.toCorePath(item.filePath))
                                 })
                             }
                         })
@@ -293,7 +293,7 @@ class CopilotManager(
                         indexed.forEach { (i, item) ->
                             add(buildJsonObject {
                                 put("id", i)
-                                put("filename", item.filePath)
+                                put("filename", repository.toCorePath(item.filePath))
                                 // 不发 nav_name_override，由 core 6.17 起自己从作业文件推导导航 code
                                 put("is_raid", item.isRaid)
                             })

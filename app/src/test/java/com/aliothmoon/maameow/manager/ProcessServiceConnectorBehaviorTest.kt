@@ -136,7 +136,7 @@ class ProcessServiceConnectorBehaviorTest {
         val registry = FakeRegistry()
         val callbacks = RecordingCallbacks()
         val connector = FakeConnector(spawner, registry, logFile, timeoutMs).apply {
-            initialize(mockk<Context>(relaxed = true))
+            initialize(mockk<Context>(relaxed = true), logFile.parentFile!!)
         }
 
         /** 连接并回投一个 binder，返回其死亡回调 */

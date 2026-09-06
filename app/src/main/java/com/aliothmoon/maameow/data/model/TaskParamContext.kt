@@ -25,6 +25,8 @@ class TaskParamContext(
     val dropsRefresher: FightDropsRefresher,
     val logSink: PreflightLogSink,
     val report: ReportOptions = ReportOptions.DEFAULT,
+    /** App 侧绝对路径映射到 core 读的路径（独立目录模式），见 MaaPathConfig.toCorePath */
+    val relocatePath: (String) -> String = { it },
 ) {
     fun appendLog(text: UiText, level: LogLevel = LogLevel.INFO) {
         logSink.append(text, level)

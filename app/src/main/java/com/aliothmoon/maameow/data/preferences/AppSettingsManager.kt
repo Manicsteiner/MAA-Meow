@@ -14,6 +14,7 @@ import com.aliothmoon.maameow.data.model.update.UpdateSource
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager.Companion.FONT_SIZE_SCALE_AUTO
 import com.aliothmoon.maameow.domain.models.AppSettings
 import com.aliothmoon.maameow.domain.models.AppSettingsSchema
+import com.aliothmoon.maameow.domain.models.CoreDataLocation
 import com.aliothmoon.maameow.domain.models.OverlayControlMode
 import com.aliothmoon.maameow.domain.models.RemoteBackend
 import com.aliothmoon.maameow.domain.models.RunMode
@@ -243,6 +244,18 @@ class AppSettingsManager(
     suspend fun setStartupBackend(backend: RemoteBackend) {
         with(AppSettingsSchema) {
             context.dataStore.edit { it[startupBackend] = backend.name }
+        }
+    }
+
+    // MaaCore 数据目录
+    val coreDataLocation: StateFlow<CoreDataLocation> = settings
+        .map { CoreDataLocation.parse(it.coreDataLocation) }
+        .distinctUntilChanged()
+        .stateIn(scope, SharingStarted.Eagerly, CoreDataLocation.parse(initialSettings.coreDataLocation))
+
+    suspend fun setCoreDataLocation(location: CoreDataLocation) {
+        with(AppSettingsSchema) {
+            context.dataStore.edit { it[coreDataLocation] = location.name }
         }
     }
 

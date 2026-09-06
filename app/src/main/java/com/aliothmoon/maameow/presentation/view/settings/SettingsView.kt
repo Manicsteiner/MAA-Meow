@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -35,6 +36,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.rounded.Build
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -92,6 +94,7 @@ import com.aliothmoon.maameow.constant.OFFICIAL_SHIZUKU_PACKAGE
 import com.aliothmoon.maameow.constant.Routes
 import com.aliothmoon.maameow.data.model.update.UpdateChannel
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.domain.models.CoreDataLocation
 import com.aliothmoon.maameow.domain.models.RemoteBackend
 import com.aliothmoon.maameow.domain.models.UnlockGesture
 import com.aliothmoon.maameow.domain.models.UnlockStep
@@ -145,6 +148,9 @@ fun SettingsView(
     val autoCheckUpdate by viewModel.autoCheckUpdate.collectAsStateWithLifecycle()
     val autoDownloadUpdate by viewModel.autoDownloadUpdate.collectAsStateWithLifecycle()
     val startupBackend by viewModel.startupBackend.collectAsStateWithLifecycle()
+    val coreDataLocation by viewModel.coreDataLocation.collectAsStateWithLifecycle()
+    val pendingCoreDataLocation by viewModel.pendingCoreDataLocation.collectAsStateWithLifecycle()
+    val showClearCoreDataDialog by viewModel.showClearCoreDataDialog.collectAsStateWithLifecycle()
     val skipShizukuCheck by viewModel.skipShizukuCheck.collectAsStateWithLifecycle()
     val shizukuShortcutEnabled by viewModel.shizukuShortcutEnabled.collectAsStateWithLifecycle()
     val shizukuLaunchPackage by viewModel.shizukuLaunchPackage.collectAsStateWithLifecycle()
@@ -172,7 +178,7 @@ fun SettingsView(
     val customBackgroundBlur by viewModel.customBackgroundBlur.collectAsStateWithLifecycle()
     val backgroundImage by viewModel.backgroundImage.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
-    val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
+    val settingsMessage by viewModel.settingsMessage.collectAsStateWithLifecycle()
     val showRestartDialog by viewModel.showRestartDialog.collectAsStateWithLifecycle()
     val achievementUiState by achievementViewModel.uiState.collectAsStateWithLifecycle()
     // 对齐 WPF：进入 Debug 弹 DrunkAndStaggering，再点退出弹 Hangover
@@ -301,9 +307,9 @@ fun SettingsView(
         }
     }
 
-    backupMessage?.let { msg ->
+    settingsMessage?.let { msg ->
         Toast.makeText(context, msg.resolve(context), Toast.LENGTH_SHORT).show()
-        viewModel.clearBackupMessage()
+        viewModel.clearSettingsMessage()
     }
 
     var showReInitConfirm by remember { mutableStateOf(false) }
@@ -315,6 +321,34 @@ fun SettingsView(
         sheetVisible = showExportSheet,
         onSheetDismiss = { showExportSheet = false },
     )
+    pendingCoreDataLocation?.let { target ->
+        AdaptiveTaskPromptDialog(
+            visible = true,
+            title = stringResource(R.string.dialog_core_data_location_switch_title),
+            message = stringResource(
+                R.string.dialog_core_data_location_switch_message,
+                stringResource(target.labelRes())
+            ),
+            icon = Icons.Rounded.Build,
+            confirmText = stringResource(R.string.dialog_core_data_location_switch_confirm),
+            dismissText = stringResource(R.string.common_cancel),
+            onConfirm = { viewModel.confirmCoreDataLocationChange() },
+            onDismissRequest = { viewModel.dismissCoreDataLocationChange() }
+        )
+    }
+    if (showClearCoreDataDialog) {
+        AdaptiveTaskPromptDialog(
+            visible = true,
+            title = stringResource(R.string.settings_core_data_clear_title),
+            message = stringResource(R.string.dialog_core_data_clear_message),
+            icon = Icons.Rounded.Warning,
+            confirmText = stringResource(R.string.common_delete),
+            dismissText = stringResource(R.string.common_cancel),
+            confirmColor = MaterialTheme.colorScheme.error,
+            onConfirm = { viewModel.confirmClearCoreData() },
+            onDismissRequest = { viewModel.dismissClearCoreData() }
+        )
+    }
     if (showRestartDialog) {
         AdaptiveTaskPromptDialog(
             visible = true,
@@ -667,11 +701,30 @@ fun SettingsView(
                     sectionKey = "settings_section_other",
                 ) {
                     SettingsGroupCard {
-                        SettingRemoteBackendItem(
+                        SettingRadioItem(
+                            title = stringResource(R.string.settings_startup_backend_title),
                             contentColor = contentColor,
-                            selectedBackend = startupBackend,
-                            onBackendSelected = { viewModel.setStartupBackend(it) }
+                            entries = RemoteBackend.entries,
+                            selected = startupBackend,
+                            label = { it.display },
+                            onSelected = { viewModel.setStartupBackend(it) }
                         )
+                        ListItemDivider()
+                        SettingRadioItem(
+                            title = stringResource(R.string.settings_core_data_location_title),
+                            contentColor = contentColor,
+                            entries = CoreDataLocation.entries,
+                            selected = coreDataLocation,
+                            label = { stringResource(it.labelRes()) },
+                            onSelected = { viewModel.requestCoreDataLocationChange(it) }
+                        )
+                        ListItemDivider()
+                        SettingClickItem(
+                            title = stringResource(R.string.settings_core_data_clear_title),
+                            contentColor = contentColor
+                        ) {
+                            viewModel.requestClearCoreData()
+                        }
                         ListItemDivider()
                         if (startupBackend == RemoteBackend.SHIZUKU) {
                             SettingSwitchItem(
@@ -2025,10 +2078,13 @@ private fun SettingLanguageItem(
 }
 
 @Composable
-private fun SettingRemoteBackendItem(
+private fun <T> SettingRadioItem(
+    title: String,
     contentColor: Color,
-    selectedBackend: RemoteBackend,
-    onBackendSelected: (RemoteBackend) -> Unit
+    entries: List<T>,
+    selected: T,
+    label: @Composable (T) -> String,
+    onSelected: (T) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -2037,38 +2093,34 @@ private fun SettingRemoteBackendItem(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(MaaDesignTokens.Spacing.rowTitleGap)
-        ) {
-            Text(
-                text = stringResource(R.string.settings_startup_backend_title),
-                style = MaterialTheme.typography.bodyLarge,
-                color = contentColor
-            )
-        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = contentColor,
+            modifier = Modifier.weight(1f)
+        )
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RemoteBackend.entries.forEach { backend ->
+            entries.forEach { entry ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .selectable(
-                            selected = backend == selectedBackend,
-                            onClick = { onBackendSelected(backend) },
+                            selected = entry == selected,
+                            onClick = { onSelected(entry) },
                             role = Role.RadioButton
                         )
                 ) {
                     RadioButton(
-                        selected = backend == selectedBackend,
+                        selected = entry == selected,
                         onClick = null
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
-                        text = backend.display,
+                        text = label(entry),
                         style = MaterialTheme.typography.bodyMedium,
                         color = contentColor
                     )
@@ -2078,6 +2130,11 @@ private fun SettingRemoteBackendItem(
     }
 }
 
+@StringRes
+private fun CoreDataLocation.labelRes(): Int = when (this) {
+    CoreDataLocation.APP_DIR -> R.string.settings_core_data_location_app_dir
+    CoreDataLocation.LOCAL_TMP -> R.string.settings_core_data_location_local_tmp
+}
 
 /** 帕拉斯彩蛋弹窗：进入 Debug = Drunk，再点退出 = Hangover（对齐 WPF）。 */
 private enum class PallasFlavorDialog {

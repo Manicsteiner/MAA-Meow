@@ -35,6 +35,7 @@ class AnalyzeTaskChainUseCase(
     private val itemHelper: ItemHelper,
     private val dropsRefresher: FightDropsRefresher,
     private val appSettingsManager: AppSettingsManager,
+    private val relocatePath: (String) -> String = { it },
 ) {
     /** 先等 depot/operBox 分片装载；config 的 toTaskParams 仍是非 suspend。 */
     suspend operator fun invoke(chain: List<TaskChainNode>): AnalyzeTaskChainResult {
@@ -86,6 +87,7 @@ class AnalyzeTaskChainUseCase(
                 dropsRefresher = dropsRefresher,
                 logSink = log,
                 report = report,
+                relocatePath = relocatePath,
             )
             node.config.toTaskParams(ctx).mapIndexed { index, task ->
                 task.copy(slot = TaskSlot(node.id, index))

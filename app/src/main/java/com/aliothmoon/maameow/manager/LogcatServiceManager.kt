@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import timber.log.Timber
+import java.io.File
 
 /** logcat 服务与主服务同走进程路径，不依赖 Shizuku manager App 中转 */
 object LogcatServiceManager {
@@ -51,8 +52,8 @@ object LogcatServiceManager {
         }
     }
 
-    fun initialize(context: Context) {
-        connectors.values.forEach { it.initialize(context) }
+    fun initialize(context: Context, debugDir: File) {
+        connectors.values.forEach { it.initialize(context, debugDir) }
     }
 
     fun bind() {

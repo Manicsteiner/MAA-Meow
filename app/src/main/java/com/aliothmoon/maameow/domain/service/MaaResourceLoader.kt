@@ -11,6 +11,8 @@ import com.aliothmoon.maameow.data.resource.ResourceDataManager
 import com.aliothmoon.maameow.manager.LogcatServiceManager
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.manager.RemoteServiceManager.useRemoteService
+import com.aliothmoon.maameow.remote.ResourceFiles
+import com.aliothmoon.maameow.remote.SetupResult
 import com.aliothmoon.maameow.utils.i18n.LocaleBootstrap.resolveSelectedLanguage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +38,8 @@ class MaaResourceLoader(
     private val chainState: TaskChainState,
     private val itemHelper: ItemHelper,
     private val resourceDataManager: ResourceDataManager,
-    private val activityManager: ActivityManager
+    private val activityManager: ActivityManager,
+    private val coreDataPusher: CoreDataPusher,
 ) {
     // 换档重启期间抑制 reset()，主动解绑会触发 onServiceDisconnected
     private val fullReloadInProgress = AtomicBoolean(false)
@@ -56,8 +59,15 @@ class MaaResourceLoader(
         /**
          * @param permanent true = 资源文件缺失，重试无意义，需用户手动重新初始化；
          *                  false = IPC/IO 临时失败，ensureLoaded() 可再次尝试加载。
+         * @param reason STORAGE_INACCESSIBLE = 提权进程读写不了 core 根目录，需切换数据目录（#227）
          */
-        data class Failed(val message: String, val permanent: Boolean = false) : State()
+        data class Failed(
+            val message: String,
+            val permanent: Boolean = false,
+            val reason: FailReason = FailReason.GENERIC,
+        ) : State()
+
+        enum class FailReason { GENERIC, STORAGE_INACCESSIBLE }
     }
 
     private val _state = MutableStateFlow<State>(State.NotLoaded)
@@ -93,7 +103,20 @@ class MaaResourceLoader(
             loadedClientType = clientType
             withContext(Dispatchers.IO) {
                 useRemoteService { srv ->
-                    srv.setup(pathConfig.rootDir, appSettings.debugMode.value)
+                    val setupCode = srv.setup(pathConfig.coreRootDir, appSettings.debugMode.value)
+                    if (setupCode != SetupResult.OK) {
+                        val desc = SetupResult.describe(setupCode)
+                        val msg = "Remote setup failed: $desc"
+                        Timber.e("%s userDir=%s", msg, pathConfig.coreRootDir)
+                        val inaccessible = setupCode == SetupResult.ERR_USER_DIR_INACCESSIBLE
+                        _state.value = State.Failed(
+                            message = msg,
+                            permanent = inaccessible,
+                            reason = if (inaccessible) State.FailReason.STORAGE_INACCESSIBLE
+                            else State.FailReason.GENERIC,
+                        )
+                        return@useRemoteService Result.failure(Exception(msg))
+                    }
                     srv.setForceFullscreenOnVirtualDisplay(appSettings.forceFullscreenOnVirtualDisplay.value)
 
                     if (appSettings.debugMode.value) {
@@ -105,7 +128,7 @@ class MaaResourceLoader(
                                 LogcatServiceManager.startCapture(
                                     appPid,
                                     servicePid,
-                                    pathConfig.rootDir
+                                    pathConfig.coreRootDir
                                 )
                             }.onFailure { Timber.w(it, "LogcatService startCapture failed") }
                         }
@@ -115,6 +138,17 @@ class MaaResourceLoader(
                     val isGlobal = resourceProfileOf(clientType).isNotEmpty()
 
                     copyTasksJson(pathConfig.cacheResourceDir)
+                    if (isGlobal) {
+                        copyTasksJson(pathConfig.globalCacheResourceDir(clientType).absolutePath)
+                    }
+
+                    // 独立目录：投递热更包与用户文件
+                    if (!coreDataPusher.prepare(srv)) {
+                        val msg = "Core data prepare failed"
+                        _state.value = State.Failed(msg)
+                        Timber.e(msg)
+                        return@useRemoteService Result.failure(Exception(msg))
+                    }
 
                     if (!loadResIfExists(maa, pathConfig.rootDir)) {
                         _state.value = State.Failed("Failed to load main resource")
@@ -128,10 +162,6 @@ class MaaResourceLoader(
                             pathConfig.globalResourceDir(clientType).parent?.let(::add)
                             pathConfig.globalCacheResourceDir(clientType).parent?.let(::add)
                         }
-                    }
-
-                    if (isGlobal) {
-                        copyTasksJson(pathConfig.globalCacheResourceDir(clientType).absolutePath)
                     }
 
                     followUps.forEach { loadResIfExists(maa, it) }
@@ -189,15 +219,17 @@ class MaaResourceLoader(
         }
     }
 
+    /** 存在性按 App 侧目录判断：独立目录下内置资源、热更、用户文件两侧一致 */
     private fun loadResIfExists(maa: MaaCoreService, parentDir: String): Boolean {
         val resDir = File(parentDir, "resource")
         if (!resDir.exists()) {
             Timber.d("Resource directory not found, skipping: ${resDir.absolutePath}")
             return true
         }
-        return maa.LoadResource(parentDir).also { ok ->
-            if (ok) Timber.i("LoadResource succeeded: $parentDir")
-            else Timber.w("LoadResource failed: $parentDir")
+        val coreDir = pathConfig.toCorePath(parentDir)
+        return maa.LoadResource(coreDir).also { ok ->
+            if (ok) Timber.i("LoadResource succeeded: $coreDir")
+            else Timber.w("LoadResource failed: $coreDir")
         }
     }
 
@@ -255,23 +287,8 @@ class MaaResourceLoader(
         _state.value = State.NotLoaded
     }
 
-    /**
-     * Copy tasks.json to tasks/tasks.json (compatible with new directory structure)
-     */
     private fun copyTasksJson(resourcePath: String) {
-        try {
-            val src = File(resourcePath, "tasks.json")
-            if (!src.exists()) return
-            val destDir = File(resourcePath, "tasks").apply { mkdirs() }
-            val dest = File(destDir, "tasks.json")
-            if (dest.exists() && dest.length() == src.length() && dest.lastModified() >= src.lastModified()) {
-                return
-            }
-            src.copyTo(dest, overwrite = true)
-            Timber.d("copyTasksJson: ${src.absolutePath} -> ${dest.absolutePath}")
-        } catch (e: Exception) {
-            Timber.w(e, "copyTasksJson failed: $resourcePath")
-        }
+        if (!ResourceFiles.deriveTasksJson(File(resourcePath))) Timber.w("copyTasksJson failed: $resourcePath")
     }
 
     companion object {

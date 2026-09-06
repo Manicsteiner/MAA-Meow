@@ -73,6 +73,7 @@ class MaaCompositionService(
     private val liveCoordinator: LiveSessionCoordinator,
     private val dropsRefresher: FightDropsRefresher,
     private val toolboxResultCollector: ToolboxResultCollector,
+    private val coreDataPusher: CoreDataPusher,
 ) : MaaExecutionStateHolder {
 
     private val _state = MutableStateFlow(MaaExecutionState.IDLE)
@@ -478,6 +479,11 @@ class MaaCompositionService(
         successMessage: String,
         mode: RunMode,
     ): StartResult {
+        // 独立目录：先投递用户文件，送不过去 core 那边就是 file-not-found，直接报资源错误
+        if (!coreDataPusher.pushUserData()) {
+            Timber.e("core user data push failed before start")
+            return StartResult.ResourceError(IllegalStateException("core user data push failed"))
+        }
         taskChainStatusTracker.clear()
         // 不清 dropsRefresher：stage 已在 Analyze 完成，会话结束/下次 Analyze 再清
         tasks.forEach { t ->

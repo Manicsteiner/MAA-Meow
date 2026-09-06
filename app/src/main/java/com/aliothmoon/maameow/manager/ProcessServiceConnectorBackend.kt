@@ -6,7 +6,7 @@ import android.os.IBinder
 import android.os.Process
 import com.aliothmoon.maameow.BuildConfig
 import com.aliothmoon.maameow.RemoteService
-import com.aliothmoon.maameow.constant.MaaFiles
+import com.aliothmoon.maameow.remote.CoreDataDir
 import com.aliothmoon.maameow.root.BootstrapRegistry
 import com.aliothmoon.maameow.root.RootServiceBootstrapRegistry
 import com.aliothmoon.maameow.root.RootServiceStarter
@@ -67,13 +67,17 @@ abstract class ProcessServiceConnectorBackend(
 
     private lateinit var appContext: Context
 
+    /** launcher 以 shell 身份写 --log-file，落 core 侧 debug/ */
+    private lateinit var debugDir: File
+
     /** 拉起进行中（binder 尚未回投） */
     val isConnecting: Boolean get() = activeLaunch?.job?.isActive == true
 
     private val processName: String get() = "${appContext.packageName}:$processNameSuffix"
 
-    fun initialize(context: Context) {
+    fun initialize(context: Context, debugDir: File) {
         appContext = context.applicationContext
+        this.debugDir = debugDir
     }
 
     override fun connect(callbacks: RemoteServiceConnectorBackend.Callbacks) {
@@ -146,13 +150,14 @@ abstract class ProcessServiceConnectorBackend(
                 append(" --debug-name=").append(shellQuote(processName))
             }
         }
-        return spawner.wrapCommand(launcher.absolutePath, invocation)
+        // 独立目录下 debug/ 在 /data/local/tmp，App 进程建不了，交给 shell
+        val mkdir = "mkdir -p ${shellQuote(logFile.parentFile!!.absolutePath)} 2>/dev/null; "
+        return mkdir + spawner.wrapCommand(launcher.absolutePath, invocation)
     }
 
     protected open fun debugLogFile(): File {
-        val dir = File(appContext.getExternalFilesDir(null), "${MaaFiles.MAA}/${MaaFiles.DEBUG}")
-        dir.mkdirs()
-        return File(dir, logFileName)
+        runCatching { debugDir.mkdirs() }
+        return File(debugDir, logFileName)
     }
 
     private fun dropActiveLaunch() {
@@ -235,7 +240,11 @@ abstract class ProcessServiceConnectorBackend(
     /** 全量打进 Timber，返回尾部几行供拼进错误信息 */
     private fun dumpSpawnDebugLog(log: File): String? {
         if (!log.exists()) {
-            Timber.e("%s launch debug log not found: %s", processName, log.absolutePath)
+            if (log.absolutePath.startsWith(CoreDataDir.ROOT)) {
+                Timber.e("%s launch debug log is in core dir, unreadable from app: %s (adb shell cat it, or export logs)", processName, log.absolutePath)
+            } else {
+                Timber.e("%s launch debug log not found: %s", processName, log.absolutePath)
+            }
             return null
         }
         val lines =

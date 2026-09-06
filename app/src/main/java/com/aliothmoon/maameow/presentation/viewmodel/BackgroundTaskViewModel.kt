@@ -553,7 +553,7 @@ class BackgroundTaskViewModel(
     }
 
     /**
-     * 调试用：请求远端进程抓取当前帧缓冲并保存 PNG 到 {rootDir}/debug/screenshots，
+     * 调试用：请求远端进程抓取当前帧缓冲并保存 PNG 到 {coreRootDir}/debug/screenshots，
      * 结果通过 [screenshotMessage] 反馈给 UI。
      *
      * 由远端（shell 进程）直接落盘——它对 userDir/debug 有写权限（同 logcat 抓取），
@@ -563,7 +563,7 @@ class BackgroundTaskViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val savedName = runCatching {
                 RemoteServiceManager.getInstanceOrNull()
-                    ?.captureFramePng(pathConfig.debugScreenshotsDir)
+                    ?.captureFramePng(pathConfig.coreDebugScreenshotsDir)
                     ?.let { File(it).name }
             }.onFailure { Timber.e(it, "captureDebugScreenshot failed") }
                 .getOrNull()

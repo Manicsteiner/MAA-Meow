@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -239,6 +240,20 @@ fun HomeView(
                     }
                 }
             }
+        )
+    }
+
+    val showCoreDirInaccessibleDialog by viewModel.showCoreDirInaccessibleDialog.collectAsStateWithLifecycle()
+    if (showCoreDirInaccessibleDialog) {
+        AdaptiveTaskPromptDialog(
+            visible = true,
+            title = stringResource(R.string.dialog_core_dir_inaccessible_title),
+            message = stringResource(R.string.dialog_core_dir_inaccessible_message),
+            icon = Icons.Rounded.Warning,
+            confirmText = stringResource(R.string.dialog_core_data_location_switch_confirm),
+            dismissText = stringResource(R.string.common_cancel),
+            onConfirm = { viewModel.switchCoreDataToLocalTmp() },
+            onDismissRequest = { viewModel.dismissCoreDirInaccessibleDialog() }
         )
     }
 

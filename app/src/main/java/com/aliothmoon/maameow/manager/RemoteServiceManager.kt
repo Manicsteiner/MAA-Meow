@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.IBinder
 import android.os.Process
 import com.aliothmoon.maameow.RemoteService
+import com.aliothmoon.maameow.data.config.MaaPathConfig
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.domain.models.RemoteBackend
 import kotlinx.coroutines.CoroutineScope
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import timber.log.Timber
+import java.io.File
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -138,13 +140,16 @@ object RemoteServiceManager {
     fun initialize(
         context: Context,
         appSettings: AppSettingsManager,
+        pathConfig: MaaPathConfig,
     ) {
-        ServiceBootLogger.init(context)
+        // App 进程写的落 App 目录，launcher 以 shell 身份写的落 core 目录
+        val coreDebugDir = File(pathConfig.coreDebugDir)
+        ServiceBootLogger.init(File(pathConfig.debugDir))
         ShizukuManager.initSui(context.packageName)
         RemoteAccessCoordinator.initialize(appSettings)
-        RootRemoteServiceConnector.initialize(context)
-        ShizukuProcessServiceConnector.initialize(context)
-        LogcatServiceManager.initialize(context)
+        RootRemoteServiceConnector.initialize(context, coreDebugDir)
+        ShizukuProcessServiceConnector.initialize(context, coreDebugDir)
+        LogcatServiceManager.initialize(context, coreDebugDir)
     }
 
     private fun onBinderDied(recipient: BindingDeathRecipient) {

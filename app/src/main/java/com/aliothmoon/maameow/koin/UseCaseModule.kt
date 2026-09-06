@@ -1,8 +1,10 @@
 package com.aliothmoon.maameow.koin
 
+import com.aliothmoon.maameow.data.config.MaaPathConfig
 import com.aliothmoon.maameow.domain.usecase.AnalyzeTaskChainUseCase
 import com.aliothmoon.maameow.domain.usecase.CheckGameReadinessUseCase
 import com.aliothmoon.maameow.domain.usecase.PrepareTaskStartUseCase
+import com.aliothmoon.maameow.domain.usecase.SwitchCoreDataLocationUseCase
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,6 +13,8 @@ import timber.log.Timber
 
 
 val useCaseModule = module {
+    factory { SwitchCoreDataLocationUseCase(get(), get()) }
+
     factory {
         AnalyzeTaskChainUseCase(
             taskChainState = get(),
@@ -21,6 +25,7 @@ val useCaseModule = module {
             itemHelper = get(),
             dropsRefresher = get(),
             appSettingsManager = get(),
+            relocatePath = get<MaaPathConfig>()::toCorePath,
         )
     }
     factory {

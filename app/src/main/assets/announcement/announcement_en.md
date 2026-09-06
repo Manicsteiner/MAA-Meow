@@ -12,6 +12,8 @@ Do not use **eye-care mode** or **smart resolution** while MaaMeow is running, a
 
 For auto-battle, enable high frame rate in-game and prefer high graphics quality to avoid recognition errors.
 
+Some Android 11 devices report "storage directory inaccessible". Follow the prompt to `Settings → Other → MaaCore data directory`, switch to the separate directory and restart. In that mode, viewing core logs requires the elevated service to be running, and uninstalling the app does not remove the separate directory; use the clear button next to it.
+
 ---
 
 ## User Guide (NEW!!!)

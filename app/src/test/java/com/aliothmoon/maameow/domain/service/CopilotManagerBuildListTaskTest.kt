@@ -4,6 +4,7 @@ import com.aliothmoon.maameow.data.model.CopilotConfig
 import com.aliothmoon.maameow.data.model.copilot.CopilotListItem
 import com.aliothmoon.maameow.maa.task.MaaTaskType
 import com.aliothmoon.maameow.utils.JsonUtils
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
@@ -19,7 +20,10 @@ import org.junit.Test
  */
 class CopilotManagerBuildListTaskTest {
 
-    private val manager = CopilotManager(apiService = mockk(), repository = mockk())
+    private val manager = CopilotManager(
+        apiService = mockk(),
+        repository = mockk { every { toCorePath(any()) } answers { firstArg() } },
+    )
 
     private val items = listOf(
         CopilotListItem(name = "1-7", filePath = "/c/1.json", isChecked = true),

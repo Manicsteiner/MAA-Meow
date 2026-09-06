@@ -21,12 +21,17 @@ import com.aliothmoon.maameow.data.resource.BackgroundImageStore
 import com.aliothmoon.maameow.data.resource.ResourceDataManager
 import com.aliothmoon.maameow.domain.models.GestureRecordResult
 import com.aliothmoon.maameow.domain.models.GestureRecordStatus
+import com.aliothmoon.maameow.domain.models.CoreDataLocation
 import com.aliothmoon.maameow.domain.models.RemoteBackend
 import com.aliothmoon.maameow.domain.models.UnlockCredential
 import com.aliothmoon.maameow.domain.models.UnlockGesture
 import com.aliothmoon.maameow.domain.service.AchievementReporter
+import com.aliothmoon.maameow.domain.service.CoreDataPusher
+import com.aliothmoon.maameow.domain.service.MaaCompositionService
 import com.aliothmoon.maameow.domain.service.MaaResourceLoader
 import com.aliothmoon.maameow.domain.service.WakeUnlockEngine
+import com.aliothmoon.maameow.domain.state.MaaExecutionState
+import com.aliothmoon.maameow.domain.usecase.SwitchCoreDataLocationUseCase
 import com.aliothmoon.maameow.manager.PermissionManager
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.utils.Misc
@@ -65,18 +70,21 @@ class SettingsViewModel(
     private val backgroundImageStore: BackgroundImageStore,
     private val wakeUnlockEngine: WakeUnlockEngine,
     private val unlockGestureStore: UnlockGestureStore,
+    private val coreDataPusher: CoreDataPusher,
+    private val switchCoreDataLocation: SwitchCoreDataLocationUseCase,
+    private val compositionService: MaaCompositionService,
 ) : ViewModel() {
 
     // ========== 导入导出 ==========
 
-    private val _backupMessage = MutableStateFlow<UiText?>(null)
-    val backupMessage: StateFlow<UiText?> = _backupMessage.asStateFlow()
+    private val _settingsMessage = MutableStateFlow<UiText?>(null)
+    val settingsMessage: StateFlow<UiText?> = _settingsMessage.asStateFlow()
 
     private val _showRestartDialog = MutableStateFlow(false)
     val showRestartDialog: StateFlow<Boolean> = _showRestartDialog.asStateFlow()
 
-    fun clearBackupMessage() {
-        _backupMessage.value = null
+    fun clearSettingsMessage() {
+        _settingsMessage.value = null
     }
 
     fun dismissRestartDialog() {
@@ -92,10 +100,10 @@ class SettingsViewModel(
         viewModelScope.launch {
             try {
                 configBackupManager.exportTo(outputStream)
-                _backupMessage.value = uiTextOf(R.string.settings_export_success)
+                _settingsMessage.value = uiTextOf(R.string.settings_export_success)
             } catch (e: Exception) {
                 Timber.e(e, "export config failed")
-                _backupMessage.value =
+                _settingsMessage.value =
                     uiTextOf(R.string.settings_export_failed, e.message.orEmpty())
             }
         }
@@ -108,7 +116,7 @@ class SettingsViewModel(
                 _showRestartDialog.value = true
             } catch (e: Exception) {
                 Timber.e(e, "import config failed")
-                _backupMessage.value =
+                _settingsMessage.value =
                     uiTextOf(R.string.settings_import_failed, e.message.orEmpty())
             }
         }
@@ -161,6 +169,61 @@ class SettingsViewModel(
     fun setStartupBackend(backend: RemoteBackend) {
         viewModelScope.launch {
             permissionManager.setStartupBackend(backend)
+        }
+    }
+
+    // ========== MaaCore 数据目录 ==========
+
+    val coreDataLocation: StateFlow<CoreDataLocation> = appSettingsManager.coreDataLocation
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), appSettingsManager.coreDataLocation.value)
+
+    private val _pendingCoreDataLocation = MutableStateFlow<CoreDataLocation?>(null)
+    val pendingCoreDataLocation: StateFlow<CoreDataLocation?> = _pendingCoreDataLocation.asStateFlow()
+
+    private val _showClearCoreDataDialog = MutableStateFlow(false)
+    val showClearCoreDataDialog: StateFlow<Boolean> = _showClearCoreDataDialog.asStateFlow()
+
+    fun requestCoreDataLocationChange(target: CoreDataLocation) {
+        if (target == appSettingsManager.coreDataLocation.value) return
+        _pendingCoreDataLocation.value = target
+    }
+
+    fun dismissCoreDataLocationChange() {
+        _pendingCoreDataLocation.value = null
+    }
+
+    fun confirmCoreDataLocationChange() {
+        val target = _pendingCoreDataLocation.value ?: return
+        _pendingCoreDataLocation.value = null
+        viewModelScope.launch { switchCoreDataLocation(target) }
+    }
+
+    private fun coreBusy(): Boolean {
+        if (compositionService.state.value == MaaExecutionState.IDLE) return false
+        _settingsMessage.value = uiTextOf(R.string.settings_core_data_clear_busy)
+        return true
+    }
+
+    fun requestClearCoreData() {
+        if (coreBusy()) return
+        _showClearCoreDataDialog.value = true
+    }
+
+    fun dismissClearCoreData() {
+        _showClearCoreDataDialog.value = false
+    }
+
+    /** 清完断开提权进程，避免 core 继续引用已删的文件；下次连接重解 */
+    fun confirmClearCoreData() {
+        _showClearCoreDataDialog.value = false
+        // 对话框开着期间定时任务可能已启动
+        if (coreBusy()) return
+        viewModelScope.launch {
+            val ok = coreDataPusher.clearRemote()
+            if (ok) RemoteServiceManager.unbind()
+            _settingsMessage.value = uiTextOf(
+                if (ok) R.string.settings_core_data_clear_done else R.string.settings_core_data_clear_failed
+            )
         }
     }
 

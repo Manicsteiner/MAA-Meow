@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow
 
 import android.app.Application
+import com.aliothmoon.maameow.data.config.MaaPathConfig
 import com.aliothmoon.maameow.data.datasource.AppDownloader
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.data.repository.DepotRepository
@@ -35,6 +36,7 @@ class MaaApplication : Application() {
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val appSettingsManager: AppSettingsManager by inject()
+    private val pathConfig: MaaPathConfig by inject()
     private val crashHandler: CrashHandler by inject()
     private val unifiedStateDispatcher: UnifiedStateDispatcher by inject()
     private val taskEndRegistry: TaskEndRegistry by inject()
@@ -64,7 +66,7 @@ class MaaApplication : Application() {
 
     private fun postCreateApplication() {
         treeHolder.setup()
-        RemoteServiceManager.initialize(this, appSettingsManager)
+        RemoteServiceManager.initialize(this, appSettingsManager, pathConfig)
         crashHandler.init(this)
         overlayController.setup()
         unifiedStateDispatcher.start()

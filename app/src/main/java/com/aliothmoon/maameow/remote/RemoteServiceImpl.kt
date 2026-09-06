@@ -2,7 +2,10 @@ package com.aliothmoon.maameow.remote
 
 import android.content.Intent
 import android.graphics.Bitmap
+import android.os.Build
+import android.os.ParcelFileDescriptor
 import android.os.Process
+import android.system.Os
 import android.view.Surface
 import com.aliothmoon.maameow.ITouchEventCallback
 import com.aliothmoon.maameow.MaaCoreService
@@ -12,6 +15,7 @@ import com.aliothmoon.maameow.constant.DefaultDisplayConfig
 import com.aliothmoon.maameow.constant.DisplayMode
 import com.aliothmoon.maameow.maa.InputControlUtils
 import com.aliothmoon.maameow.remote.internal.ActivityUtils
+import com.aliothmoon.maameow.remote.internal.CoreDataStore
 import com.aliothmoon.maameow.remote.internal.GameAudioMuteController
 import com.aliothmoon.maameow.remote.internal.GameFpsMonitor
 import com.aliothmoon.maameow.remote.internal.GestureRecorder
@@ -20,6 +24,7 @@ import com.aliothmoon.maameow.remote.internal.PowerController
 import com.aliothmoon.maameow.remote.internal.PrimaryDisplayManager
 import com.aliothmoon.maameow.remote.internal.RemoteUtils
 import com.aliothmoon.maameow.remote.internal.ScreenManager
+import com.aliothmoon.maameow.remote.internal.UserDirProbe
 import com.aliothmoon.maameow.remote.internal.VirtualDisplayManager
 import com.aliothmoon.maameow.remote.internal.WakeUnlockController
 import com.aliothmoon.maameow.remote.internal.XmsfFirewall
@@ -66,10 +71,14 @@ class RemoteServiceImpl : RemoteService.Stub() {
     private val virtualDisplayMode = AtomicInteger(DisplayMode.PRIMARY)
     private val appPid = AtomicInteger(0)
     private val destroyed = AtomicBoolean(false)
+    /** 同一进程内 setup 幂等：成功后再调直接返回 OK，失败则下次重试 */
     private var setup = false
+    private val coreData = CoreDataStore()
 
     init {
         // ctor 必须轻量：重活放 setup()，attach 前零阻塞
+        // Root 下放开 umask，core 与本进程写的文件对 shell 可读写（切回 Shizuku 后还能追加）；父目录 0771 挡住其他 App
+        if (Process.myUid() != Process.SHELL_UID) runCatching { Os.umask(0) }
         Workarounds.apply()
         startHeartbeatWatchdog()
         Ln.i("$TAG: RemoteServiceImpl created (lightweight ctor)")
@@ -105,34 +114,79 @@ class RemoteServiceImpl : RemoteService.Stub() {
 
     override fun pid(): Int = Process.myPid()
 
-    override fun setup(userDir: String?, isDebug: Boolean): Boolean {
-        if (!setup) {
-            RemoteBootTrace.mark("SETUP_BEGIN")
-            // 清上一实例可能残留的断网规则，同步执行先于业务 AIDL
-            runCatching { XmsfFirewall.ensureRestored() }
-                .onFailure { Ln.w("XmsFw boot restore failed: ${it.message}") }
-            RemoteBootTrace.mark("SETUP_XMSF_RESTORED")
-            val ctx = MaaCoreManager.MaaContext ?: run {
-                Ln.e("$TAG: setup failed - MaaContext is null")
-                return false
-            }
-            Ln.i("NativeBridgeLib ping ${NativeBridgeLib.ping()}")
-            with(ctx) {
-                if (!AsstSetUserDir(userDir)) {
-                    Ln.e("$TAG: setup failed - AsstSetUserDir($userDir) returned false")
-                    return false
-                }
-                Ln.i("MaaCore ${AsstGetVersion()}")
-            }
-            PermissionGrantHelper.disablePhantomProcessKiller()
-            setup = true
-            RemoteBootTrace.mark("SETUP_DONE")
+    override fun setup(userDir: String?, isDebug: Boolean): Int {
+        if (setup) return SetupResult.OK
+        RemoteBootTrace.mark("SETUP_BEGIN")
+        // 清上一实例可能残留的断网规则，同步执行先于业务 AIDL
+        runCatching { XmsfFirewall.ensureRestored() }
+            .onFailure { Ln.w("XmsFw boot restore failed: ${it.message}") }
+        RemoteBootTrace.mark("SETUP_XMSF_RESTORED")
+        // 不可访问的路径进 AsstSetUserDir 会 abort 整个进程（#227），这里只报告，换到哪由用户在设置里决定
+        val dir = File(userDir.orEmpty())
+        val probeFailure = UserDirProbe.probe(dir)
+        if (probeFailure != null) {
+            Ln.e("$TAG: setup failed - userDir inaccessible: $probeFailure (uid=${Process.myUid()} sdk=${Build.VERSION.SDK_INT})")
+            RemoteBootTrace.mark("SETUP_USER_DIR_INACCESSIBLE", probeFailure)
+            return SetupResult.ERR_USER_DIR_INACCESSIBLE
         }
-        return true
+        RemoteBootTrace.bindUserDir(dir)
+        val ctx = MaaCoreManager.MaaContext ?: run {
+            Ln.e("$TAG: setup failed - MaaContext is null")
+            return SetupResult.ERR_CORE_NOT_LOADED
+        }
+        Ln.i("NativeBridgeLib ping ${NativeBridgeLib.ping()}")
+        with(ctx) {
+            if (!AsstSetUserDir(dir.path)) {
+                Ln.e("$TAG: setup failed - AsstSetUserDir($dir) returned false")
+                return SetupResult.ERR_SET_USER_DIR
+            }
+            Ln.i("MaaCore ${AsstGetVersion()} userDir=$dir")
+        }
+        PermissionGrantHelper.disablePhantomProcessKiller()
+        setup = true
+        RemoteBootTrace.mark("SETUP_DONE")
+        return SetupResult.OK
     }
 
     override fun test(map: MutableMap<String, String>) {
     }
+
+    // ---- 独立数据目录 ----
+
+    override fun ensureCoreResources(apkPath: String?, stamp: String?): Boolean {
+        if (apkPath.isNullOrBlank() || stamp.isNullOrBlank()) return false
+        val start = System.currentTimeMillis()
+        val ok = coreData.ensureResources(File(apkPath), stamp)
+        Ln.i("$TAG: ensureCoreResources stamp=$stamp ok=$ok in ${System.currentTimeMillis() - start}ms")
+        return ok
+    }
+
+    override fun applyCoreHotUpdate(zip: ParcelFileDescriptor?): Boolean {
+        zip ?: return false
+        val ok = ParcelFileDescriptor.AutoCloseInputStream(zip).use { coreData.applyHotUpdate(it) }
+        Ln.i("$TAG: applyCoreHotUpdate ok=$ok version=${coreData.resourceVersion()}")
+        return ok
+    }
+
+    override fun getCoreResourceVersion(): String = coreData.resourceVersion()
+
+    override fun putCoreFile(relPath: String?, src: ParcelFileDescriptor?): Boolean {
+        if (relPath == null || src == null) {
+            src?.close()
+            return false
+        }
+        return ParcelFileDescriptor.AutoCloseInputStream(src).use { coreData.putFile(relPath, it) }
+            .also { if (!it) Ln.w("$TAG: putCoreFile rejected: $relPath") }
+    }
+
+    override fun listCoreDebugFiles(): MutableList<String> = coreData.listDebugFiles().toMutableList()
+
+    override fun openCoreDebugFile(relPath: String?): ParcelFileDescriptor? {
+        val file = relPath?.let(coreData::debugFile) ?: return null
+        return runCatching { ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY) }.getOrNull()
+    }
+
+    override fun clearCoreData(): Boolean = coreData.clear().also { Ln.i("$TAG: clearCoreData ok=$it") }
 
     override fun screencap(width: Int, height: Int) {
     }

@@ -28,10 +28,12 @@ import com.aliothmoon.maameow.data.model.update.UpdateError.MirrorchyanBizError
 import com.aliothmoon.maameow.data.model.update.UpdateProcessState
 import com.aliothmoon.maameow.data.model.update.UpdateSource
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.domain.service.CoreDataPusher
 import com.aliothmoon.maameow.domain.service.update.checker.AppVersionChecker
 import com.aliothmoon.maameow.domain.service.update.checker.ResourceVersionChecker
 import com.aliothmoon.maameow.domain.service.update.resolver.AppDownloadUrlResolver
 import com.aliothmoon.maameow.domain.service.update.resolver.ResourceDownloadUrlResolver
+import com.aliothmoon.maameow.remote.CoreDataDir
 import com.aliothmoon.maameow.utils.i18n.LocalizedException
 import com.aliothmoon.maameow.utils.i18n.resolve
 import com.aliothmoon.maameow.utils.i18n.uiTextOf
@@ -63,6 +65,7 @@ class UpdateService(
     private val resourceDownloader: ResourceDownloader,
     private val extractor: ZipExtractor,
     private val achievementRepository: AchievementRepository,
+    private val coreDataPusher: CoreDataPusher,
 ) {
     private val appDownloadResolvers: Map<UpdateSource, AppDownloadUrlResolver> = mapOf(
         UpdateSource.MIRROR_CHYAN to MirrorChyanAppDownloadUrlResolver(
@@ -357,15 +360,7 @@ class UpdateService(
         val extractResult = extractor.extract(
             zipFile = tempFile,
             destDir = target,
-            pathFilter = { entryName ->
-                val name = entryName.removePrefix("MaaResource-main/")
-                if (name.startsWith("resource/")) {
-                    val rf = name.removePrefix("resource/")
-                    rf.ifEmpty { null }
-                } else {
-                    null
-                }
-            },
+            pathFilter = CoreDataDir::hotUpdateEntryToRelPath,
             onProgress = { progress ->
                 _resourceProcessState.value = UpdateProcessState.Extracting(
                     progress = progress.progress,
@@ -375,12 +370,19 @@ class UpdateService(
             }
         )
 
+        // 留档供独立目录投递
+        if (extractResult.isSuccess) {
+            val keep = File(target.parentFile, MaaFiles.LAST_RESOURCE_UPDATE_ZIP)
+            runCatching { if (!tempFile.renameTo(keep)) tempFile.copyTo(keep, overwrite = true) }
+                .onFailure { Timber.w(it, "keep last resource update zip failed") }
+        }
         tempFile.delete()
 
         return extractResult.fold(
             onSuccess = {
                 _resourceProcessState.value = UpdateProcessState.Success
                 Timber.i("Resource update completed")
+                coreDataPusher.pushHotUpdateIfNeeded()
                 Result.success(Unit)
             },
             onFailure = { e ->

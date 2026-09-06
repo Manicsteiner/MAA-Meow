@@ -32,6 +32,10 @@ data class AppSettings(
     @PrefKey(default = "SHIZUKU")
     val startupBackend: String = "SHIZUKU",
 
+    /** 见 [CoreDataLocation]，改了要重启 */
+    @PrefKey(default = "APP_DIR")
+    val coreDataLocation: String = "APP_DIR",
+
     @PrefKey(default = "false")
     val skipShizukuCheck: String = "false",
 

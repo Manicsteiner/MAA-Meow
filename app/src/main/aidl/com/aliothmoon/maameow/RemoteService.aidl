@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow;
 
 import android.content.Intent;
+import android.os.ParcelFileDescriptor;
 import android.view.Surface;
 import com.aliothmoon.maameow.ITouchEventCallback;
 import com.aliothmoon.maameow.MaaCoreService;
@@ -25,7 +26,7 @@ interface RemoteService {
 
     MaaCoreService getMaaCoreService() = 9;
 
-    boolean setup(String userDir,boolean isDebug) = 10;
+    int setup(String userDir,boolean isDebug) = 10;
 
     PermissionStateInfo grantPermissions(in PermissionGrantRequest request) = 11;
 
@@ -97,4 +98,21 @@ interface RemoteService {
 
     // HyperOS 发岛时短断 com.xiaomi.xmsf 网络
     boolean setPackageNetworkingEnabled(String packageName, boolean enabled) = 41;
+
+    // ---- MaaCore 独立数据目录（/data/local/tmp，见 CoreDataDir）----
+    // 内置资源与 stamp 不符时从 apkPath 重解
+    boolean ensureCoreResources(String apkPath, String stamp) = 44;
+
+    boolean applyCoreHotUpdate(in ParcelFileDescriptor zip) = 45;
+
+    String getCoreResourceVersion() = 46;
+
+    boolean putCoreFile(String relPath, in ParcelFileDescriptor src) = 47;
+
+    // 独立目录 debug/ 下的文件相对路径，导出日志时拉取
+    List<String> listCoreDebugFiles() = 48;
+
+    ParcelFileDescriptor openCoreDebugFile(String relPath) = 49;
+
+    boolean clearCoreData() = 50;
 }

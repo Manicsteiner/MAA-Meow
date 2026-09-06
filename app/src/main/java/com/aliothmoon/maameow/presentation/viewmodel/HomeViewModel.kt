@@ -6,7 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.aliothmoon.maameow.R
 import com.aliothmoon.maameow.constant.DisplayMode
+import com.aliothmoon.maameow.data.config.MaaPathConfig
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
+import com.aliothmoon.maameow.domain.models.CoreDataLocation
 import com.aliothmoon.maameow.domain.models.OverlayControlMode
 import com.aliothmoon.maameow.domain.models.RunMode
 import com.aliothmoon.maameow.domain.service.MaaCompositionService
@@ -14,6 +16,7 @@ import com.aliothmoon.maameow.domain.service.MaaResourceLoader
 import com.aliothmoon.maameow.domain.service.ResourceInitService
 import com.aliothmoon.maameow.domain.service.update.UpdateService
 import com.aliothmoon.maameow.domain.state.MaaExecutionState
+import com.aliothmoon.maameow.domain.usecase.SwitchCoreDataLocationUseCase
 import com.aliothmoon.maameow.manager.PermissionManager
 import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.manager.RemoteServiceManager.useRemoteService
@@ -30,10 +33,12 @@ import com.aliothmoon.maameow.utils.i18n.uiTextOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -50,6 +55,8 @@ class HomeViewModel(
     private val resourceInitService: ResourceInitService,
     private val scheduleAlarmManager: ScheduleAlarmManager,
     private val scheduleStrategyRepository: ScheduleStrategyRepository,
+    private val pathConfig: MaaPathConfig,
+    private val switchCoreDataLocation: SwitchCoreDataLocationUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(
@@ -59,6 +66,27 @@ class HomeViewModel(
 
     private val _effects = Channel<UiEffect>(Channel.BUFFERED)
     val effects = _effects.receiveAsFlow()
+
+    // ========== 提权进程访问不了 core 数据目录（#227） ==========
+
+    private val _coreDirDialogDismissed = MutableStateFlow(false)
+
+    val showCoreDirInaccessibleDialog: StateFlow<Boolean> = combine(
+        resourceLoader.state, _coreDirDialogDismissed
+    ) { state, dismissed ->
+        !dismissed && !pathConfig.isCoreSeparated
+                && state is MaaResourceLoader.State.Failed
+                && state.reason == MaaResourceLoader.State.FailReason.STORAGE_INACCESSIBLE
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun dismissCoreDirInaccessibleDialog() {
+        _coreDirDialogDismissed.value = true
+    }
+
+    fun switchCoreDataToLocalTmp() {
+        _coreDirDialogDismissed.value = true
+        viewModelScope.launch { switchCoreDataLocation(CoreDataLocation.LOCAL_TMP) }
+    }
 
     init {
         observeResourceUpdateState()

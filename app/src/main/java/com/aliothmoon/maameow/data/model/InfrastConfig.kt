@@ -264,8 +264,8 @@ data class InfrastConfig(
             put("use_abyssal_hunter", useAbyssalHunter)
             put("mode", mode.value)
             if (mode == InfrastMode.Custom) {
-                put("filename", customInfrastFile)
-                put("plan_index", resolveCustomPlanIndex())
+                put("filename", ctx.relocatePath(customInfrastFile))
+                put("plan_index", resolveCustomPlanIndex(customInfrastFile))
             }
         }
 
@@ -292,13 +292,13 @@ data class InfrastConfig(
      * - customInfrastPlanSelect >= 0: 直接使用指定索引
      * - customInfrastPlanSelect == -1: 时间轮换，匹配当前时间所在的 period
      */
-    private fun resolveCustomPlanIndex(): Int {
+    private fun resolveCustomPlanIndex(file: String): Int {
         if (customInfrastPlanSelect >= 0) return customInfrastPlanSelect
 
         // customPlanPeriods 由 UI 面板解析后填充, 但它是 @Transient 不持久化。
         // 定时冷启动等未经过配置面板的场景下它为空, 此时直接读文件兜底,
         // 否则时间轮换会恒定回退到班次 0。
-        val effectivePeriods = customPlanPeriods.ifEmpty { loadPeriodsFromFile() }
+        val effectivePeriods = customPlanPeriods.ifEmpty { loadPeriodsFromFile(file) }
         if (effectivePeriods.isEmpty()) return 0
 
         val now = LocalTime.now()
@@ -331,14 +331,14 @@ data class InfrastConfig(
      * 对齐上游 WPF InfrastTask.OnDeserialized: 计划时间段始终以文件为准, 用时即时解析。
      * 文件缺失或解析失败时返回空, 由调用方回退到班次 0。
      */
-    private fun loadPeriodsFromFile(): List<List<List<String>>> {
-        if (customInfrastFile.isBlank()) return emptyList()
+    private fun loadPeriodsFromFile(file: String): List<List<List<String>>> {
+        if (file.isBlank()) return emptyList()
         return runCatching {
             JsonUtils.common
-                .decodeFromString<CustomInfrastConfig>(File(customInfrastFile).readText())
+                .decodeFromString<CustomInfrastConfig>(File(file).readText())
                 .plans.map { it.period }
         }.getOrElse {
-            Timber.w(it, "读取自定义基建时间段失败: %s", customInfrastFile)
+            Timber.w(it, "读取自定义基建时间段失败: %s", file)
             emptyList()
         }
     }

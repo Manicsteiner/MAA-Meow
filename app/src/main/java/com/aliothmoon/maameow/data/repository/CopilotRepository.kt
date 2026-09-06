@@ -99,6 +99,9 @@ class CopilotRepository(
      */
     fun getCopilotDir(): String = copilotDir.absolutePath
 
+    /** 下发给 core 的作业路径：独立目录模式下要映射到提权进程那边 */
+    fun toCorePath(filePath: String): String = pathConfig.toCorePath(filePath)
+
     suspend fun loadTaskList(): List<CopilotListItem> = withContext(Dispatchers.IO) {
         runCatching {
             if (!taskListFile.exists()) {

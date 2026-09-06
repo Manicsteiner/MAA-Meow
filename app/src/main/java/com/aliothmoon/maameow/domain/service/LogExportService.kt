@@ -5,10 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Point
 import android.os.Build
+import android.os.ParcelFileDescriptor
 import android.os.PowerManager
 import android.view.WindowManager
 import androidx.core.content.FileProvider
 import com.aliothmoon.maameow.BuildConfig
+import com.aliothmoon.maameow.constant.MaaFiles
 import com.aliothmoon.maameow.constant.Packages
 import com.aliothmoon.maameow.data.achievement.AchievementEvents
 import com.aliothmoon.maameow.data.achievement.AchievementRepository
@@ -16,6 +18,7 @@ import com.aliothmoon.maameow.data.config.MaaPathConfig
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
 import com.aliothmoon.maameow.data.preferences.TaskChainState
 import com.aliothmoon.maameow.data.resource.MaaCoreVersion
+import com.aliothmoon.maameow.manager.RemoteServiceManager
 import com.aliothmoon.maameow.manager.ShizukuManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,6 +28,7 @@ import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.InputStream
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -126,16 +130,37 @@ class LogExportService(
                 Timber.w(e, "Failed to collect device info")
             }
 
-            for (file in logFiles) {
-                val relativePath = file.relativeTo(baseDir).path
-                val entry = ZipEntry(relativePath)
-                entry.time = file.lastModified()
-                zos.putNextEntry(entry)
+            appendRemoteDebugFiles(zos)
 
-                FileInputStream(file).use { fis ->
-                    fis.copyTo(zos, bufferSize = 8192)
-                }
-                zos.closeEntry()
+            for (file in logFiles) {
+                FileInputStream(file).use { zos.addEntry(file.relativeTo(baseDir).path, it, file.lastModified()) }
+            }
+        }
+    }
+
+    private fun ZipOutputStream.addEntry(name: String, input: InputStream, time: Long = 0L) {
+        putNextEntry(ZipEntry(name).also { if (time > 0) it.time = time })
+        input.copyTo(this, bufferSize = 64 * 1024)
+        closeEntry()
+    }
+
+    private fun appendRemoteDebugFiles(zos: ZipOutputStream) {
+        // core 用 App 目录时它的日志就在 App 的 debug/ 里，已被 collect 收进去
+        if (!pathConfig.isCoreSeparated) return
+        val srv = RemoteServiceManager.getInstanceOrNull()
+        if (srv == null) {
+            Timber.w("Remote service not connected, core debug files skipped")
+            return
+        }
+        val files = runCatching { srv.listCoreDebugFiles() }
+            .onFailure { Timber.w(it, "listCoreDebugFiles failed") }
+            .getOrNull() ?: return
+        for (rel in files) {
+            try {
+                val pfd = srv.openCoreDebugFile(rel) ?: continue
+                ParcelFileDescriptor.AutoCloseInputStream(pfd).use { zos.addEntry("${MaaFiles.EXPORT_REMOTE_DIR}/$rel", it) }
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to pull core debug file: %s", rel)
             }
         }
     }
@@ -157,6 +182,7 @@ class LogExportService(
         append("Core        : ${MaaCoreVersion.current.ifBlank { "unknown" }}\n")
         append("Resource    : ${pathConfig.readDiskResourceVersion() ?: "none"}\n")
         append("Client      : ${taskChainState.clientType}\n")
+        append("Core Dir    : ${pathConfig.coreLocation} (${pathConfig.coreRootDir})\n")
         append("Game        : $gameVersionInfo\n")
         append(
             "Run Mode    : ${appSettingsManager.runMode.value} / " +
