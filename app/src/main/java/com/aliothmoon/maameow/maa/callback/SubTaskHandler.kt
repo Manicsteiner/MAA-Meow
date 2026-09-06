@@ -475,6 +475,12 @@ class SubTaskHandler(
 
         val what = details.getString("what") ?: return
 
+        // 材料合成整组消息（与 WPF ProcMaterialSynthesisMsg 一致，按前缀路由）
+        if (what.startsWith("MaterialSynthesis")) {
+            logMaterialSynthesis(what, subDetails)
+            return
+        }
+
         when (what) {
             "PixelPaintProgress" -> logPixelPaintProgress(
                 toolboxResultCollector.onPixelPaintProgress(subDetails)
@@ -956,6 +962,87 @@ class SubTaskHandler(
                 resources.getString(R.string.pixel_art_progress, progress.done, progress.total),
                 LogLevel.TRACE,
             )
+        }
+    }
+
+    /**
+     * 材料合成日志
+     * Core 递归补齐下级材料，depth 从 0 起，展示时 +1；Failed 的 result 映射为原因文案
+     */
+    private fun logMaterialSynthesis(what: String, subDetails: JSONObject?) {
+        val material = subDetails?.getString("material").orEmpty()
+        when (what) {
+            "MaterialSynthesisStart" -> append(
+                resources.getString(R.string.material_synthesis_log_start), LogLevel.INFO
+            )
+
+            "MaterialSynthesisMaterial" -> append(
+                resources.getString(
+                    R.string.material_synthesis_log_material,
+                    material,
+                    subDetails?.getIntValue("count") ?: 0,
+                    (subDetails?.getIntValue("depth") ?: 0) + 1,
+                ),
+                LogLevel.INFO,
+            )
+
+            "MaterialSynthesisIngredient" -> append(
+                resources.getString(
+                    R.string.material_synthesis_log_ingredient,
+                    material,
+                    subDetails?.getIntValue("ingredient") ?: 0,
+                ),
+                LogLevel.INFO,
+            )
+
+            "MaterialSynthesisIngredientUnavailable" -> append(
+                resources.getString(
+                    R.string.material_synthesis_log_ingredient_unavailable,
+                    material,
+                    subDetails?.getIntValue("ingredient") ?: 0,
+                ),
+                LogLevel.WARNING,
+            )
+
+            "MaterialSynthesisOperator" -> append(
+                resources.getString(R.string.material_synthesis_log_operator, material),
+                LogLevel.INFO,
+            )
+
+            "MaterialSynthesisCraft" -> append(
+                resources.getString(
+                    R.string.material_synthesis_log_craft,
+                    material,
+                    subDetails?.getIntValue("count") ?: 0,
+                ),
+                LogLevel.INFO,
+            )
+
+            "MaterialSynthesisReturn" -> append(
+                resources.getString(R.string.material_synthesis_log_return, material),
+                LogLevel.INFO,
+            )
+
+            "MaterialSynthesisCompleted" -> append(
+                resources.getString(R.string.material_synthesis_log_done), LogLevel.SUCCESS
+            )
+
+            "MaterialSynthesisFailed" -> {
+                val reasonRes = when (subDetails?.getString("result")) {
+                    "insufficient_resources" -> R.string.material_synthesis_reason_insufficient_resources
+                    "operator_unavailable" -> R.string.material_synthesis_reason_operator_unavailable
+                    "unsupported" -> R.string.material_synthesis_reason_unsupported
+                    "navigation_failed" -> R.string.material_synthesis_reason_navigation_failed
+                    else -> R.string.material_synthesis_reason_unknown
+                }
+                append(
+                    resources.getString(
+                        R.string.material_synthesis_log_failed,
+                        resources.getString(reasonRes),
+                    ),
+                    LogLevel.ERROR,
+                )
+            }
         }
     }
 
