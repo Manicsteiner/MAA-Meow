@@ -2,6 +2,7 @@ package com.aliothmoon.maameow.maa.callback
 
 import com.alibaba.fastjson2.JSON
 import com.alibaba.fastjson2.JSONObject
+import com.aliothmoon.maameow.BuildConfig
 import com.aliothmoon.maameow.data.model.LogLevel
 import com.aliothmoon.maameow.domain.service.CoreReportRequest
 import com.aliothmoon.maameow.domain.service.GameDataReporter
@@ -166,6 +167,8 @@ class MaaCallbackDispatcher(
                 headers[key] = obj.getString(key).orEmpty()
             }
         }
+        // override it
+        headers["User-Agent"] = "MaaMeow/${BuildConfig.VERSION_NAME}"
         gameDataReporter.submit(
             CoreReportRequest(
                 url = url,
