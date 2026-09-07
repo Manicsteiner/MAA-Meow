@@ -470,8 +470,8 @@ class LaunchPipeline(
             "LaunchPipeline: task end reason=%s closeGame=%s autoSleep=%s saver=%s",
             reason, closeGame, autoSleep, releaseScreenSaver,
         )
-        // 关游戏只认自然结束
-        if (closeGame && reason == TaskEndRegistry.Reason.NATURAL) {
+        // 手动停止不关游戏，其余结束（自然完成 / 掉线中止）都关
+        if (closeGame && reason != TaskEndRegistry.Reason.MANUAL) {
             compositionService.stopVirtualDisplay()
         }
         // 屏保有 KEEP_SCREEN_ON，须先关再熄屏

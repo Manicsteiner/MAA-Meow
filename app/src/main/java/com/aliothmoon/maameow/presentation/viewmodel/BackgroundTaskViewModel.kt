@@ -200,11 +200,11 @@ class BackgroundTaskViewModel(
     private fun observeTaskEnd() {
         viewModelScope.launch {
             taskEndRegistry.taskEnded.collect { reason ->
-                // 仅自然结束关游戏
-                if (reason == TaskEndRegistry.Reason.NATURAL
+                // 手动停止不关游戏，其余结束（自然完成 / 掉线中止）都关
+                if (reason != TaskEndRegistry.Reason.MANUAL
                     && appSettingsManager.closeAppOnTaskEnd.value
                 ) {
-                    Timber.i("Task ended naturally, auto closing app")
+                    Timber.i("Task ended (%s), auto closing app", reason)
                     _effects.send(UiEffect.toast(R.string.bg_toast_auto_closed_on_end))
                     compositionService.stopVirtualDisplay()
                 }

@@ -79,6 +79,14 @@ class MaaCompositionService(
     private val _state = MutableStateFlow(MaaExecutionState.IDLE)
     val state: StateFlow<MaaExecutionState> = _state.asStateFlow()
 
+    /** 停止发起方：用户操作 / 回调侧（掉线等）中止 */
+    enum class StopOrigin { USER, CALLBACK }
+
+    /** 本轮 STOPPING 的发起方，STARTING 时复位；供 TaskEndRegistry 区分手动停止与异常中止 */
+    @Volatile
+    var lastStopOrigin: StopOrigin = StopOrigin.USER
+        private set
+
     private val defaultResolution = DefaultDisplayConfig.Resolution(
         DefaultDisplayConfig.WIDTH, DefaultDisplayConfig.HEIGHT, DefaultDisplayConfig.DPI
     )
@@ -109,7 +117,7 @@ class MaaCompositionService(
         }
         scope.launch {
             try {
-                stop()
+                stop(StopOrigin.CALLBACK)
             } finally {
                 callbackStopRequested.set(false)
             }
@@ -118,6 +126,7 @@ class MaaCompositionService(
 
     private fun setRunState(state: MaaExecutionState) {
         if (state == MaaExecutionState.STARTING) {
+            lastStopOrigin = StopOrigin.USER
             // 顺带提前拿断网闸门：这里在 IO 线程，留给 FGS 的 startForeground 拿会占主线程
             liveCoordinator.prepareProgress(liveCoordinator.beginRun())
         }
@@ -642,7 +651,9 @@ class MaaCompositionService(
         }
     }
 
-    suspend fun stop(): StopResult {
+    suspend fun stop(origin: StopOrigin = StopOrigin.USER): StopResult {
+        // 先记来源再切状态，TaskEndRegistry 在 STOPPING→IDLE 边沿读取
+        lastStopOrigin = origin
         setRunState(MaaExecutionState.STOPPING)
         sessionLogger.appendAndWait(context.getString(R.string.runlog_task_stopping), LogLevel.INFO)
 

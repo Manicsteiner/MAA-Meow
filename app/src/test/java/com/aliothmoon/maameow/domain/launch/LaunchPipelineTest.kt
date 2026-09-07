@@ -71,6 +71,9 @@ class LaunchPipelineTest {
     private val unlockType = MutableStateFlow("swipe")
     private val wakeCred = MutableStateFlow("")
     private val compositionState = MutableStateFlow(MaaExecutionState.IDLE)
+    private val closeAppOnTaskEnd = MutableStateFlow(false)
+    @Volatile
+    private var stopOrigin = MaaCompositionService.StopOrigin.USER
     private val profileId = MutableStateFlow("profile-1")
     private val isLoaded = MutableStateFlow(true)
     private val chain = MutableStateFlow(
@@ -120,9 +123,12 @@ class LaunchPipelineTest {
         unlockType.value = "swipe"
         runMode.value = RunMode.BACKGROUND
         compositionState.value = MaaExecutionState.IDLE
+        closeAppOnTaskEnd.value = false
+        stopOrigin = MaaCompositionService.StopOrigin.USER
 
         settings = mockk(relaxed = true) {
             every { runMode } returns this@LaunchPipelineTest.runMode
+            every { closeAppOnTaskEnd } returns this@LaunchPipelineTest.closeAppOnTaskEnd
             every { wakeCredential } returns wakeCred
             every { wakeUnlockType } returns unlockType
         }
@@ -146,8 +152,10 @@ class LaunchPipelineTest {
         }
         composition = mockk(relaxed = true) {
             every { state } returns compositionState
-            coEvery { stop() } coAnswers {
+            every { lastStopOrigin } answers { stopOrigin }
+            coEvery { stop(any()) } coAnswers {
                 stopCalls.incrementAndGet()
+                stopOrigin = firstArg()
                 // STOPPING → IDLE 须留窗口，否则 StateFlow 合并
                 compositionState.value = MaaExecutionState.STOPPING
                 delay(100)
@@ -248,6 +256,7 @@ class LaunchPipelineTest {
         autoSleep: Boolean = false,
         skipIfAwake: Boolean = false,
         autoScreenSaver: Boolean = false,
+        closeGame: Boolean = false,
     ) = LaunchRequest(
         requestId = id,
         source = LaunchSource.Schedule,
@@ -256,6 +265,7 @@ class LaunchPipelineTest {
         scheduledTimeMs = 1_000L,
         forceStart = force,
         autoScreenSaver = autoScreenSaver,
+        closeGameAfterTask = closeGame,
         autoSleepAfterTask = autoSleep,
         skipAutoSleepIfAwake = skipIfAwake,
         strategyId = "strat-1",
@@ -268,6 +278,51 @@ class LaunchPipelineTest {
         compositionState.value = MaaExecutionState.RUNNING
         delay(200)
         compositionState.value = MaaExecutionState.IDLE
+    }
+
+    /** 模拟停止：STOPPING → IDLE，来源由 [origin] 决定 */
+    private suspend fun driveTaskToStop(origin: MaaCompositionService.StopOrigin) {
+        delay(200)
+        compositionState.value = MaaExecutionState.RUNNING
+        delay(200)
+        stopOrigin = origin
+        compositionState.value = MaaExecutionState.STOPPING
+        delay(200)
+        compositionState.value = MaaExecutionState.IDLE
+    }
+
+    @Test
+    fun closeGame_naturalEnd_stopsVirtualDisplay() = runBlocking<Unit> {
+        pipeline().execute(scheduleRequest(closeGame = true)).join()
+        driveTaskToEnd()
+        coVerify(timeout = 5_000, exactly = 1) { composition.stopVirtualDisplay() }
+    }
+
+    /** 掉线等回调侧中止视同结束，须关游戏 */
+    @Test
+    fun closeGame_callbackAbort_stopsVirtualDisplay() = runBlocking<Unit> {
+        pipeline().execute(scheduleRequest(closeGame = true)).join()
+        driveTaskToStop(MaaCompositionService.StopOrigin.CALLBACK)
+        coVerify(timeout = 5_000, exactly = 1) { composition.stopVirtualDisplay() }
+    }
+
+    /** 用户手动停止保留游戏 */
+    @Test
+    fun closeGame_manualStop_keepsGame() = runBlocking<Unit> {
+        pipeline().execute(scheduleRequest(closeGame = true)).join()
+        driveTaskToStop(MaaCompositionService.StopOrigin.USER)
+        delay(500)
+        coVerify(exactly = 0) { composition.stopVirtualDisplay() }
+    }
+
+    /** 全局开关开启时由后台任务页负责，这里不重复关 */
+    @Test
+    fun closeGame_globalSettingOn_delegatesToViewModel() = runBlocking<Unit> {
+        closeAppOnTaskEnd.value = true
+        pipeline().execute(scheduleRequest(closeGame = true)).join()
+        driveTaskToEnd()
+        delay(500)
+        coVerify(exactly = 0) { composition.stopVirtualDisplay() }
     }
 
     @Test

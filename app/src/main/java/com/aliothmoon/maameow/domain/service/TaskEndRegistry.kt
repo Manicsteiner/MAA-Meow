@@ -22,8 +22,11 @@ class TaskEndRegistry(
         /** RUNNING → IDLE/ERROR */
         NATURAL,
 
-        /** STOPPING → IDLE/ERROR */
+        /** STOPPING → IDLE/ERROR，用户手动停止 */
         MANUAL,
+
+        /** STOPPING → IDLE/ERROR，回调侧（掉线等）中止 */
+        ABORTED,
     }
 
     fun interface PendingAction {
@@ -69,7 +72,10 @@ class TaskEndRegistry(
         if (cur != MaaExecutionState.IDLE && cur != MaaExecutionState.ERROR) return null
         return when (prev) {
             MaaExecutionState.RUNNING -> Reason.NATURAL
-            MaaExecutionState.STOPPING -> Reason.MANUAL
+            MaaExecutionState.STOPPING -> when (compositionService.lastStopOrigin) {
+                MaaCompositionService.StopOrigin.CALLBACK -> Reason.ABORTED
+                MaaCompositionService.StopOrigin.USER -> Reason.MANUAL
+            }
             else -> null
         }
     }
