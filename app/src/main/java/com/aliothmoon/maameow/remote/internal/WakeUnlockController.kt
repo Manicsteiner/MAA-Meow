@@ -1,5 +1,6 @@
 package com.aliothmoon.maameow.remote.internal
 
+import android.os.SystemClock
 import android.view.KeyEvent
 import com.aliothmoon.maameow.constant.WakeUnlockResult
 import com.aliothmoon.maameow.domain.models.UnlockGesture
@@ -22,7 +23,12 @@ object WakeUnlockController {
     private const val SCREEN_ON_TIMEOUT_MS = 5_000L
     private const val KEY_WAKE_TIMEOUT_MS = 2_000L
     private const val KEYGUARD_GONE_TIMEOUT_MS = 5_000L
+
+    /** bouncer 就绪基线，设备本就活跃时够用 */
     private const val BOUNCER_SETTLE_MS = 1_200L
+
+    /** settle 上限，后台定时只有 30 秒提前量，还要留给注入与轮询 */
+    private const val BOUNCER_SETTLE_MAX_MS = 5_000L
     private const val DIGIT_GAP_MS = 50L
 
     /** 手势回放前等锁屏首屏稳定；不弹 bouncer，比 PIN 那条路要短 */
@@ -81,16 +87,24 @@ object WakeUnlockController {
         return WakeUnlockResult.OK
     }
 
+    internal fun bouncerSettleMs(wakeCostMs: Long): Long =
+        (BOUNCER_SETTLE_MS + wakeCostMs * 2).coerceAtMost(BOUNCER_SETTLE_MAX_MS)
+
     /**
      * 亮屏并确认 keyguard 还在
      * @return 非 null 即调用方应当直接返回的结果码
      */
     private fun wakeAndRequireKeyguard(pm: PowerManager, wm: WindowManager): Int? {
+        val startMs = SystemClock.elapsedRealtime()
+        val screenWasOn = pm.isScreenOn(0)
         if (!ensureScreenOn(pm)) {
             Ln.w("$TAG: screen did not turn on after wakeUp and key fallback")
             return WakeUnlockResult.WAKE_FAILED
         }
-        Ln.i("$TAG: screen on")
+        Ln.i(
+            "$TAG: screen on in ${SystemClock.elapsedRealtime() - startMs}ms," +
+                    " wasOn=$screenWasOn"
+        )
 
         val locked = wm.isKeyguardLocked
         if (locked == null) {
@@ -109,7 +123,9 @@ object WakeUnlockController {
         val pm = ServiceManager.getPowerManager()
         val wm = ServiceManager.getWindowManager()
 
+        val wakeStartMs = SystemClock.elapsedRealtime()
         wakeAndRequireKeyguard(pm, wm)?.let { return it }
+        val wakeCostMs = SystemClock.elapsedRealtime() - wakeStartMs
 
         val secure = wm.isKeyguardSecure(0) ?: false
         Ln.i("$TAG: keyguard locked, secure=$secure")
@@ -118,9 +134,10 @@ object WakeUnlockController {
             Ln.w("$TAG: dismissKeyguard unavailable on this ROM")
             return WakeUnlockResult.UNSUPPORTED
         }
+        Ln.i("$TAG: dismissKeyguard requested")
 
         if (!secure) {
-            return if (pollUntil(KEYGUARD_GONE_TIMEOUT_MS) { wm.isKeyguardLocked() == false }) {
+            return if (pollUntil(KEYGUARD_GONE_TIMEOUT_MS) { wm.isKeyguardLocked == false }) {
                 Ln.i("$TAG: unlocked (insecure keyguard)")
                 WakeUnlockResult.OK
             } else {
@@ -139,9 +156,14 @@ object WakeUnlockController {
         }
 
         // bouncer 弹出期间 isKeyguardLocked 仍为 true，先 settle
-        Thread.sleep(BOUNCER_SETTLE_MS)
-        Ln.i("$TAG: injecting ${credential.length} PIN digits after ${BOUNCER_SETTLE_MS}ms settle")
+        val settleMs = bouncerSettleMs(wakeCostMs)
+        Thread.sleep(settleMs)
+        Ln.i(
+            "$TAG: injecting ${credential.length} PIN digits after ${settleMs}ms settle" +
+                    " (wake ${wakeCostMs}ms)"
+        )
 
+        val injectStartMs = SystemClock.elapsedRealtime()
         for (c in credential) {
             val keyCode = KeyEvent.KEYCODE_0 + (c - '0')
             InputControlUtils.keyDown(keyCode, 0)
@@ -151,13 +173,18 @@ object WakeUnlockController {
         // 部分 ROM 会自动提交；补 ENTER 兼容需确认的 PIN
         InputControlUtils.keyDown(KeyEvent.KEYCODE_ENTER, 0)
         InputControlUtils.keyUp(KeyEvent.KEYCODE_ENTER, 0)
+        Ln.i("$TAG: injection done in ${SystemClock.elapsedRealtime() - injectStartMs}ms")
 
-        return if (pollUntil(KEYGUARD_GONE_TIMEOUT_MS) { wm.isKeyguardLocked() == false }) {
-            Ln.i("$TAG: unlocked (PIN accepted)")
+        val pollStartMs = SystemClock.elapsedRealtime()
+        return if (pollUntil(KEYGUARD_GONE_TIMEOUT_MS) { wm.isKeyguardLocked == false }) {
+            Ln.i("$TAG: unlocked (PIN accepted) after ${SystemClock.elapsedRealtime() - pollStartMs}ms")
             WakeUnlockResult.OK
         } else {
             // 不重试，避免连续输错触发系统锁定
-            Ln.w("$TAG: still locked after PIN injection — wrong PIN, or keyguard ignores injected keys")
+            Ln.w(
+                "$TAG: still locked ${SystemClock.elapsedRealtime() - pollStartMs}ms after PIN" +
+                        " injection — wrong PIN, or bouncer was not ready and swallowed the keys"
+            )
             WakeUnlockResult.CREDENTIAL_REJECTED
         }
     }
@@ -197,7 +224,7 @@ object WakeUnlockController {
         Ln.i("$TAG: replaying ${gesture.steps.size} steps / ${actions.size} actions")
         UnlockGestureReplay.execute(actions)
 
-        return if (pollUntil(KEYGUARD_GONE_TIMEOUT_MS) { wm.isKeyguardLocked() == false }) {
+        return if (pollUntil(KEYGUARD_GONE_TIMEOUT_MS) { wm.isKeyguardLocked == false }) {
             Ln.i("$TAG: unlocked (gesture accepted)")
             WakeUnlockResult.OK
         } else {
