@@ -8,38 +8,39 @@ import android.os.Parcel;
 import com.aliothmoon.maameow.RemoteService;
 import com.aliothmoon.maameow.third.Ln;
 
-public final class RootServiceStarter {
+/** Shizuku / Root 共用的提权服务入口 */
+public final class RemoteServiceStarter {
 
-    private static final String TAG = "RootServiceStarter";
+    private static final String TAG = "RemoteServiceStarter";
     private static final int DESTROY_TRANSACTION_CODE = 16777115;
 
     // linkToDeath 随 BinderProxy 被 GC 而失效，须持强引用保证死亡通知可送达
     private static IBinder appLifecycleBinder;
     private static IBinder.DeathRecipient appDeathRecipient;
 
-    private RootServiceStarter() {
+    private RemoteServiceStarter() {
     }
 
     public static void main(String[] args) {
-        System.err.println("[RootServiceStarter] main() entry");
+        System.err.println("[" + TAG + "] main() entry");
         if (Looper.getMainLooper() == null) {
             Looper.prepareMainLooper();
         }
 
         RootUserService.CreatedService createdService = RootUserService.create(args);
         if (createdService == null) {
-            System.err.println("[RootServiceStarter] RootUserService.create() returned null");
+            System.err.println("[" + TAG + "] service creation returned null");
             System.exit(1);
             return;
         }
-        System.err.println("[RootServiceStarter] RootUserService.create() ok, token=" + createdService.token());
+        System.err.println("[" + TAG + "] service created, token=" + createdService.token());
 
         if (!sendBinder(createdService)) {
-            System.err.println("[RootServiceStarter] sendBinder() failed");
+            System.err.println("[" + TAG + "] sendBinder() failed");
             System.exit(1);
             return;
         }
-        System.err.println("[RootServiceStarter] sendBinder() ok, entering Looper");
+        System.err.println("[" + TAG + "] sendBinder() ok, entering Looper");
 
         Looper.loop();
         System.exit(0);
@@ -60,9 +61,9 @@ public final class RootServiceStarter {
 
         try {
             IBinder.DeathRecipient recipient = () -> {
-                Ln.i(TAG + ": app process died, destroying root service");
+                Ln.i(TAG + ": app process died, destroying remote service");
                 destroyService(createdService.service());
-                Ln.i(TAG + ": root service destroy signal sent, exiting");
+                Ln.i(TAG + ": remote service destroy signal sent, exiting");
                 System.exit(0);
             };
             IBinder lifecycleBinder = result.lifecycleBinder();
@@ -107,7 +108,7 @@ public final class RootServiceStarter {
             }
             service.transact(DESTROY_TRANSACTION_CODE, data, reply, Binder.FLAG_ONEWAY);
         } catch (Throwable tr) {
-            Ln.w(TAG + ": destroy root remote service failed", tr);
+            Ln.w(TAG + ": destroy remote service failed", tr);
         } finally {
             data.recycle();
             reply.recycle();

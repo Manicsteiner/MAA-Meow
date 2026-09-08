@@ -9,7 +9,7 @@ import com.aliothmoon.maameow.RemoteService
 import com.aliothmoon.maameow.remote.CoreDataDir
 import com.aliothmoon.maameow.root.BootstrapRegistry
 import com.aliothmoon.maameow.root.RootServiceBootstrapRegistry
-import com.aliothmoon.maameow.root.RootServiceStarter
+import com.aliothmoon.maameow.root.RemoteServiceStarter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -140,7 +140,7 @@ abstract class ProcessServiceConnectorBackend(
             append(shellQuote(launcher.absolutePath))
             append(" --apk=").append(shellQuote(appContext.applicationInfo.sourceDir))
             append(" --process-name=").append(shellQuote(processName))
-            append(" --starter-class=").append(shellQuote(RootServiceStarter::class.java.name))
+            append(" --starter-class=").append(shellQuote(RemoteServiceStarter::class.java.name))
             append(" --token=").append(shellQuote(token))
             append(" --package=").append(shellQuote(appContext.packageName))
             append(" --class=").append(shellQuote(serviceClass.name))

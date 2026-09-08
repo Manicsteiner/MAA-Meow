@@ -30,7 +30,7 @@
 # Shizuku / Root 按类名拉起
 -keep class com.aliothmoon.maameow.remote.RemoteServiceImpl { <init>(); }
 -keep class com.aliothmoon.maameow.remote.LogcatCaptureServiceImpl { <init>(); }
--keep class com.aliothmoon.maameow.root.RootServiceStarter {
+-keep class com.aliothmoon.maameow.root.RemoteServiceStarter {
     public static void main(java.lang.String[]);
 }
 -keep class com.aliothmoon.maameow.root.RootUserService { *; }

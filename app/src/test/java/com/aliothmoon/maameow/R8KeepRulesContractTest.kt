@@ -32,7 +32,7 @@ class R8KeepRulesContractTest {
             "com.sun.jna.Callback",
             "com.aliothmoon.maameow.remote.RemoteServiceImpl",
             "com.aliothmoon.maameow.remote.LogcatCaptureServiceImpl",
-            "com.aliothmoon.maameow.root.RootServiceStarter",
+            "com.aliothmoon.maameow.root.RemoteServiceStarter",
             "touchDown",
             "startApp",
             "org.eclipse.angus.mail.smtp.**",
