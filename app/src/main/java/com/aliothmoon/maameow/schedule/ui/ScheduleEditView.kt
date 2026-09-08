@@ -2,12 +2,14 @@ package com.aliothmoon.maameow.schedule.ui
 
 import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -95,6 +97,7 @@ fun ScheduleEditView(
     viewModel: ScheduleEditViewModel = koinViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val isNew = if (state.isLoading) strategyId == null else state.isNew
     val errorMessage = state.errorMessage.asString()
     val toaster = LocalToaster.current
     var showTimePicker by remember { mutableStateOf(false) }
@@ -149,7 +152,7 @@ fun ScheduleEditView(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = if (state.isNew) {
+                title = if (isNew) {
                     stringResource(R.string.schedule_edit_title_new)
                 } else {
                     stringResource(R.string.schedule_edit_title_edit)
@@ -165,7 +168,10 @@ fun ScheduleEditView(
                             strokeWidth = 2.dp
                         )
                     } else {
-                        TextButton(onClick = { viewModel.onSave(context) }) {
+                        TextButton(
+                            onClick = { viewModel.onSave(context) },
+                            enabled = !state.isLoading,
+                        ) {
                             Text(stringResource(R.string.schedule_save))
                         }
                     }
@@ -173,6 +179,17 @@ fun ScheduleEditView(
             )
         },
     ) { padding ->
+        if (state.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -182,11 +199,11 @@ fun ScheduleEditView(
                 vertical = MaaDesignTokens.Spacing.sm
             )
         ) {
-            item {
+            item(key = "basic-header") {
                 SectionHeader(stringResource(R.string.schedule_section_basic_info))
             }
             if (!state.isNew && state.strategyId != null) {
-                item {
+                item(key = "strategy-id") {
                     Text(
                         text = "ID: ${state.strategyId}",
                         style = MaterialTheme.typography.bodySmall,
@@ -195,7 +212,7 @@ fun ScheduleEditView(
                     )
                 }
             }
-            item {
+            item(key = "name") {
                 OutlinedTextField(
                     value = state.name,
                     onValueChange = viewModel::onNameChanged,
@@ -207,11 +224,11 @@ fun ScheduleEditView(
                 )
             }
 
-            item {
+            item(key = "type-header") {
                 Spacer(Modifier.height(MaaDesignTokens.Spacing.sectionGap))
                 SectionHeader(stringResource(R.string.schedule_section_type))
             }
-            item {
+            item(key = "type") {
                 SingleChoiceSegmentedButtonRow(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -239,11 +256,11 @@ fun ScheduleEditView(
 
             when (state.scheduleType) {
                 ScheduleType.FIXED_TIME -> {
-                    item {
+                    item(key = "days-header") {
                         Spacer(Modifier.height(MaaDesignTokens.Spacing.sectionGap))
                         SectionHeader(stringResource(R.string.schedule_section_days))
                     }
-                    item {
+                    item(key = "days") {
                         FlowRow(
                             modifier = Modifier
                                 .fillMaxWidth(),
@@ -271,11 +288,11 @@ fun ScheduleEditView(
                         }
                     }
 
-                    item {
+                    item(key = "times-header") {
                         Spacer(Modifier.height(MaaDesignTokens.Spacing.sectionGap))
                         SectionHeader(stringResource(R.string.schedule_section_times))
                     }
-                    item {
+                    item(key = "times") {
                         val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
                         FlowRow(
                             modifier = Modifier
@@ -323,11 +340,11 @@ fun ScheduleEditView(
                 }
 
                 ScheduleType.INTERVAL -> {
-                    item {
+                    item(key = "start-time-header") {
                         Spacer(Modifier.height(MaaDesignTokens.Spacing.sectionGap))
                         SectionHeader(stringResource(R.string.schedule_section_start_time))
                     }
-                    item {
+                    item(key = "start-time") {
                         var showDatePicker by remember { mutableStateOf(false) }
                         var showStartTimePicker by remember { mutableStateOf(false) }
                         // 暂存选中的日期，等时间也选完后一起写入
@@ -406,11 +423,11 @@ fun ScheduleEditView(
                         }
                     }
 
-                    item {
+                    item(key = "interval-header") {
                         Spacer(Modifier.height(MaaDesignTokens.Spacing.sectionGap))
                         SectionHeader(stringResource(R.string.schedule_section_interval))
                     }
-                    item {
+                    item(key = "interval") {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -457,11 +474,11 @@ fun ScheduleEditView(
                 }
             }
 
-            item {
+            item(key = "profile-header") {
                 Spacer(Modifier.height(MaaDesignTokens.Spacing.sectionGap))
                 SectionHeader(stringResource(R.string.schedule_section_task_config))
             }
-            item {
+            item(key = "profile") {
                 if (state.profiles.isEmpty()) {
                     Text(
                         text = stringResource(R.string.schedule_no_profiles),
@@ -502,7 +519,7 @@ fun ScheduleEditView(
                 }
             }
 
-            item {
+            item(key = "force-start") {
                 Spacer(Modifier.height(MaaDesignTokens.Spacing.sectionGap))
                 SectionHeader(stringResource(R.string.schedule_section_advanced))
                 val (expanded, setExpanded) = remember { mutableStateOf(false) }
@@ -536,7 +553,7 @@ fun ScheduleEditView(
                 )
             }
 
-            item {
+            item(key = "screen-saver") {
                 val (saverExpanded, setSaverExpanded) = remember { mutableStateOf(false) }
                 Row(
                     modifier = Modifier
@@ -568,7 +585,7 @@ fun ScheduleEditView(
                 )
             }
 
-            item {
+            item(key = "auto-sleep") {
                 val (sleepExpanded, setSleepExpanded) = remember { mutableStateOf(false) }
                 Row(
                     modifier = Modifier
@@ -626,7 +643,7 @@ fun ScheduleEditView(
                 }
             }
 
-            item {
+            item(key = "close-game") {
                 // 优先级规则容易踩坑，默认展开
                 val (closeExpanded, setCloseExpanded) = remember { mutableStateOf(true) }
                 Row(

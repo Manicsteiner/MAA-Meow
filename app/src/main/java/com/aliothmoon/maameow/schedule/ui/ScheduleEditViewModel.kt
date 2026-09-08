@@ -23,7 +23,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -33,6 +32,7 @@ import java.time.LocalTime
 import java.util.UUID
 
 data class ScheduleEditUiState(
+    val isLoading: Boolean = true,
     val isNew: Boolean = true,
     val strategyId: String? = null,
     val name: String = "",
@@ -94,23 +94,27 @@ class ScheduleEditViewModel(
 
     private var strategyId: String? = null
     private var existingStrategy: ScheduleStrategy? = null
+    private var loadStarted = false
 
     /** 加载已有策略（编辑模式），或初始化默认选择（新建模式） */
     fun loadStrategy(context: Context, id: String?) {
+        // 返回系统设置或重建界面时保留未保存的编辑
+        if (loadStarted) return
+        loadStarted = true
         viewModelScope.launch {
-            // 等待 Profile 数据加载完成
-            taskChainState.isLoaded.filter { it }.first()
+            taskChainState.isLoaded.first { it }
+            repository.isLoaded.first { it }
             val profiles = taskChainState.profiles.value
 
             if (id != null) {
-                repository.isLoaded.filter { it }.first()
-
-                val strategy = repository.getById(id)
+                // 编辑用已加载快照，避免主线程重复解析整份策略
+                val strategy = repository.strategies.value.find { it.id == id }
                 if (strategy != null) {
                     strategyId = id
                     existingStrategy = strategy
                     val totalMinutes = strategy.intervalMinutes ?: 0
                     _state.value = ScheduleEditUiState(
+                        isLoading = false,
                         isNew = false,
                         strategyId = id,
                         name = strategy.name,
@@ -138,6 +142,7 @@ class ScheduleEditViewModel(
                 repository.strategies.value.size + 1
             )
             _state.value = ScheduleEditUiState(
+                isLoading = false,
                 name = defaultName,
                 profiles = profiles,
                 selectedProfileId = taskChainState.profileId.value.ifEmpty { profiles.firstOrNull()?.id },
@@ -233,6 +238,7 @@ class ScheduleEditViewModel(
 
     fun onSave(context: Context) {
         val current = _state.value
+        if (current.isLoading || current.isSaving) return
         if (current.name.isBlank()) {
             _state.update { it.copy(errorMessage = uiTextOf(R.string.schedule_error_name_required)) }
             return
