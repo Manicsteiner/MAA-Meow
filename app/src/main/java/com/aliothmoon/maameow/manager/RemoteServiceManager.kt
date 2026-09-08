@@ -23,6 +23,7 @@ import java.io.File
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.time.Duration.Companion.milliseconds
 
 object RemoteServiceManager {
 
@@ -218,7 +219,7 @@ object RemoteServiceManager {
     private fun startConnectTimeout(attempt: Int, backend: RemoteBackend) {
         val timeoutMs = fallbackTimeoutMs(backend)
         timeoutScope.launch {
-            delay(timeoutMs)
+            delay(timeoutMs.milliseconds)
             synchronized(lock) {
                 if (connectAttempt.get() != attempt ||
                     _state.value !is ServiceState.Connecting ||
@@ -280,7 +281,7 @@ object RemoteServiceManager {
         val waitMs =
             timeoutMs ?: defaultWaitMs(boundBackend ?: RemoteAccessCoordinator.configuredBackend())
         return try {
-            withTimeout(waitMs) {
+            withTimeout(waitMs.milliseconds) {
                 _state.first { it is ServiceState.Connected || it is ServiceState.Error }
                     .let { currentState ->
                         when (currentState) {

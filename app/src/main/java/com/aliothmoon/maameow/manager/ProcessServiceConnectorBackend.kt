@@ -25,6 +25,7 @@ import timber.log.Timber
 import java.io.File
 import java.util.UUID
 import java.util.concurrent.TimeoutException
+import kotlin.time.Duration.Companion.milliseconds
 
 /** Android 14+ 输入注入需要 Root UID；launcher 在 shell 身份下忽略该标志 */
 internal val keepRootForInputInjection: Boolean
@@ -169,13 +170,13 @@ abstract class ProcessServiceConnectorBackend(
 
     /** binder 回投与进程存活竞速：进程先退出立即失败并携带退出码，不等满超时 */
     private suspend fun awaitBinder(deferred: Deferred<IBinder>, handle: SpawnHandle?): IBinder =
-        withTimeout(spawnTimeoutMs) {
+        withTimeout(spawnTimeoutMs.milliseconds) {
             if (handle == null) return@withTimeout deferred.await()
             coroutineScope {
                 val watcher = launch {
                     while (isActive) {
                         if (!handle.isAlive()) throw ProcessExitedException(handle.exitCode())
-                        delay(ALIVE_POLL_INTERVAL_MS)
+                        delay(ALIVE_POLL_INTERVAL_MS.milliseconds)
                     }
                 }
                 try {

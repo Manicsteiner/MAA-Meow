@@ -51,6 +51,7 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.io.InputStream
 import java.io.OutputStream
+import kotlin.time.Duration.Companion.milliseconds
 
 /** markdown 是 Mirror 酱下发的远端正文，没有资源可以支撑，不套 UiText */
 data class ChangelogArchive(
@@ -418,7 +419,7 @@ class SettingsViewModel(
         val deadline = SystemClock.elapsedRealtime() + RECORD_TIMEOUT_MS + RECORD_GRACE_MS
         // 先轮询再判超时：锁屏期间进程可能被冻结，解冻后这一轮仍要能把结果取回来
         while (true) {
-            delay(RECORD_POLL_INTERVAL_MS)
+            delay(RECORD_POLL_INTERVAL_MS.milliseconds)
             val result = wakeUnlockEngine.pollGestureRecord()
             // IDLE：oneway 的 start 还没落地，或远端重启过，继续等而不是当成已结束
             if (result != null && result.status.isTerminal) {
