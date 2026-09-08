@@ -27,7 +27,7 @@ object WakeUnlockController {
     /** bouncer 就绪基线，设备本就活跃时够用 */
     private const val BOUNCER_SETTLE_MS = 1_200L
 
-    /** settle 上限，后台定时只有 30 秒提前量，还要留给注入与轮询 */
+    /** 限制稳定等待，避免拉长定时任务启动耗时 */
     private const val BOUNCER_SETTLE_MAX_MS = 5_000L
     private const val DIGIT_GAP_MS = 50L
 

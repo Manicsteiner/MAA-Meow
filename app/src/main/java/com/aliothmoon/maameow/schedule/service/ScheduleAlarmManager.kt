@@ -5,11 +5,8 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import com.aliothmoon.maameow.data.preferences.AppSettingsManager
-import com.aliothmoon.maameow.domain.models.RunMode
 import com.aliothmoon.maameow.schedule.model.ScheduleStrategy
 import com.aliothmoon.maameow.schedule.model.ScheduleType
-import com.aliothmoon.maameow.schedule.model.ScheduledExecutionRequest
 import timber.log.Timber
 import java.time.Instant
 import java.time.ZoneId
@@ -17,7 +14,6 @@ import java.time.ZonedDateTime
 
 class ScheduleAlarmManager(
     private val context: Context,
-    private val appSettingsManager: AppSettingsManager,
 ) {
 
     companion object {
@@ -34,9 +30,7 @@ class ScheduleAlarmManager(
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     /**
-     * 为策略注册下一个闹钟。
-     * 后台：提前 [ScheduledExecutionRequest.COUNTDOWN_SECONDS] 触发，留给倒计时弹窗
-     * 前台：准时触发（无倒计时）
+     * 按设定时间注册下一个闹钟，后台倒计时在触发后开始
      */
     fun scheduleNext(strategy: ScheduleStrategy, afterEpochMs: Long = 0L): Boolean {
         if (!strategy.enabled) {
@@ -51,20 +45,12 @@ class ScheduleAlarmManager(
         }
 
         val scheduledTimeMs = nextTrigger.toInstant().toEpochMilli()
-        val leadSec = if (appSettingsManager.runMode.value == RunMode.FOREGROUND) {
-            0
-        } else {
-            ScheduledExecutionRequest.COUNTDOWN_SECONDS
-        }
-        val triggerMs = scheduledTimeMs - leadSec * 1000L
-
-        if (!register(strategy.id, scheduledTimeMs, triggerMs)) return false
+        if (!register(strategy.id, scheduledTimeMs, scheduledTimeMs)) return false
 
         Timber.i(
-            "已为策略 [%s] 注册闹钟，触发时间: %s（提前 %ds）",
+            "已为策略 [%s] 注册闹钟，触发时间: %s",
             strategy.id,
             nextTrigger,
-            leadSec,
         )
         return true
     }
