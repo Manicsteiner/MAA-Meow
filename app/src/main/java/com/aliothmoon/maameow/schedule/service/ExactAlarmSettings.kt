@@ -25,7 +25,7 @@ object ExactAlarmSettings {
             .onFailure { Timber.w(it, "Failed to open exact-alarm settings") }
     }
 
-    /** API 31 起用户可单独关掉精确闹钟；关了仍能定时，只是状态栏多个图标 */
+    /** API 31 起需要系统允许精确闹钟 */
     fun isAllowed(sdkInt: Int, canScheduleExactAlarms: Boolean): Boolean =
         sdkInt < Build.VERSION_CODES.S || canScheduleExactAlarms
 

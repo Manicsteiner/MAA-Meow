@@ -1657,7 +1657,9 @@
     <string name="schedule_empty_state">No schedules yet</string>
     <string name="schedule_empty_hint_add">Tap the button in the upper-right corner to add one</string>
     <string name="schedule_exact_alarm_blocked">Exact alarms are not allowed</string>
-    <string name="schedule_exact_alarm_hint">Schedules still fire on time, but the status bar shows an alarm icon</string>
+    <string name="schedule_exact_alarm_hint">Schedules cannot trigger until exact alarms are allowed. Scheduling resumes automatically after permission is granted</string>
+    <string name="schedule_log_data_unavailable">Schedule configuration is temporarily unavailable</string>
+    <string name="schedule_log_service_start_failed">Failed to start foreground service: %1$s</string>
     <string name="schedule_exact_alarm_settings">Exact alarm settings</string>
     <string name="schedule_delete_strategy_title">Delete schedule</string>
     <string name="schedule_delete_strategy_message">Delete this schedule?</string>

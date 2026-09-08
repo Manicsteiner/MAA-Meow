@@ -4,16 +4,18 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.ContextCompat
+import com.aliothmoon.maameow.R
 import com.aliothmoon.maameow.schedule.data.ScheduleStrategyRepository
 import com.aliothmoon.maameow.schedule.model.ExecutionResult
 import com.aliothmoon.maameow.schedule.service.ScheduleAlarmManager
+import com.aliothmoon.maameow.schedule.service.ScheduleWakeLock
+import com.aliothmoon.maameow.utils.i18n.resolve
+import com.aliothmoon.maameow.utils.i18n.uiTextOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withTimeout
 import org.koin.core.context.GlobalContext
 import timber.log.Timber
 
@@ -28,6 +30,7 @@ class ScheduleReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val strategyId = intent.getStringExtra(ScheduleAlarmManager.EXTRA_STRATEGY_ID) ?: return
         val scheduledTime = intent.getLongExtra(ScheduleAlarmManager.EXTRA_SCHEDULED_TIME, 0L)
+        val retryCount = intent.getIntExtra(ScheduleAlarmManager.EXTRA_RETRY_COUNT, 0)
 
         if (intent.action != ScheduleAlarmManager.ACTION_SCHEDULE_TRIGGER) return
 
@@ -37,15 +40,16 @@ class ScheduleReceiver : BroadcastReceiver() {
             action = ScheduleAlarmManager.ACTION_SCHEDULE_TRIGGER
             putExtra(ScheduleAlarmManager.EXTRA_STRATEGY_ID, strategyId)
             putExtra(ScheduleAlarmManager.EXTRA_SCHEDULED_TIME, scheduledTime)
+            putExtra(ScheduleAlarmManager.EXTRA_RETRY_COUNT, retryCount)
         }
 
+        // onStartCommand 与 onReceive 同在主线程，返回前 Service 拿不到自己的锁
+        // 故接力锁不在成功路径释放，只靠 10 秒超时兜底
+        val handoffWakeLock = ScheduleWakeLock.acquire(context, 10_000L)
         try {
             ContextCompat.startForegroundService(context, serviceIntent)
-        } catch (e: IllegalStateException) {
-            // 正常情况下闹钟由 setExactAndAllowWhileIdle / setAlarmClock 注册，二者均豁免前台服务后台启动
-            // 限制，此处不应抛异常。保留防御：万一启动失败（如系统异常），ScheduleExecutionService 不会运行、
-            // scheduleNext 也不会被调用，故在 goAsync 协程里补注册下次闹钟，维持调度链不断。
-            // 补注册会重新走 ScheduleAlarmManager 的选择逻辑（无精确权限时用 setAlarmClock），下次能真正恢复。
+        } catch (e: Exception) {
+            // 服务未启动也要续排，包含系统拒绝启动与权限异常
             Timber.e(
                 e,
                 "startForegroundService failed for strategy %s, rescheduling next alarm",
@@ -57,25 +61,31 @@ class ScheduleReceiver : BroadcastReceiver() {
                     val koin = GlobalContext.get()
                     val repository: ScheduleStrategyRepository = koin.get()
                     val alarmManager: ScheduleAlarmManager = koin.get()
-                    val loaded = withTimeoutOrNull(5_000L) {
-                        repository.isLoaded.filter { it }.first()
+                    val strategy = try {
+                        withTimeout(5_000L) { repository.getById(strategyId) }
+                    } catch (restoreError: Exception) {
+                        Timber.w(restoreError, "Schedule fallback failed: %s", strategyId)
+                        alarmManager.scheduleRetry(strategyId, scheduledTime, retryCount)
+                        return@launch
                     }
-                    if (loaded != null) {
-                        val strategy = repository.getById(strategyId)
-                        if (strategy != null) {
+                    if (strategy != null && strategy.enabled) {
+                        // 先续排，结果写盘失败也不丢闹钟
+                        alarmManager.scheduleNext(strategy, scheduledTime)
+                        withTimeout(5_000L) {
                             repository.recordExecutionResult(
                                 strategyId = strategyId,
                                 result = ExecutionResult.FAILED_UI_LAUNCH,
-                                message = "前台服务启动失败：${e.message}",
-                            )
-                            alarmManager.scheduleNext(strategy, scheduledTime)
-                            Timber.i(
-                                "Rescheduled next alarm for strategy %s after service start failure",
-                                strategyId
+                                message = uiTextOf(
+                                    R.string.schedule_log_service_start_failed,
+                                    e.message ?: e.javaClass.simpleName,
+                                ).resolve(context),
                             )
                         }
                     }
+                } catch (restoreError: Exception) {
+                    Timber.e(restoreError, "Cannot restore schedule: %s", strategyId)
                 } finally {
+                    ScheduleWakeLock.release(handoffWakeLock)
                     pendingResult.finish()
                 }
             }

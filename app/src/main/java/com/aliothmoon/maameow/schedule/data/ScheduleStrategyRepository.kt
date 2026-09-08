@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow.schedule.data
 
 import android.content.Context
+import androidx.datastore.core.CorruptionException
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -11,40 +12,63 @@ import com.aliothmoon.maameow.utils.JsonUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.retryWhen
+import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.io.IOException
 
-class ScheduleStrategyRepository(private val context: Context) {
+class ScheduleStrategyRepository internal constructor(
+    private val store: DataStore<Preferences>,
+    scope: CoroutineScope,
+) {
+    constructor(context: Context) : this(
+        context.store,
+        CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    )
 
     companion object {
         private val Context.store: DataStore<Preferences> by preferencesDataStore(name = "schedule_strategies")
         private val STRATEGIES_KEY = stringPreferencesKey("strategies")
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val json = JsonUtils.common
 
     private val _isLoaded = MutableStateFlow(false)
     val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
 
     /** 从 DataStore 自动同步的策略列表 */
-    val strategies: StateFlow<List<ScheduleStrategy>> = context.store.data
-        .map { prefs ->
-            val list = decodeStrategies(prefs[STRATEGIES_KEY])
-            _isLoaded.value = true
-            list
+    private val _strategies = MutableStateFlow<List<ScheduleStrategy>>(emptyList())
+    val strategies: StateFlow<List<ScheduleStrategy>> = _strategies.asStateFlow()
+
+    init {
+        scope.launch {
+            store.data.retryWhen { cause, _ ->
+                // 文件损坏每次读都失败，重试只会刷日志
+                if (cause !is IOException || cause is CorruptionException) return@retryWhen false
+                Timber.w(cause, "读取调度策略失败，稍后重试")
+                delay(1_000L)
+                true
+            }.collect { prefs ->
+                // 先发布列表，再通知等待加载的调用方
+                _strategies.value = decodeStrategies(prefs[STRATEGIES_KEY])
+                _isLoaded.value = true
+            }
         }
-        .stateIn(scope, SharingStarted.Eagerly, emptyList())
+    }
+
+    /** 调度读持久化快照，避免落盘后 StateFlow 尚未更新 */
+    suspend fun getAll(): List<ScheduleStrategy> =
+        decodeStrategies(store.data.first()[STRATEGIES_KEY])
 
     // ---- 策略 CRUD ----
 
     suspend fun add(strategy: ScheduleStrategy) {
-        context.store.edit { prefs ->
+        store.edit { prefs ->
             val current = decodeStrategies(prefs[STRATEGIES_KEY]).toMutableList()
             current.add(strategy)
             prefs[STRATEGIES_KEY] = json.encodeToString<List<ScheduleStrategy>>(current)
@@ -53,7 +77,7 @@ class ScheduleStrategyRepository(private val context: Context) {
     }
 
     suspend fun update(strategy: ScheduleStrategy) {
-        context.store.edit { prefs ->
+        store.edit { prefs ->
             val current = decodeStrategies(prefs[STRATEGIES_KEY]).toMutableList()
             val idx = current.indexOfFirst { it.id == strategy.id }
             if (idx >= 0) {
@@ -65,7 +89,7 @@ class ScheduleStrategyRepository(private val context: Context) {
     }
 
     suspend fun remove(strategyId: String) {
-        context.store.edit { prefs ->
+        store.edit { prefs ->
             val current = decodeStrategies(prefs[STRATEGIES_KEY]).toMutableList()
             if (current.removeAll { it.id == strategyId }) {
                 prefs[STRATEGIES_KEY] = json.encodeToString<List<ScheduleStrategy>>(current)
@@ -75,7 +99,7 @@ class ScheduleStrategyRepository(private val context: Context) {
     }
 
     suspend fun setEnabled(strategyId: String, enabled: Boolean) {
-        context.store.edit { prefs ->
+        store.edit { prefs ->
             val current = decodeStrategies(prefs[STRATEGIES_KEY]).toMutableList()
             val idx = current.indexOfFirst { it.id == strategyId }
             if (idx >= 0) {
@@ -87,7 +111,7 @@ class ScheduleStrategyRepository(private val context: Context) {
     }
 
     suspend fun getById(strategyId: String): ScheduleStrategy? {
-        return strategies.value.find { it.id == strategyId }
+        return getAll().find { it.id == strategyId }
     }
 
     suspend fun recordExecutionResult(
@@ -96,7 +120,7 @@ class ScheduleStrategyRepository(private val context: Context) {
         message: String? = null,
         executedAt: Long = System.currentTimeMillis(),
     ) {
-        context.store.edit { prefs ->
+        store.edit { prefs ->
             val current = decodeStrategies(prefs[STRATEGIES_KEY]).toMutableList()
             val idx = current.indexOfFirst { it.id == strategyId }
             if (idx < 0) {
@@ -115,7 +139,7 @@ class ScheduleStrategyRepository(private val context: Context) {
 
 
     suspend fun importStrategies(strategies: List<ScheduleStrategy>) {
-        context.store.edit { prefs ->
+        store.edit { prefs ->
             prefs[STRATEGIES_KEY] = json.encodeToString<List<ScheduleStrategy>>(strategies)
             Timber.d("导入 %d 条调度策略", strategies.size)
         }

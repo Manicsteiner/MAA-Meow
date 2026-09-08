@@ -14,7 +14,7 @@ enum class ScheduleHealthIssue {
     /** 未忽略电池优化：后台触发可能被系统延迟或拦截 */
     BATTERY,
 
-    /** 精确闹钟未允许：有 setAlarmClock 兜底，仍建议开启 */
+    /** 精确闹钟未允许，授权后恢复调度 */
     EXACT_ALARM,
 
     /** 通知权限未授予：定时执行与失败提醒的通知不可见 */

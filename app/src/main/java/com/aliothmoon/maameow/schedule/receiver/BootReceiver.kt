@@ -1,5 +1,6 @@
 package com.aliothmoon.maameow.schedule.receiver
 
+import android.app.AlarmManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -21,6 +22,7 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED
             && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED
+            && intent.action != AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED
         ) return
         Timber.i("Schedule restore triggered by: %s", intent.action)
         val pendingResult = goAsync()
@@ -40,6 +42,8 @@ class BootReceiver : BroadcastReceiver() {
                 val strategies = repository.strategies.value
                 alarmManager.rescheduleAll(strategies)
                 Timber.i("Schedule restore complete: %d strategies", strategies.size)
+            } catch (e: Exception) {
+                Timber.e(e, "Schedule restore failed")
             } finally {
                 pendingResult.finish()
             }

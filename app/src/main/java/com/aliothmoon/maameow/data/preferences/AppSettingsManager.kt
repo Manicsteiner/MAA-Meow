@@ -32,12 +32,16 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.runBlocking
 
 
-class AppSettingsManager(
+class AppSettingsManager internal constructor(
     private val context: Context,
     private val achievementRepository: AchievementRepository,
+    private val scope: CoroutineScope,
 ) {
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    constructor(context: Context, achievementRepository: AchievementRepository) : this(
+        context,
+        achievementRepository,
+        CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    )
 
     companion object {
         val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app_settings")
@@ -780,7 +784,11 @@ class AppSettingsManager(
             if (t in WAKE_UNLOCK_TYPES) t else "swipe"
         }
         .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, "swipe")
+        .stateIn(
+            scope,
+            SharingStarted.Eagerly,
+            initialSettings.wakeUnlockType.takeIf { it in WAKE_UNLOCK_TYPES } ?: WAKE_TYPE_SWIPE,
+        )
 
     suspend fun setWakeUnlockType(type: String) {
         if (type !in WAKE_UNLOCK_TYPES) return

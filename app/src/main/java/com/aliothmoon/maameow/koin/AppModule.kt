@@ -109,6 +109,7 @@ import com.aliothmoon.maameow.schedule.LaunchIntentMapper
 import com.aliothmoon.maameow.schedule.data.ScheduleStrategyRepository
 import com.aliothmoon.maameow.schedule.service.CountdownUIImpl
 import com.aliothmoon.maameow.schedule.service.ScheduleAlarmManager
+import com.aliothmoon.maameow.schedule.service.ScheduleTriggerHandler
 import com.aliothmoon.maameow.schedule.service.ScheduleTriggerLogger
 import com.aliothmoon.maameow.utils.CrashHandler
 import com.aliothmoon.maameow.utils.log.LogTreeHolder
@@ -157,14 +158,15 @@ val appModule = module {
     singleOf(::MainTabNavigator)
 
 
-    singleOf(::AppSettingsManager)
+    single { AppSettingsManager(androidContext(), get()) }
     single { UnlockGestureStore(get()) } bind UnlockGestureReader::class
     singleOf(::BackgroundImageStore)
     singleOf(::AchievementRepository)
     singleOf(::AchievementReporter)
-    singleOf(::ScheduleStrategyRepository)
+    single { ScheduleStrategyRepository(androidContext()) }
     singleOf(::ScheduleTriggerLogger)
     singleOf(::ScheduleAlarmManager)
+    single { ScheduleTriggerHandler(get(), get(), get(), get(), get()) }
     singleOf(::LaunchMutex)
     singleOf(::StartTaskChainUseCase)
     single(named("launchPipeline")) {
@@ -210,7 +212,6 @@ val appModule = module {
                         RemoteServiceManager.useRemoteService(timeoutMs = 8_000L) {
                             it.startActivity(LaunchIntentMapper.toShowIntent(appContext, request))
                         }
-                        true
                     }.getOrDefault(false)
                 } ?: false
             },

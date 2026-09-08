@@ -9,50 +9,42 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.aliothmoon.maameow.MainActivity
 import com.aliothmoon.maameow.R
-import com.aliothmoon.maameow.data.preferences.AppSettingsManager
-import com.aliothmoon.maameow.domain.launch.LaunchPipeline
-import com.aliothmoon.maameow.schedule.LaunchIntentMapper
-import com.aliothmoon.maameow.schedule.data.ScheduleStrategyRepository
-import com.aliothmoon.maameow.schedule.model.ExecutionResult
-import com.aliothmoon.maameow.schedule.model.ScheduleStrategy
-import com.aliothmoon.maameow.utils.i18n.uiTextOf
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 import timber.log.Timber
-import java.util.concurrent.atomic.AtomicInteger
 
-/** 定时触发 FGS：构造 [LaunchRequest] → [LaunchPipeline.execute] join → scheduleNext */
+/** 定时触发 FGS，持锁等待启动流程完成 */
 class ScheduleExecutionService : Service() {
 
     companion object {
         private const val TAG = "ScheduleExec"
         private const val NOTIFICATION_ID = 9001
         private const val CHANNEL_ID = "schedule_execution"
-        private const val DATA_READY_TIMEOUT_MS = 5_000L
+        private const val STARTUP_WAKE_TIMEOUT_MS = 5 * 60_000L
     }
 
-    private val repository: ScheduleStrategyRepository by inject()
-    private val alarmManager: ScheduleAlarmManager by inject()
-    private val triggerLogger: ScheduleTriggerLogger by inject()
-    private val launchPipeline: LaunchPipeline by inject()
-    private val appSettings: AppSettingsManager by inject()
-    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val triggerHandler: ScheduleTriggerHandler by inject()
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /** Service 生命周期跟在途触发数绑定，不跟最后一个 startId */
-    private val inFlight = AtomicInteger(0)
+    private var inFlight = 0
+    private var latestStartId = 0
+    private val wakeLocks = mutableSetOf<PowerManager.WakeLock>()
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        latestStartId = startId
         val strategyId = intent?.getStringExtra(ScheduleAlarmManager.EXTRA_STRATEGY_ID)
         if (intent?.action != ScheduleAlarmManager.ACTION_SCHEDULE_TRIGGER
             || strategyId.isNullOrEmpty()
@@ -67,13 +59,24 @@ class ScheduleExecutionService : Service() {
         startAsForeground(buildPreparingNotification())
 
         val scheduledTime = intent.getLongExtra(ScheduleAlarmManager.EXTRA_SCHEDULED_TIME, 0L)
+        val retryCount = intent.getIntExtra(ScheduleAlarmManager.EXTRA_RETRY_COUNT, 0)
         // 须先于 launch：协程调度前计数仍是 0，会被并发触发的收尾停掉
-        inFlight.incrementAndGet()
+        val wakeLock = ScheduleWakeLock.acquire(this, STARTUP_WAKE_TIMEOUT_MS)
+        wakeLocks.add(wakeLock)
+        inFlight++
         serviceScope.launch {
             try {
-                handleTrigger(strategyId, scheduledTime)
+                withContext(Dispatchers.IO) {
+                    triggerHandler.handle(strategyId, scheduledTime, retryCount)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.e(e, "$TAG: trigger failed: %s", strategyId)
             } finally {
-                inFlight.decrementAndGet()
+                wakeLocks.remove(wakeLock)
+                ScheduleWakeLock.release(wakeLock)
+                inFlight--
                 stopIfIdle()
             }
         }
@@ -82,50 +85,13 @@ class ScheduleExecutionService : Service() {
 
     /** 有在途触发就不摘 FGS、不停服务，否则会连带取消其他触发 */
     private fun stopIfIdle() {
-        val remaining = inFlight.get()
+        val remaining = inFlight
         if (remaining > 0) {
             Timber.i("$TAG: keep alive, %d trigger(s) in flight", remaining)
             return
         }
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        stopSelf()
-    }
-
-    private suspend fun handleTrigger(strategyId: String, scheduledTimeMs: Long) {
-        val strategy = awaitStrategy(strategyId)
-        if (strategy == null) {
-            Timber.w("$TAG: strategy missing: %s", strategyId)
-            val msg = uiTextOf(R.string.schedule_log_strategy_missing)
-            // 独立文件，不碰其他触发的 Session
-            triggerLogger.writeClosed(
-                strategyId = strategyId,
-                strategyName = strategyId,
-                scheduledTimeMs = scheduledTimeMs,
-                result = ExecutionResult.FAILED_VALIDATION,
-                message = msg,
-                runMode = appSettings.runMode.value.name,
-            )
-            repository.recordExecutionResult(
-                strategyId = strategyId,
-                result = ExecutionResult.FAILED_VALIDATION,
-                message = triggerLogger.resolveMessage(msg),
-            )
-            return
-        }
-
-        val request = LaunchIntentMapper.fromStrategy(strategy, scheduledTimeMs)
-        try {
-            launchPipeline.execute(request).join()
-        } finally {
-            alarmManager.scheduleNext(strategy, scheduledTimeMs)
-            Timber.i("$TAG: pipeline finished for %s", request.requestId)
-        }
-    }
-
-    private suspend fun awaitStrategy(strategyId: String): ScheduleStrategy? {
-        return withTimeoutOrNull(DATA_READY_TIMEOUT_MS) {
-            repository.isLoaded.first { it }
-            repository.getById(strategyId)
+        if (stopSelfResult(latestStartId)) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
         }
     }
 
@@ -178,6 +144,8 @@ class ScheduleExecutionService : Service() {
     }
 
     override fun onDestroy() {
+        wakeLocks.forEach(ScheduleWakeLock::release)
+        wakeLocks.clear()
         serviceScope.cancel()
         super.onDestroy()
     }
