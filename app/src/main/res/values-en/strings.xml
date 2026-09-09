@@ -1736,8 +1736,6 @@
     <!-- Trigger log: fix entry for failed results -->
     <string name="schedule_backend_fix_still_not_ready">%1$s is still not authorized: make sure the service is running, or change the startup mode in settings</string>
     <string name="schedule_time_picker_title">Choose time</string>
-    <string name="schedule_time_picker_keyboard_input">Keyboard Input Method</string>
-    <string name="schedule_time_picker_dial_selection">Dial selection</string>
     <string name="schedule_default_name">Schedule-%1$d</string>
     <string name="schedule_error_name_required">Enter a schedule name</string>
     <string name="schedule_error_profile_required">Select a task profile</string>

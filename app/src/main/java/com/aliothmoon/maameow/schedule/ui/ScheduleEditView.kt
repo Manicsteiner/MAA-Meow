@@ -44,10 +44,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimeInput
-import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,6 +68,8 @@ import com.aliothmoon.maameow.manager.PermissionManager
 import com.aliothmoon.maameow.presentation.LocalToaster
 import com.aliothmoon.maameow.presentation.components.SectionHeader
 import com.aliothmoon.maameow.presentation.components.TopAppBar
+import com.aliothmoon.maameow.presentation.components.WheelTimePicker
+import com.aliothmoon.maameow.presentation.components.rememberWheelTimePickerState
 import com.aliothmoon.maameow.presentation.components.tip.ExpandableTipContent
 import com.aliothmoon.maameow.presentation.components.tip.ExpandableTipIcon
 import com.aliothmoon.maameow.schedule.model.ScheduleHealthIssue
@@ -769,12 +768,13 @@ private fun TimePickerDialog(
     onDismiss: () -> Unit,
     onConfirm: (LocalTime) -> Unit
 ) {
-    val timePickerState = rememberTimePickerState(
+    val pickerState = rememberWheelTimePickerState(
         initialHour = initialTime?.hour ?: 0,
         initialMinute = initialTime?.minute ?: 0
     )
     val configuration = LocalConfiguration.current
-    var showDial by remember { mutableStateOf(configuration.screenHeightDp >= 400) }
+    // 横屏等矮屏只留三行，保证对话框放得下
+    val rows = if (configuration.screenHeightDp >= 400) 5 else 3
 
     BasicAlertDialog(onDismissRequest = onDismiss) {
         Surface(
@@ -787,37 +787,27 @@ private fun TimePickerDialog(
             ) {
                 Text(
                     text = stringResource(R.string.schedule_time_picker_title),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 20.dp)
+                        .padding(bottom = MaaDesignTokens.Spacing.lg)
                 )
-                if (showDial) {
-                    TimePicker(state = timePickerState)
-                } else {
-                    TimeInput(state = timePickerState)
-                }
+                WheelTimePicker(
+                    state = pickerState,
+                    rows = rows,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(MaaDesignTokens.Spacing.md))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    TextButton(onClick = { showDial = !showDial }) {
-                        Text(
-                            if (showDial) {
-                                stringResource(R.string.schedule_time_picker_keyboard_input)
-                            } else {
-                                stringResource(R.string.schedule_time_picker_dial_selection)
-                            }
-                        )
-                    }
-                    Row {
-                        TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
-                        TextButton(onClick = {
-                            onConfirm(LocalTime.of(timePickerState.hour, timePickerState.minute))
-                        }) { Text(stringResource(R.string.common_confirm)) }
-                    }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+                    TextButton(onClick = {
+                        onConfirm(LocalTime.of(pickerState.hour, pickerState.minute))
+                    }) { Text(stringResource(R.string.common_confirm)) }
                 }
             }
         }
