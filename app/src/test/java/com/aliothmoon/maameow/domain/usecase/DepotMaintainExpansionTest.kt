@@ -11,6 +11,7 @@ import com.aliothmoon.maameow.data.repository.DepotRepository
 import com.aliothmoon.maameow.data.resource.ActivityManager
 import com.aliothmoon.maameow.data.resource.ItemHelper
 import com.aliothmoon.maameow.data.resource.ItemInfo
+import com.aliothmoon.maameow.domain.models.TaskCandidate
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
 import com.aliothmoon.maameow.utils.i18n.UiText
@@ -40,6 +41,7 @@ class DepotMaintainExpansionTest {
     private data class Expansion(
         val params: List<MaaTaskParams>,
         val logs: List<Pair<UiText, LogLevel>>,
+        val fallbacks: Map<Int, List<TaskCandidate>> = emptyMap(),
     )
 
     private fun DepotMaintainConfig.expand(
@@ -65,7 +67,8 @@ class DepotMaintainExpansionTest {
             itemHelper = itemHelper,
             logSink = sink,
         )
-        return Expansion(toTaskParams(context), sink.entries)
+        val params = toTaskParams(context)
+        return Expansion(params, sink.entries, context.fallbacks)
     }
 
     private fun plan(
@@ -116,6 +119,61 @@ class DepotMaintainExpansionTest {
         .args
 
     private fun MaaTaskParams.json() = Json.parseToJsonElement(params).jsonObject
+
+    private fun TaskCandidate.stage() = Json.parseToJsonElement(params).jsonObject["stage"]?.jsonPrimitive?.content
+
+    @Test
+    fun onlyFirstInsufficientPlan_registersRemainingRunnablePlansAsFallbacks() {
+        val result = config(
+            plan(),                       // #1 可执行 → 主任务
+            plan(dropCount = 20),         // #2 库存够 → 只作为后备的前置日志
+            plan(stage = "4-4"),          // #3 可执行 → 后备一
+            plan(stage = "5-5"),          // #4 可执行 → 后备二
+        ).copy(onlyFirstInsufficientPlan = true)
+            .expand(inventory = mapOf(ITEM to 20), openStages = setOf(STAGE, "4-4", "5-5"))
+
+        // 主任务只有一个，预检日志止于首个可执行计划
+        assertEquals(listOf(MaaTaskType.FIGHT), result.params.map { it.type })
+        assertEquals(listOf(R.string.runlog_depot_plan_inventory_insufficient), result.logs.resIds())
+
+        val candidates = result.fallbacks.getValue(0)
+        assertEquals(listOf("4-4", "5-5"), candidates.map { it.stage() })
+        assertEquals(
+            listOf(UiText.Dynamic("材料补货 #3"), UiText.Dynamic("材料补货 #4")),
+            candidates.map { it.logName },
+        )
+        // 后备一之前补打被跳过的 #2；后备二紧接其后，无需补打
+        assertEquals(
+            listOf(R.string.runlog_depot_plan_inventory_enough),
+            candidates[0].logsBefore.map { (it.first as UiText.Resource).resId },
+        )
+        assertEquals(emptyList<Any>(), candidates[1].logsBefore)
+        // 「库存不足」在后备上是 append 成功后才打，对齐上游放在成功分支
+        assertEquals(
+            R.string.runlog_depot_plan_inventory_insufficient,
+            (candidates[0].logOnSuccess!!.first as UiText.Resource).resId,
+        )
+    }
+
+    @Test
+    fun onlyFirstInsufficientPlanDisabled_registersNoFallbacks() {
+        val result = config(plan(), plan(stage = "4-4"))
+            .expand(openStages = setOf(STAGE, "4-4"))
+
+        assertEquals(listOf(MaaTaskType.FIGHT, MaaTaskType.FIGHT), result.params.map { it.type })
+        assertEquals(emptyMap<Int, List<TaskCandidate>>(), result.fallbacks)
+    }
+
+    @Test
+    fun fallbackKey_matchesTheSlotIndexOfItsPrimaryTask() {
+        val result = config(plan(), plan(stage = "4-4"), updateDepot = true)
+            .copy(onlyFirstInsufficientPlan = true)
+            .expand(openStages = setOf(STAGE, "4-4"))
+
+        // Depot 占 0 号位，主 Fight 在 1 号位；后备必须挂在 1 而不是 0
+        assertEquals(listOf(MaaTaskType.DEPOT, MaaTaskType.FIGHT), result.params.map { it.type })
+        assertEquals(setOf(1), result.fallbacks.keys)
+    }
 
     @Test
     fun onlyFirstInsufficientPlan_skipsUnavailablePlansAndStopsAfterFirstRunnable() {

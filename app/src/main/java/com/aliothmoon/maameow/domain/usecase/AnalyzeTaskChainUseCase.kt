@@ -70,6 +70,7 @@ class AnalyzeTaskChainUseCase(
             penguinId = appSettingsManager.penguinId.value,
         )
         val log = CollectingPreflightLogSink()
+        val fallbacks = mutableMapOf<TaskSlot, List<TaskCandidate>>()
 
         val serverDayOfWeek = ServerTimezone.getYjDayOfWeek(clientType)
         val expanded = nodes.flatMap { node ->
@@ -90,9 +91,13 @@ class AnalyzeTaskChainUseCase(
                 report = report,
                 relocatePath = relocatePath,
             )
-            node.config.toTaskParams(ctx).mapIndexed { index, task ->
+            val expandedNode = node.config.toTaskParams(ctx).mapIndexed { index, task ->
                 task.copy(slot = TaskSlot(node.id, index))
             }
+            ctx.fallbacks.forEach { (index, candidates) ->
+                fallbacks[TaskSlot(node.id, index)] = candidates
+            }
+            expandedNode
         }
         val params = dropAdjacentDuplicateDepot(expanded)
         val logs = log.entries
@@ -114,6 +119,7 @@ class AnalyzeTaskChainUseCase(
                     .mapNotNull { it.config as? WakeUpConfig }
                     .any { it.startGameEnabled },
                 logs = logs,
+                fallbacks = fallbacks,
             )
         )
     }

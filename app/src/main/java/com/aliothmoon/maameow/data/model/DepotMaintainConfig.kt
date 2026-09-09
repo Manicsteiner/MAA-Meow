@@ -3,6 +3,7 @@ package com.aliothmoon.maameow.data.model
 import com.aliothmoon.maameow.R
 import com.aliothmoon.maameow.data.model.DepotMaintainConfig.Companion.EXPIRING_MEDICINE_DAYS
 import com.aliothmoon.maameow.domain.models.DropTarget
+import com.aliothmoon.maameow.domain.models.TaskCandidate
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
 import com.aliothmoon.maameow.maa.task.TaskSlot
@@ -95,97 +96,137 @@ data class DepotMaintainConfig(
             )
         }
 
-        val series = if (useAutoSeries) 0 else 1
-
         // 每份库存保持的计划日志前插一条分段，跟上游 AddLogSection 对齐
         if (plans.isNotEmpty()) {
             ctx.appendLog(uiTextOf(R.string.runlog_log_section, ctx.node.name), LogLevel.TRACE)
         }
 
-        for ((index, plan) in plans.withIndex()) {
-            val no = index + 1
-            // 共用文案的首参在别处是任务名，编号前缀由调用方给
-            val label = "#$no"
+        // 先纯求值全部计划，再决定哪些进日志、哪些当后备 —— 求值本身无副作用
+        val decisions = plans.mapIndexed { index, plan ->
             val current = ctx.depotRepository.countOf(plan.dropId)
-            val outcome = depotPlanOutcome(plan, current) { ctx.activityManager.isStageOpen(it) }
-            when (outcome) {
-                DepotPlanOutcome.NoItem -> {
-                    ctx.appendLog(
-                        uiTextOf(R.string.runlog_depot_plan_invalid_drop, no),
-                        LogLevel.ERROR
-                    )
-                    continue
-                }
-
-                DepotPlanOutcome.ZeroTarget -> {
-                    ctx.appendLog(
-                        uiTextOf(R.string.runlog_depot_plan_zero_count, no),
-                        LogLevel.ERROR
-                    )
-                    continue
-                }
-
-                DepotPlanOutcome.Enough -> {
-                    val dropName = ctx.itemHelper.getItemInfo(plan.dropId)?.name ?: plan.dropId
-                    ctx.appendLog(
-                        uiTextOf(
-                            R.string.runlog_depot_plan_inventory_enough,
-                            label, dropName, current, plan.dropCount,
-                        ),
-                        LogLevel.TRACE,
-                    )
-                    continue
-                }
-
-                DepotPlanOutcome.StageRequired -> {
-                    ctx.appendLog(uiTextOf(R.string.runlog_depot_plan_no_stage, no), LogLevel.ERROR)
-                    continue
-                }
-
-                DepotPlanOutcome.StageClosed -> {
-                    ctx.appendLog(
-                        uiTextOf(R.string.runlog_depot_plan_stage_not_open, no, plan.stage),
-                        LogLevel.TRACE,
-                    )
-                    continue
-                }
-
-                DepotPlanOutcome.Runnable -> Unit
-            }
-
-            val need = plan.dropCount - current
-            val dropName = ctx.itemHelper.getItemInfo(plan.dropId)?.name ?: plan.dropId
-            ctx.appendLog(
-                uiTextOf(
-                    R.string.runlog_depot_plan_inventory_insufficient,
-                    label, dropName, current, plan.dropCount, need,
-                ),
-                LogLevel.TRACE,
+            PlanDecision(
+                index = index,
+                plan = plan,
+                current = current,
+                outcome = depotPlanOutcome(plan, current) { ctx.activityManager.isStageOpen(it) },
             )
+        }
+        val runnable = decisions.filter { it.outcome == DepotPlanOutcome.Runnable }
 
+        // onlyFirst 时，首个可执行计划之后的一律不进预检日志，对齐上游
+        val logUpTo = if (onlyFirstInsufficientPlan) {
+            runnable.firstOrNull()?.index ?: decisions.lastIndex
+        } else {
+            decisions.lastIndex
+        }
+        for (d in decisions) {
+            if (d.index > logUpTo) break
+            ctx.appendLog(d.logText(ctx), d.logLevel())
+        }
+
+        val chosen = if (onlyFirstInsufficientPlan) runnable.take(1) else runnable
+        for (d in chosen) {
             val listIndex = params.size
-            val target = DropTarget(
-                dropId = plan.dropId,
-                dropCount = plan.dropCount,
-                stage = plan.stage,
-                medicine = if (useMedicine && plan.useMedicine) plan.medicineCount else 0,
-                stone = if (useStone && plan.useStone) plan.stoneCount else 0,
-                series = series,
-                logLabel = no.toString(),
-                medicineExpireDays = if (useExpiringMedicine) EXPIRING_MEDICINE_DAYS else null,
-                report = ctx.report,
-            )
+            val target = d.target(ctx)
             ctx.dropsRefresher.stage(TaskSlot(ctx.node.id, listIndex), target)
             params += MaaTaskParams(
                 type = MaaTaskType.FIGHT,
-                params = target.toFightParamsJson(need),
-                logName = UiText.Dynamic("${ctx.node.name} #$no"),
+                params = target.toFightParamsJson(d.need),
+                logName = d.logName(ctx),
             )
-            // 后续计划本轮不评估也不输出日志，留到下次运行
-            if (onlyFirstInsufficientPlan) break
+            if (onlyFirstInsufficientPlan) {
+                ctx.registerFallbacks(listIndex, buildFallbacks(ctx, decisions, after = d.index))
+            }
         }
 
         return params
+    }
+
+    /**
+     * 主计划被 core 拒绝后的候选链：从它之后逐个往下找可执行计划。
+     * 每个候选带上「跳过的计划」日志，复现上游失败后继续评估的输出
+     */
+    private fun buildFallbacks(
+        ctx: TaskParamContext,
+        decisions: List<PlanDecision>,
+        after: Int,
+    ): List<TaskCandidate> {
+        val candidates = mutableListOf<TaskCandidate>()
+        var pending = mutableListOf<Pair<UiText, LogLevel>>()
+        for (d in decisions) {
+            if (d.index <= after) continue
+            if (d.outcome != DepotPlanOutcome.Runnable) {
+                pending += d.logText(ctx) to d.logLevel()
+                continue
+            }
+            val target = d.target(ctx)
+            candidates += TaskCandidate(
+                type = MaaTaskType.FIGHT,
+                params = target.toFightParamsJson(d.need),
+                logName = d.logName(ctx),
+                dropTarget = target,
+                logsBefore = pending,
+                logOnSuccess = d.logText(ctx) to d.logLevel(),
+            )
+            pending = mutableListOf()
+        }
+        return candidates
+    }
+
+    /** 一条计划的求值结果；日志文本与参数都由它按需渲染，求值阶段不产生副作用 */
+    private inner class PlanDecision(
+        val index: Int,
+        val plan: DepotMaintainPlan,
+        val current: Int,
+        val outcome: DepotPlanOutcome,
+    ) {
+        val no: Int get() = index + 1
+        val need: Int get() = plan.dropCount - current
+
+        fun logName(ctx: TaskParamContext): UiText = UiText.Dynamic("${ctx.node.name} #$no")
+
+        fun logLevel(): LogLevel = when (outcome) {
+            DepotPlanOutcome.NoItem,
+            DepotPlanOutcome.ZeroTarget,
+            DepotPlanOutcome.StageRequired -> LogLevel.ERROR
+
+            else -> LogLevel.TRACE
+        }
+
+        fun logText(ctx: TaskParamContext): UiText {
+            // 共用文案的首参在别处是任务名，编号前缀由调用方给
+            val label = "#$no"
+            val dropName by lazy { ctx.itemHelper.getItemInfo(plan.dropId)?.name ?: plan.dropId }
+            return when (outcome) {
+                DepotPlanOutcome.NoItem -> uiTextOf(R.string.runlog_depot_plan_invalid_drop, no)
+                DepotPlanOutcome.ZeroTarget -> uiTextOf(R.string.runlog_depot_plan_zero_count, no)
+                DepotPlanOutcome.StageRequired -> uiTextOf(R.string.runlog_depot_plan_no_stage, no)
+                DepotPlanOutcome.StageClosed ->
+                    uiTextOf(R.string.runlog_depot_plan_stage_not_open, no, plan.stage)
+
+                DepotPlanOutcome.Enough -> uiTextOf(
+                    R.string.runlog_depot_plan_inventory_enough,
+                    label, dropName, current, plan.dropCount,
+                )
+
+                DepotPlanOutcome.Runnable -> uiTextOf(
+                    R.string.runlog_depot_plan_inventory_insufficient,
+                    label, dropName, current, plan.dropCount, need,
+                )
+            }
+        }
+
+        fun target(ctx: TaskParamContext): DropTarget = DropTarget(
+            dropId = plan.dropId,
+            dropCount = plan.dropCount,
+            stage = plan.stage,
+            medicine = if (useMedicine && plan.useMedicine) plan.medicineCount else 0,
+            stone = if (useStone && plan.useStone) plan.stoneCount else 0,
+            series = if (useAutoSeries) 0 else 1,
+            logLabel = no.toString(),
+            medicineExpireDays = if (useExpiringMedicine) EXPIRING_MEDICINE_DAYS else null,
+            report = ctx.report,
+        )
     }
 
     companion object {
