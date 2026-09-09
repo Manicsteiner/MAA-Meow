@@ -3,10 +3,14 @@ package com.aliothmoon.maameow.presentation.view.panel.switchtheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -76,11 +80,15 @@ fun SwitchThemeConfigPanel(
                 }
             }
         }
-        OutlinedButton(onClick = {
-            focusManager.clearFocus()
-            onConfigChange(config.copy(themes = config.themes + ""))
-        }) {
-            Icon(Icons.Default.Add, contentDescription = null)
+        OutlinedButton(
+            onClick = {
+                focusManager.clearFocus()
+                onConfigChange(config.copy(themes = config.themes + ""))
+            },
+            shape = RoundedCornerShape(8.dp),
+        ) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(stringResource(R.string.panel_switch_theme_add))
         }
     }
