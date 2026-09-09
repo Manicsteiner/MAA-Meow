@@ -102,7 +102,7 @@ data class DepotMaintainConfig(
             ctx.appendLog(uiTextOf(R.string.runlog_log_section, ctx.node.name), LogLevel.TRACE)
         }
 
-        // 先纯求值全部计划，再决定哪些进日志、哪些当后备 —— 求值本身无副作用
+        // 预先评估后备计划，暂不输出日志
         val decisions = plans.mapIndexed { index, plan ->
             val current = ctx.depotRepository.countOf(plan.dropId)
             PlanDecision(
@@ -114,7 +114,7 @@ data class DepotMaintainConfig(
         }
         val runnable = decisions.filter { it.outcome == DepotPlanOutcome.Runnable }
 
-        // onlyFirst 时，首个可执行计划之后的一律不进预检日志，对齐上游
+        // 仅首个模式的预检日志止于主计划
         val logUpTo = if (onlyFirstInsufficientPlan) {
             runnable.firstOrNull()?.index ?: decisions.lastIndex
         } else {
@@ -143,10 +143,7 @@ data class DepotMaintainConfig(
         return params
     }
 
-    /**
-     * 主计划被 core 拒绝后的候选链：从它之后逐个往下找可执行计划。
-     * 每个候选带上「跳过的计划」日志，复现上游失败后继续评估的输出
-     */
+    /** 后备候选携带其前方的跳过原因，尾部日志留到全部失败后输出 */
     private fun buildFallbacks(
         ctx: TaskParamContext,
         decisions: List<PlanDecision>,
@@ -171,11 +168,9 @@ data class DepotMaintainConfig(
             )
             pending = mutableListOf()
         }
-        // 末尾的 pending 不能丢：全部候选都失败时上游会评估到列表末尾并输出这些行
         return TaskFallbackChain(candidates = candidates, logsWhenExhausted = pending)
     }
 
-    /** 一条计划的求值结果；日志文本与参数都由它按需渲染，求值阶段不产生副作用 */
     private inner class PlanDecision(
         val index: Int,
         val plan: DepotMaintainPlan,

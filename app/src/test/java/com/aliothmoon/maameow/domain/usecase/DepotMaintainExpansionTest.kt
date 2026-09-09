@@ -149,7 +149,7 @@ class DepotMaintainExpansionTest {
             candidates[0].logsBefore.map { (it.first as UiText.Resource).resId },
         )
         assertEquals(emptyList<Any>(), candidates[1].logsBefore)
-        // 「库存不足」在后备上是 append 成功后才打，对齐上游放在成功分支
+        // 入队成功后才输出库存不足
         assertEquals(
             R.string.runlog_depot_plan_inventory_insufficient,
             (candidates[0].logOnSuccess!!.first as UiText.Resource).resId,
@@ -158,7 +158,7 @@ class DepotMaintainExpansionTest {
 
     @Test
     fun onlyFirstInsufficientPlan_keepsTrailingSkipLogsForWhenEveryCandidateFails() {
-        // #1 可执行当主任务，其后只剩一个缺关卡的 #2：没有后备，但 #2 的错误原因不能丢
+        // 无后备候选时仍保留尾部错误
         val result = config(plan(), plan(stage = ""))
             .copy(onlyFirstInsufficientPlan = true)
             .expand()

@@ -7,10 +7,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/**
- * 后备链的追加协调：core 连续拒绝时按序顺延，日志顺序对齐上游
- * —— 上游成功后 break 不再评估后续计划，全失败才走到列表末尾
- */
 class TaskFallbackChainTest {
 
     private fun candidate(
@@ -65,7 +61,6 @@ class TaskFallbackChainTest {
         assertEquals(2, hit.first)
         assertEquals(listOf("4-4", "5-5"), rec.attempted)
         assertEquals(listOf("4-4"), rec.failed)
-        // 命中即停：logsWhenExhausted 不输出，对齐上游 break
         assertEquals(listOf("#3 库存足够", "5-5 库存不足"), rec.logs)
     }
 
