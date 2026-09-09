@@ -12,6 +12,7 @@ import com.aliothmoon.maameow.data.resource.ActivityManager
 import com.aliothmoon.maameow.data.resource.ItemHelper
 import com.aliothmoon.maameow.data.resource.ItemInfo
 import com.aliothmoon.maameow.domain.models.TaskCandidate
+import com.aliothmoon.maameow.domain.models.TaskFallbackChain
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
 import com.aliothmoon.maameow.utils.i18n.UiText
@@ -41,7 +42,7 @@ class DepotMaintainExpansionTest {
     private data class Expansion(
         val params: List<MaaTaskParams>,
         val logs: List<Pair<UiText, LogLevel>>,
-        val fallbacks: Map<Int, List<TaskCandidate>> = emptyMap(),
+        val fallbacks: Map<Int, TaskFallbackChain> = emptyMap(),
     )
 
     private fun DepotMaintainConfig.expand(
@@ -136,7 +137,7 @@ class DepotMaintainExpansionTest {
         assertEquals(listOf(MaaTaskType.FIGHT), result.params.map { it.type })
         assertEquals(listOf(R.string.runlog_depot_plan_inventory_insufficient), result.logs.resIds())
 
-        val candidates = result.fallbacks.getValue(0)
+        val candidates = result.fallbacks.getValue(0).candidates
         assertEquals(listOf("4-4", "5-5"), candidates.map { it.stage() })
         assertEquals(
             listOf(UiText.Dynamic("材料补货 #3"), UiText.Dynamic("材料补货 #4")),
@@ -156,12 +157,31 @@ class DepotMaintainExpansionTest {
     }
 
     @Test
+    fun onlyFirstInsufficientPlan_keepsTrailingSkipLogsForWhenEveryCandidateFails() {
+        // #1 可执行当主任务，其后只剩一个缺关卡的 #2：没有后备，但 #2 的错误原因不能丢
+        val result = config(plan(), plan(stage = ""))
+            .copy(onlyFirstInsufficientPlan = true)
+            .expand()
+
+        assertEquals(listOf(MaaTaskType.FIGHT), result.params.map { it.type })
+        // 预检日志止于 #1，#2 不出现
+        assertEquals(listOf(R.string.runlog_depot_plan_inventory_insufficient), result.logs.resIds())
+
+        val chain = result.fallbacks.getValue(0)
+        assertEquals(emptyList<TaskCandidate>(), chain.candidates)
+        assertEquals(
+            listOf(R.string.runlog_depot_plan_no_stage to LogLevel.ERROR),
+            chain.logsWhenExhausted.map { (it.first as UiText.Resource).resId to it.second },
+        )
+    }
+
+    @Test
     fun onlyFirstInsufficientPlanDisabled_registersNoFallbacks() {
         val result = config(plan(), plan(stage = "4-4"))
             .expand(openStages = setOf(STAGE, "4-4"))
 
         assertEquals(listOf(MaaTaskType.FIGHT, MaaTaskType.FIGHT), result.params.map { it.type })
-        assertEquals(emptyMap<Int, List<TaskCandidate>>(), result.fallbacks)
+        assertEquals(emptyMap<Int, TaskFallbackChain>(), result.fallbacks)
     }
 
     @Test

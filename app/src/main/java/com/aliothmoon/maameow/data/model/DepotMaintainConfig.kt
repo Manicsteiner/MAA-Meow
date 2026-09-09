@@ -4,6 +4,7 @@ import com.aliothmoon.maameow.R
 import com.aliothmoon.maameow.data.model.DepotMaintainConfig.Companion.EXPIRING_MEDICINE_DAYS
 import com.aliothmoon.maameow.domain.models.DropTarget
 import com.aliothmoon.maameow.domain.models.TaskCandidate
+import com.aliothmoon.maameow.domain.models.TaskFallbackChain
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
 import com.aliothmoon.maameow.maa.task.TaskSlot
@@ -150,7 +151,7 @@ data class DepotMaintainConfig(
         ctx: TaskParamContext,
         decisions: List<PlanDecision>,
         after: Int,
-    ): List<TaskCandidate> {
+    ): TaskFallbackChain {
         val candidates = mutableListOf<TaskCandidate>()
         var pending = mutableListOf<Pair<UiText, LogLevel>>()
         for (d in decisions) {
@@ -170,7 +171,8 @@ data class DepotMaintainConfig(
             )
             pending = mutableListOf()
         }
-        return candidates
+        // 末尾的 pending 不能丢：全部候选都失败时上游会评估到列表末尾并输出这些行
+        return TaskFallbackChain(candidates = candidates, logsWhenExhausted = pending)
     }
 
     /** 一条计划的求值结果；日志文本与参数都由它按需渲染，求值阶段不产生副作用 */

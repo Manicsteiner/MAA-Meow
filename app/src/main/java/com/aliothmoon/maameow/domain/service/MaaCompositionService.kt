@@ -25,7 +25,8 @@ import com.aliothmoon.maameow.maa.callback.MaaExecutionStateHolder
 import com.aliothmoon.maameow.maa.callback.SubTaskHandler
 import com.aliothmoon.maameow.maa.callback.TaskChainStatusTracker
 import com.aliothmoon.maameow.maa.callback.ToolboxResultCollector
-import com.aliothmoon.maameow.domain.models.TaskCandidate
+import com.aliothmoon.maameow.domain.models.TaskFallbackChain
+import com.aliothmoon.maameow.domain.models.appendFirstSuccessful
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.TaskSlot
 import com.aliothmoon.maameow.manager.RemoteAccessCoordinator
@@ -266,7 +267,7 @@ class MaaCompositionService(
         tasks: List<MaaTaskParams>,
         clientType: String,
         preflightLogs: List<Pair<UiText, LogLevel>> = emptyList(),
-        fallbacks: Map<TaskSlot, List<TaskCandidate>> = emptyMap(),
+        fallbacks: Map<TaskSlot, TaskFallbackChain> = emptyMap(),
         onSessionStarted: (suspend () -> Unit)? = null
     ): StartResult = executeStart(
         tasks = tasks,
@@ -494,31 +495,29 @@ class MaaCompositionService(
     }
 
     /** 主任务被 core 拒绝后按序试后备，首个成功即停；全失败则该任务位本轮无产出 */
-    private suspend fun appendFallbacks(
+    private fun appendFallbacks(
         maa: MaaCoreService,
         slot: TaskSlot,
-        candidates: List<TaskCandidate>,
+        chain: TaskFallbackChain,
     ) {
-        for (c in candidates) {
-            c.logsBefore.forEach { (text, level) -> sessionLogger.append(text.resolve(context), level) }
-            sessionLogger.appendToFileOnly("[TaskParams] ${c.type.value}: ${c.params}")
-            val id = maa.AppendTask(c.type.value, c.params)
-            if (id <= 0) {
-                logAppendFailed(c.logName.resolve(context))
-                continue
-            }
-            c.logOnSuccess?.let { (text, level) -> sessionLogger.append(text.resolve(context), level) }
-            dropsRefresher.stage(slot, c.dropTarget)
-            taskChainStatusTracker.register(id, c.type.value, slot, c.logName)
-            dropsRefresher.bind(slot, id)
-            return
-        }
+        val hit = chain.appendFirstSuccessful(
+            log = { text, level -> sessionLogger.append(text.resolve(context), level) },
+            append = { c ->
+                sessionLogger.appendToFileOnly("[TaskParams] ${c.type.value}: ${c.params}")
+                maa.AppendTask(c.type.value, c.params)
+            },
+            onAppendFailed = { c -> logAppendFailed(c.logName.resolve(context)) },
+        ) ?: return
+        val (id, c) = hit
+        dropsRefresher.stage(slot, c.dropTarget)
+        taskChainStatusTracker.register(id, c.type.value, slot, c.logName)
+        dropsRefresher.bind(slot, id)
     }
 
     private suspend fun appendTasksAndStart(
         maa: MaaCoreService,
         tasks: List<MaaTaskParams>,
-        fallbacks: Map<TaskSlot, List<TaskCandidate>>,
+        fallbacks: Map<TaskSlot, TaskFallbackChain>,
         successMessage: String,
         mode: RunMode,
     ): StartResult {
@@ -540,7 +539,7 @@ class MaaCompositionService(
             // core 拒绝参数才会到这里，此前是静默吞掉，用户看不到任何痕迹
             logAppendFailed(t.logName?.resolve(context) ?: t.type.value)
             val slot = t.slot ?: return@forEach
-            appendFallbacks(maa, slot, fallbacks[slot].orEmpty())
+            fallbacks[slot]?.let { appendFallbacks(maa, slot, it) }
         }
         if (!maa.Start()) {
             return failStart(
@@ -566,7 +565,7 @@ class MaaCompositionService(
         startMessage: String,
         successMessage: String,
         preflightLogs: List<Pair<UiText, LogLevel>> = emptyList(),
-        fallbacks: Map<TaskSlot, List<TaskCandidate>> = emptyMap(),
+        fallbacks: Map<TaskSlot, TaskFallbackChain> = emptyMap(),
         onSessionStarted: (suspend () -> Unit)? = null,
     ): StartResult = startMutex.withLock {
         executeStartLocked(
@@ -580,7 +579,7 @@ class MaaCompositionService(
         startMessage: String,
         successMessage: String,
         preflightLogs: List<Pair<UiText, LogLevel>> = emptyList(),
-        fallbacks: Map<TaskSlot, List<TaskCandidate>> = emptyMap(),
+        fallbacks: Map<TaskSlot, TaskFallbackChain> = emptyMap(),
         onSessionStarted: (suspend () -> Unit)? = null,
     ): StartResult {
         // 会话与日志先开；STARTING/FGS 必须在前置检查通过后再进入。

@@ -20,7 +20,7 @@ import com.aliothmoon.maameow.domain.models.ReportOptions
 import com.aliothmoon.maameow.domain.service.FightDropsRefresher
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
-import com.aliothmoon.maameow.domain.models.TaskCandidate
+import com.aliothmoon.maameow.domain.models.TaskFallbackChain
 import com.aliothmoon.maameow.maa.task.TaskSlot
 import com.aliothmoon.maameow.utils.i18n.UiText
 import kotlinx.coroutines.flow.first
@@ -70,7 +70,7 @@ class AnalyzeTaskChainUseCase(
             penguinId = appSettingsManager.penguinId.value,
         )
         val log = CollectingPreflightLogSink()
-        val fallbacks = mutableMapOf<TaskSlot, List<TaskCandidate>>()
+        val fallbacks = mutableMapOf<TaskSlot, TaskFallbackChain>()
 
         val serverDayOfWeek = ServerTimezone.getYjDayOfWeek(clientType)
         val expanded = nodes.flatMap { node ->
@@ -164,7 +164,7 @@ data class TaskChainPlan(
     /** 预检日志，会话开始后由 Composition 回放。 */
     val logs: List<Pair<UiText, LogLevel>> = emptyList(),
     /** 任务位 → 后备候选（按序）；主任务 append 失败时才用到，目前只有库存保持「仅第一个」会产生 */
-    val fallbacks: Map<TaskSlot, List<TaskCandidate>> = emptyMap(),
+    val fallbacks: Map<TaskSlot, TaskFallbackChain> = emptyMap(),
 )
 
 enum class AnalyzeTaskChainFailureReason {
