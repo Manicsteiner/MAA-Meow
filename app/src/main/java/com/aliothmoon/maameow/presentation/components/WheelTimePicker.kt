@@ -8,8 +8,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,10 +18,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -46,6 +49,8 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -53,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.aliothmoon.maameow.R
 import com.aliothmoon.maameow.theme.MaaDesignTokens
 import com.aliothmoon.maameow.theme.MaaMeowTheme
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -61,6 +67,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 private const val HOUR_COUNT = 24
+private const val HOURS_PER_PERIOD = 12
 private const val MINUTE_COUNT = 60
 
 /** 离中心越远越淡 */
@@ -73,20 +80,33 @@ private const val SHRINK_DEPTH = 0.24f
 private const val GATHER_RATIO = 0.09f
 
 /**
- * 滚轮时间选择器状态，固定 24 小时制
+ * 滚轮显示 12 小时制，[hour] 始终返回 24 小时制
  *
- * 构造参数只作为初始滚动位置，之后 [hour] / [minute] 完全由滚轮驱动
+ * 构造参数只作为初始值，之后由滚轮与时段选择驱动
  */
 @Stable
 class WheelTimePickerState(initialHour: Int, initialMinute: Int) {
     internal val startHour = initialHour.coerceIn(0, HOUR_COUNT - 1)
     internal val startMinute = initialMinute.coerceIn(0, MINUTE_COUNT - 1)
+    internal val startHourIndex = (startHour + HOURS_PER_PERIOD - 1) % HOURS_PER_PERIOD
 
     var hour by mutableIntStateOf(startHour)
         internal set
 
     var minute by mutableIntStateOf(startMinute)
         internal set
+
+    val isPm: Boolean
+        get() = hour >= HOURS_PER_PERIOD
+
+    internal fun selectHour(hourOfPeriod: Int) {
+        require(hourOfPeriod in 1..HOURS_PER_PERIOD)
+        hour = hourOfPeriod % HOURS_PER_PERIOD + if (isPm) HOURS_PER_PERIOD else 0
+    }
+
+    internal fun selectPeriod(pm: Boolean) {
+        hour = hour % HOURS_PER_PERIOD + if (pm) HOURS_PER_PERIOD else 0
+    }
 }
 
 @Composable
@@ -122,60 +142,115 @@ fun WheelTimePicker(
         modifier = modifier.height(itemHeight * visibleRows),
         contentAlignment = Alignment.Center,
     ) {
-        // 内层只占内容宽度，高亮带因此贴着两列而不是铺满对话框
-        Box(contentAlignment = Alignment.Center) {
-            Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(itemHeight)
-                        .clip(selectionShape)
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(
-                                    colors.primaryContainer.copy(alpha = 0.65f),
-                                    colors.primaryContainer,
-                                    colors.primaryContainer.copy(alpha = 0.65f),
+        Row(
+            modifier = Modifier.widthIn(max = 304.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(MaaDesignTokens.Spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Box(Modifier.matchParentSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(itemHeight)
+                            .clip(selectionShape)
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        colors.primaryContainer.copy(alpha = 0.65f),
+                                        colors.primaryContainer,
+                                        colors.primaryContainer.copy(alpha = 0.65f),
+                                    )
                                 )
                             )
-                        )
-                        .border(1.dp, colors.primary.copy(alpha = 0.12f), selectionShape)
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = MaaDesignTokens.Spacing.md)
-                    .fadeVerticalEdges(edgeFraction = 0.75f / visibleRows),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                WheelColumn(
-                    count = HOUR_COUNT,
-                    initialIndex = state.startHour,
-                    onSelect = { state.hour = it },
-                    rows = visibleRows,
-                    itemHeight = itemHeight,
-                    digitStyle = digitStyle,
-                )
-                Column(
-                    modifier = Modifier.width(24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    repeat(2) {
-                        Box(
-                            Modifier
-                                .size(4.dp)
-                                .background(colors.primary.copy(alpha = 0.7f), CircleShape)
-                        )
-                    }
+                            .border(1.dp, colors.primary.copy(alpha = 0.12f), selectionShape)
+                    )
                 }
-                WheelColumn(
-                    count = MINUTE_COUNT,
-                    initialIndex = state.startMinute,
-                    onSelect = { state.minute = it },
-                    rows = visibleRows,
-                    itemHeight = itemHeight,
-                    digitStyle = digitStyle,
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = MaaDesignTokens.Spacing.md)
+                        .fadeVerticalEdges(edgeFraction = 0.75f / visibleRows),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    WheelColumn(
+                        count = HOURS_PER_PERIOD,
+                        initialIndex = state.startHourIndex,
+                        onSelect = { state.selectHour(it + 1) },
+                        rows = visibleRows,
+                        itemHeight = itemHeight,
+                        digitStyle = digitStyle,
+                        modifier = Modifier.weight(1f),
+                        firstValue = 1,
+                    )
+                    Column(
+                        modifier = Modifier.width(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        repeat(2) {
+                            Box(
+                                Modifier
+                                    .size(4.dp)
+                                    .background(colors.primary.copy(alpha = 0.7f), CircleShape)
+                            )
+                        }
+                    }
+                    WheelColumn(
+                        count = MINUTE_COUNT,
+                        initialIndex = state.startMinute,
+                        onSelect = { state.minute = it },
+                        rows = visibleRows,
+                        itemHeight = itemHeight,
+                        digitStyle = digitStyle,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+            PeriodSelector(state)
+        }
+    }
+}
+
+@Composable
+private fun PeriodSelector(state: WheelTimePickerState) {
+    val haptic = LocalHapticFeedback.current
+    val shape = RoundedCornerShape(MaaDesignTokens.CornerRadius.button)
+    Column(
+        modifier = Modifier.width(56.dp).selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(MaaDesignTokens.Spacing.xs),
+    ) {
+        listOf(false, true).forEach { pm ->
+            val isSelected = state.isPm == pm
+            val colors = MaterialTheme.colorScheme
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .clip(shape)
+                    .background(if (isSelected) colors.primaryContainer else colors.surfaceContainerHigh)
+                    .border(
+                        width = 1.dp,
+                        color = if (isSelected) colors.primary.copy(alpha = 0.3f) else colors.outlineVariant,
+                        shape = shape,
+                    )
+                    .selectable(
+                        selected = isSelected,
+                        role = Role.RadioButton,
+                        onClick = {
+                            if (!isSelected) {
+                                state.selectPeriod(pm)
+                                haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                            }
+                        },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = stringResource(if (pm) R.string.time_picker_pm else R.string.time_picker_am),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (isSelected) colors.onPrimaryContainer else colors.onSurfaceVariant,
+                    maxLines = 1,
                 )
             }
         }
@@ -192,6 +267,7 @@ private fun WheelColumn(
     itemHeight: Dp,
     digitStyle: TextStyle,
     modifier: Modifier = Modifier,
+    firstValue: Int = 0,
 ) {
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val haptic = LocalHapticFeedback.current
@@ -222,7 +298,6 @@ private fun WheelColumn(
 
     LazyColumn(
         modifier = modifier
-            .width(80.dp)
             .height(itemHeight * rows),
         state = listState,
         flingBehavior = rememberSnapFlingBehavior(listState),
@@ -271,7 +346,7 @@ private fun WheelColumn(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = index.toString().padStart(2, '0'),
+                    text = (index + firstValue).toString().padStart(2, '0'),
                     style = digitStyle,
                     color = digitColor,
                     maxLines = 1,

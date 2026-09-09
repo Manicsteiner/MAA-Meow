@@ -1792,6 +1792,8 @@
     <!-- 触发日志：失败结果修复入口 -->
     <string name="schedule_backend_fix_still_not_ready">%1$s仍未授权：请确认对应服务正在运行，或在设置中更换启动模式</string>
     <string name="schedule_time_picker_title">选择时间</string>
+    <string name="time_picker_am">AM</string>
+    <string name="time_picker_pm">PM</string>
     <string name="schedule_default_name">定时任务-%1$d</string>
     <string name="schedule_error_name_required">请输入策略名称</string>
     <string name="schedule_error_profile_required">请选择任务配置</string>
