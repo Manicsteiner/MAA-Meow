@@ -2496,9 +2496,9 @@
     <string name="panel_depot_only_first_insufficient_plan_tip">Use the inventory saved at startup to select the first plan with insufficient stock and an available stage. Later plans are considered on the next run.</string>
     <string name="runlog_append_task_failed">Failed to add task to the queue: %1$s</string>
     <string name="runlog_task_with_detail">%1$s (%2$s)</string>
-    <string name="task_type_switch_theme">Switch Game Theme</string>
-    <string name="panel_task_type_switch_theme">Switch Game Theme</string>
-    <string name="maa_switch_theme">Switch Game Theme</string>
+    <string name="task_type_switch_theme">Switch Theme</string>
+    <string name="panel_task_type_switch_theme">Switch Theme</string>
+    <string name="maa_switch_theme">Switch Theme</string>
     <string name="maa_switch_theme_skipped">No theme candidates configured; skipping game theme switch</string>
     <string name="maa_switch_theme_succeeded">Game theme switched to: %1$s</string>
     <string name="maa_switch_theme_already_set">Theme already set: %1$s</string>
