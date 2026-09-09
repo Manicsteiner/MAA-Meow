@@ -1,11 +1,13 @@
 package com.aliothmoon.maameow.data.model
 
+import com.aliothmoon.maameow.R
 import com.aliothmoon.maameow.data.repository.DepotRepository
 import com.aliothmoon.maameow.data.repository.DepotSnapshot
 import com.aliothmoon.maameow.data.repository.OperBoxRepository
 import com.aliothmoon.maameow.data.repository.OperBoxSnapshot
 import com.aliothmoon.maameow.domain.models.UserDataUpdateTriggerInterval
 import com.aliothmoon.maameow.maa.task.MaaTaskType
+import com.aliothmoon.maameow.utils.i18n.uiTextOf
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +28,7 @@ class UserDataUpdateConfigTest {
             every { snapshot } returns MutableStateFlow(DepotSnapshot(syncTimeMillis = depotSync))
         }
         return testTaskParamContext(
+            node = testTaskChainNode(name = "同步数据"),
             operBoxRepository = operRepo,
             depotRepository = depotRepo,
         )
@@ -44,6 +47,13 @@ class UserDataUpdateConfigTest {
         assertEquals(
             listOf(MaaTaskType.OPER_BOX, MaaTaskType.DEPOT),
             result.map { it.type },
+        )
+        assertEquals(
+            listOf(
+                uiTextOf(R.string.runlog_task_with_detail, "同步数据", uiTextOf(R.string.maa_oper_box)),
+                uiTextOf(R.string.runlog_task_with_detail, "同步数据", uiTextOf(R.string.maa_depot)),
+            ),
+            result.map { it.logName },
         )
     }
 

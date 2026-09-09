@@ -1,6 +1,7 @@
 package com.aliothmoon.maameow.maa.callback
 
 import com.aliothmoon.maameow.maa.task.TaskSlot
+import com.aliothmoon.maameow.utils.i18n.UiText
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,7 @@ data class TaskRunInfo(
     val taskChain: String,
     val status: TaskRunStatus,
     val slot: TaskSlot? = null,
+    val logName: UiText? = null,
 )
 
 /** taskId → 运行状态；[tasks] 供 UI。 */
@@ -27,8 +29,8 @@ class TaskChainStatusTracker {
 
     private val registry = LinkedHashMap<Int, TaskRunInfo>()
 
-    fun register(taskId: Int, taskChain: String, slot: TaskSlot? = null) {
-        registry[taskId] = TaskRunInfo(taskId, taskChain, TaskRunStatus.PENDING, slot)
+    fun register(taskId: Int, taskChain: String, slot: TaskSlot? = null, logName: UiText? = null) {
+        registry[taskId] = TaskRunInfo(taskId, taskChain, TaskRunStatus.PENDING, slot, logName)
         emit()
     }
 
@@ -38,6 +40,8 @@ class TaskChainStatusTracker {
     }
 
     fun getNodeId(taskId: Int): String? = registry[taskId]?.slot?.nodeId
+
+    fun getLogName(taskId: Int): UiText? = registry[taskId]?.logName
 
     fun clear() {
         registry.clear()

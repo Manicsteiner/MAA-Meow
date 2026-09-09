@@ -10,10 +10,12 @@ import com.aliothmoon.maameow.domain.service.AchievementReporter
 import com.aliothmoon.maameow.domain.service.FightDropsRefresher
 import com.aliothmoon.maameow.domain.service.MaaNotificationCenter
 import com.aliothmoon.maameow.domain.service.MaaSessionLogger
+import com.aliothmoon.maameow.utils.i18n.UiText
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import org.junit.Before
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
@@ -30,17 +32,21 @@ class TaskChainHandlerErrorTest {
     }
     private val sessionLogger: MaaSessionLogger = mockk(relaxed = true)
     private val notificationCenter: MaaNotificationCenter = mockk(relaxed = true)
+    private val statusTracker = TaskChainStatusTracker()
+    private val dropsRefresher: FightDropsRefresher = mockk(relaxed = true) {
+        every { onTaskStarted(any()) } returns FightDropsRefresher.RefreshOutcome.Skipped
+    }
 
     private val handler = TaskChainHandler(
         applicationContext = context,
         sessionLogger = sessionLogger,
-        statusTracker = TaskChainStatusTracker(),
+        statusTracker = statusTracker,
         notificationCenter = notificationCenter,
         subTaskHandler = mockk(relaxed = true),
         taskChainState = mockk<TaskChainState>(relaxed = true),
         achievementRepository = mockk<AchievementRepository>(relaxed = true),
         achievementReporter = mockk<AchievementReporter>(relaxed = true),
-        dropsRefresher = mockk<FightDropsRefresher>(relaxed = true),
+        dropsRefresher = dropsRefresher,
     )
 
     @Before
@@ -53,6 +59,23 @@ class TaskChainHandlerErrorTest {
         every { resources.getString(2, *anyVararg()) } answers {
             "${secondArg<Array<Any>>()[0]}任务因内存不足停止"
         }
+    }
+
+    @Test
+    fun registeredPlanName_isUsedForStartCompletionAndError() {
+        val messages = mutableListOf<String>()
+        every { sessionLogger.append(capture(messages), any()) } returns Unit
+        statusTracker.register(7, "Fight", logName = UiText.Dynamic("材料补货 #3"))
+        val details = JSONObject.of("taskchain", "Fight", "taskid", 7)
+
+        handler.onTaskChainStart(details)
+        handler.onTaskChainCompleted(details)
+        handler.onTaskChainError(details)
+
+        assertEquals(
+            listOf("StartTask材料补货 #3", "CompleteTask材料补货 #3", "任务出错: 材料补货 #3"),
+            messages,
+        )
     }
 
     @Test

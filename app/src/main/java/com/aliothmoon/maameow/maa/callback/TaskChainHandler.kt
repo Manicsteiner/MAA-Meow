@@ -11,6 +11,7 @@ import com.aliothmoon.maameow.domain.service.AchievementReporter
 import com.aliothmoon.maameow.domain.service.FightDropsRefresher
 import com.aliothmoon.maameow.domain.service.MaaNotificationCenter
 import com.aliothmoon.maameow.domain.service.MaaSessionLogger
+import com.aliothmoon.maameow.utils.i18n.resolve
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -50,7 +51,7 @@ class TaskChainHandler(
 
         refreshDropsIfNeeded(taskId)
 
-        val taskName = str(details.getString("taskchain") ?: "Unknown")
+        val taskName = resolveTaskName(details)
         sessionLogger.append("${str("StartTask")}$taskName", LogLevel.TRACE)
     }
 
@@ -58,6 +59,10 @@ class TaskChainHandler(
         statusTracker.clear()
         dropsRefresher.clear()
     }
+
+    private fun resolveTaskName(details: JSONObject): String =
+        statusTracker.getLogName(details.getIntValue("taskid", 0))?.resolve(appContext)
+            ?: str(details.getString("taskchain") ?: "Unknown")
 
     private fun refreshDropsIfNeeded(taskId: Int) {
         val outcome = dropsRefresher.onTaskStarted(taskId)
@@ -120,7 +125,7 @@ class TaskChainHandler(
         statusTracker.updateStatus(details.getIntValue("taskid", 0), TaskRunStatus.ERROR)
 
         val taskchain = details.getString("taskchain") ?: "Unknown"
-        val taskName = str(taskchain)
+        val taskName = resolveTaskName(details)
         // details.error 为 Core 侧 TaskExceptionKind 名（如 OutOfMemory），普通识别错误无此字段
         val message = if (exceptionKind(details) == "OutOfMemory") {
             str("OutOfMemoryError", taskName)
@@ -146,7 +151,7 @@ class TaskChainHandler(
         dropsRefresher.onTaskCompleted(taskId)
 
         val taskchain = details.getString("taskchain") ?: "Unknown"
-        val taskName = str(taskchain)
+        val taskName = resolveTaskName(details)
         sessionLogger.append("${str("CompleteTask")}$taskName", LogLevel.SUCCESS)
 
         if (taskchain == "Infrast") {

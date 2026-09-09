@@ -499,7 +499,7 @@ class MaaCompositionService(
             sessionLogger.appendToFileOnly("[TaskParams] ${t.type.value}: ${t.params}")
             val taskId = maa.AppendTask(t.type.value, t.params)
             if (taskId > 0) {
-                taskChainStatusTracker.register(taskId, t.type.value, t.slot)
+                taskChainStatusTracker.register(taskId, t.type.value, t.slot, t.logName)
                 t.slot?.let { dropsRefresher.bind(it, taskId) }
             }
         }
