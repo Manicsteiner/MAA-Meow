@@ -45,6 +45,7 @@ fun ProvideInputFocusManager(content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalInputFocusManager provides manager, content = content)
 }
 
+@Suppress("DEPRECATION")
 fun clearInputFocus(
     focusManager: FocusManager,
     hostView: View,
