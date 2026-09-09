@@ -2492,6 +2492,8 @@
     <string name="blackflow_termination_map_rebuild_failed_twice">Map rebuild failed twice consecutively</string>
     <string name="blackflow_termination_planning_retry_exhausted">Preview changes exhausted the route replanning limit</string>
     <string name="blackflow_termination_unknown">See the file log for details</string>
+    <string name="panel_depot_only_first_insufficient_plan">Only run the first insufficient plan</string>
+    <string name="panel_depot_only_first_insufficient_plan_tip">Use the inventory saved at startup to select the first plan with insufficient stock and an available stage. Later plans are considered on the next run.</string>
     <string name="runlog_append_task_failed">Failed to add task to the queue: %1$s</string>
     <string name="runlog_task_with_detail">%1$s (%2$s)</string>
 </resources>

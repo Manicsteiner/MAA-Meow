@@ -5,6 +5,7 @@ import com.aliothmoon.maameow.data.model.CollectingPreflightLogSink
 import com.aliothmoon.maameow.data.model.DepotMaintainConfig
 import com.aliothmoon.maameow.data.model.DepotMaintainPlan
 import com.aliothmoon.maameow.data.model.LogLevel
+import com.aliothmoon.maameow.data.model.testTaskChainNode
 import com.aliothmoon.maameow.data.model.testTaskParamContext
 import com.aliothmoon.maameow.data.repository.DepotRepository
 import com.aliothmoon.maameow.data.resource.ActivityManager
@@ -13,8 +14,10 @@ import com.aliothmoon.maameow.data.resource.ItemInfo
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
 import com.aliothmoon.maameow.utils.i18n.UiText
+import com.aliothmoon.maameow.utils.i18n.uiTextOf
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -55,6 +58,7 @@ class DepotMaintainExpansionTest {
         }
         val sink = CollectingPreflightLogSink()
         val context = testTaskParamContext(
+            node = testTaskChainNode(name = "材料补货"),
             clientType = clientType,
             activityManager = activityManager,
             depotRepository = depotRepository,
@@ -112,6 +116,55 @@ class DepotMaintainExpansionTest {
         .args
 
     private fun MaaTaskParams.json() = Json.parseToJsonElement(params).jsonObject
+
+    @Test
+    fun onlyFirstInsufficientPlan_skipsUnavailablePlansAndStopsAfterFirstRunnable() {
+        val result = config(
+            plan(dropCount = 20),
+            plan(stage = "closed"),
+            plan(),
+            plan(stage = "4-4"),
+            updateDepot = true,
+        ).copy(onlyFirstInsufficientPlan = true).expand(
+            inventory = mapOf(ITEM to 20),
+            openStages = setOf(STAGE, "4-4"),
+        )
+
+        assertEquals(listOf(MaaTaskType.DEPOT, MaaTaskType.FIGHT), result.params.map { it.type })
+        assertEquals(
+            uiTextOf(R.string.runlog_task_with_detail, "材料补货", uiTextOf(R.string.maa_depot)),
+            result.params.first().logName,
+        )
+        assertEquals(UiText.Dynamic("材料补货 #3"), result.params.last().logName)
+        assertEquals(STAGE, result.params.last().json()["stage"]?.jsonPrimitive?.content)
+        assertEquals(
+            listOf(
+                R.string.runlog_depot_plan_inventory_enough,
+                R.string.runlog_depot_plan_stage_not_open,
+                R.string.runlog_depot_plan_inventory_insufficient,
+            ),
+            result.logs.resIds(),
+        )
+        assertEquals(
+            "#3",
+            logArgsOf(result.logs, R.string.runlog_depot_plan_inventory_insufficient).first(),
+        )
+    }
+
+    @Test
+    fun storedConfigs_keepLegacyAllPlansBehavior_andPersistTheNewPolicy() {
+        val legacy = Json.decodeFromString<DepotMaintainConfig>("""
+            {"updateDepot":false,"plans":[
+                {"stage":"1-7","dropId":"30011","dropCount":100},
+                {"stage":"4-4","dropId":"30011","dropCount":100}
+            ]}
+        """.trimIndent())
+        assertEquals(2, legacy.expand(openStages = setOf(STAGE, "4-4")).params.size)
+
+        val firstOnly = legacy.copy(onlyFirstInsufficientPlan = true)
+        val restored = Json.decodeFromString<DepotMaintainConfig>(Json.encodeToString(firstOnly))
+        assertEquals(1, restored.expand(openStages = setOf(STAGE, "4-4")).params.size)
+    }
 
     // --- 跳过条件 ---
 

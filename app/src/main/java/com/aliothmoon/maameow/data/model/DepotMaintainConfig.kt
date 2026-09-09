@@ -6,6 +6,7 @@ import com.aliothmoon.maameow.domain.models.DropTarget
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
 import com.aliothmoon.maameow.maa.task.TaskSlot
+import com.aliothmoon.maameow.utils.i18n.UiText
 import com.aliothmoon.maameow.utils.i18n.uiTextOf
 import kotlinx.serialization.Serializable
 
@@ -58,6 +59,7 @@ fun depotPlanOutcome(
 @Serializable
 data class DepotMaintainConfig(
     val updateDepot: Boolean = true,
+    val onlyFirstInsufficientPlan: Boolean = false,
     val customStageCode: Boolean = false,
     /** false→series=1；true→series=0（AUTO）。对齐 WPF UseAutoSeries。 */
     val useAutoSeries: Boolean = false,
@@ -86,7 +88,11 @@ data class DepotMaintainConfig(
 
         // append 缺口只是初值；Start 时 Refresher 用最新库存重算
         if (updateDepot) {
-            params += MaaTaskParams(MaaTaskType.DEPOT, "{}")
+            params += MaaTaskParams(
+                MaaTaskType.DEPOT,
+                "{}",
+                logName = uiTextOf(R.string.runlog_task_with_detail, ctx.node.name, uiTextOf(R.string.maa_depot)),
+            )
         }
 
         val series = if (useAutoSeries) 0 else 1
@@ -96,7 +102,7 @@ data class DepotMaintainConfig(
             ctx.appendLog(uiTextOf(R.string.runlog_log_section, ctx.node.name), LogLevel.TRACE)
         }
 
-        plans.forEachIndexed { index, plan ->
+        for ((index, plan) in plans.withIndex()) {
             val no = index + 1
             // 共用文案的首参在别处是任务名，编号前缀由调用方给
             val label = "#$no"
@@ -108,7 +114,7 @@ data class DepotMaintainConfig(
                         uiTextOf(R.string.runlog_depot_plan_invalid_drop, no),
                         LogLevel.ERROR
                     )
-                    return@forEachIndexed
+                    continue
                 }
 
                 DepotPlanOutcome.ZeroTarget -> {
@@ -116,7 +122,7 @@ data class DepotMaintainConfig(
                         uiTextOf(R.string.runlog_depot_plan_zero_count, no),
                         LogLevel.ERROR
                     )
-                    return@forEachIndexed
+                    continue
                 }
 
                 DepotPlanOutcome.Enough -> {
@@ -128,12 +134,12 @@ data class DepotMaintainConfig(
                         ),
                         LogLevel.TRACE,
                     )
-                    return@forEachIndexed
+                    continue
                 }
 
                 DepotPlanOutcome.StageRequired -> {
                     ctx.appendLog(uiTextOf(R.string.runlog_depot_plan_no_stage, no), LogLevel.ERROR)
-                    return@forEachIndexed
+                    continue
                 }
 
                 DepotPlanOutcome.StageClosed -> {
@@ -141,7 +147,7 @@ data class DepotMaintainConfig(
                         uiTextOf(R.string.runlog_depot_plan_stage_not_open, no, plan.stage),
                         LogLevel.TRACE,
                     )
-                    return@forEachIndexed
+                    continue
                 }
 
                 DepotPlanOutcome.Runnable -> Unit
@@ -173,7 +179,10 @@ data class DepotMaintainConfig(
             params += MaaTaskParams(
                 type = MaaTaskType.FIGHT,
                 params = target.toFightParamsJson(need),
+                logName = UiText.Dynamic("${ctx.node.name} #$no"),
             )
+            // 后续计划本轮不评估也不输出日志，留到下次运行
+            if (onlyFirstInsufficientPlan) break
         }
 
         return params

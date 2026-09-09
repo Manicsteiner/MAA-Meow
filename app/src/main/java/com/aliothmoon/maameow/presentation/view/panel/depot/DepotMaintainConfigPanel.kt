@@ -613,6 +613,13 @@ private fun ColumnScope.AdvancedTab(
         label = stringResource(R.string.panel_depot_skip_during_activity),
     )
 
+    CheckBoxWithExpandableTip(
+        checked = config.onlyFirstInsufficientPlan,
+        onCheckedChange = { onConfigChange(config.copy(onlyFirstInsufficientPlan = it)) },
+        label = stringResource(R.string.panel_depot_only_first_insufficient_plan),
+        tipText = stringResource(R.string.panel_depot_only_first_insufficient_plan_tip),
+    )
+
     CheckBoxWithLabel(
         checked = config.skipDuringResourceCollection,
         onCheckedChange = { onConfigChange(config.copy(skipDuringResourceCollection = it)) },

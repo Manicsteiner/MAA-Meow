@@ -2549,6 +2549,8 @@
     <string name="blackflow_termination_map_rebuild_failed_twice">连续两次地图重建失败</string>
     <string name="blackflow_termination_planning_retry_exhausted">预览反复改变可选路线，已经超过重新规划次数</string>
     <string name="blackflow_termination_unknown">详细原因请查看文件日志</string>
+    <string name="panel_depot_only_first_insufficient_plan">仅执行第一个库存不足的计划</string>
+    <string name="panel_depot_only_first_insufficient_plan_tip">按启动时已有库存，选择第一个库存不足且关卡开放的计划。本次只执行此计划，后续计划留到下次运行。</string>
     <string name="runlog_append_task_failed">任务加入队列失败：%1$s</string>
     <string name="runlog_task_with_detail">%1$s（%2$s）</string>
 </resources>
