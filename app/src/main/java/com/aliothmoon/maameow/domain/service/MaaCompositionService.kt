@@ -501,6 +501,13 @@ class MaaCompositionService(
             if (taskId > 0) {
                 taskChainStatusTracker.register(taskId, t.type.value, t.slot, t.logName)
                 t.slot?.let { dropsRefresher.bind(it, taskId) }
+            } else {
+                // core 拒绝参数才会到这里，此前是静默吞掉，用户看不到任何痕迹
+                val name = t.logName?.resolve(context) ?: t.type.value
+                sessionLogger.append(
+                    context.getString(R.string.runlog_append_task_failed, name),
+                    LogLevel.ERROR,
+                )
             }
         }
         if (!maa.Start()) {
