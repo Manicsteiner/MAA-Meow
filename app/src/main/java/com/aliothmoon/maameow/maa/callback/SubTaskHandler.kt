@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import org.koin.java.KoinJavaComponent.inject
 import timber.log.Timber
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * SubTask 级别回调处理器
@@ -60,6 +61,7 @@ class SubTaskHandler(
     )
 
     private var pendingFight = PendingFightState()
+    private val themeTargets = ConcurrentHashMap<Int, String>()
 
     // 本次会话累计用药数（跨战斗累计，session 开始时重置）
     private var medicineUsedTotal = 0
@@ -79,9 +81,14 @@ class SubTaskHandler(
     /** 每次新 session 开始时调用，重置跨任务状态 */
     fun resetSessionState() {
         pendingFight = PendingFightState()
+        themeTargets.clear()
         medicineUsedTotal = 0
         expiringMedicineUsedTotal = 0
         lastSanitySnapshot = null
+    }
+
+    fun clearThemeTarget(taskId: Int) {
+        themeTargets.remove(taskId)
     }
 
     // ==================== SubTaskError (20000) ====================
@@ -399,6 +406,37 @@ class SubTaskHandler(
             val task = innerDetails?.getString("task")
 
             when (taskchain) {
+                "SwitchTheme" -> {
+                    val taskId = details.getIntValue("taskid", 0)
+                    when (task) {
+                        "SwitchThemeByNameSelectTheme" -> {
+                            themeTargets[taskId] = innerDetails.getJSONObject("result")
+                                ?.getString("text").orEmpty()
+                        }
+
+                        "SwitchThemeByNameConfirmTheme" -> {
+                            append(
+                                str("SwitchThemeSucceeded", themeTargets.remove(taskId).orEmpty()),
+                                LogLevel.SUCCESS,
+                            )
+                        }
+
+                        "SwitchThemeByNameAlreadySet" -> {
+                            append(
+                                str("SwitchThemeAlreadySet", themeTargets.remove(taskId).orEmpty()),
+                                LogLevel.SUCCESS,
+                            )
+                        }
+
+                        "SwitchThemeByNameLockedTheme" -> {
+                            append(
+                                str("SwitchThemeLocked", themeTargets.remove(taskId).orEmpty()),
+                                LogLevel.ERROR,
+                            )
+                        }
+                    }
+                }
+
                 "Infrast" if task == "UnlockClues" -> {
                     append(str("ClueExchangeUnlocked"), LogLevel.TRACE)
                     ioScope.launch {
@@ -482,6 +520,16 @@ class SubTaskHandler(
         }
 
         when (what) {
+            "SwitchThemeSkipped" -> {
+                clearThemeTarget(details.getIntValue("taskid", 0))
+                append(str("SwitchThemeSkipped"), LogLevel.INFO)
+            }
+
+            "SwitchThemeNotFound" -> {
+                clearThemeTarget(details.getIntValue("taskid", 0))
+                append(str("SwitchThemeNotFound", subDetails?.getString("theme").orEmpty()), LogLevel.ERROR)
+            }
+
             "PixelPaintProgress" -> logPixelPaintProgress(
                 toolboxResultCollector.onPixelPaintProgress(subDetails)
             )

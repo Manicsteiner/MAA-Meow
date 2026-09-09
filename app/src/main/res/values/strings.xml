@@ -2553,4 +2553,16 @@
     <string name="panel_depot_only_first_insufficient_plan_tip">按启动时已有库存，选择第一个库存不足且关卡开放的计划。本次只执行此计划，后续计划留到下次运行。</string>
     <string name="runlog_append_task_failed">任务加入队列失败：%1$s</string>
     <string name="runlog_task_with_detail">%1$s（%2$s）</string>
+    <string name="task_type_switch_theme">更换游戏主题</string>
+    <string name="panel_task_type_switch_theme">更换游戏主题</string>
+    <string name="maa_switch_theme">更换游戏主题</string>
+    <string name="maa_switch_theme_skipped">未配置候选主题，跳过更换游戏主题</string>
+    <string name="maa_switch_theme_succeeded">已更换游戏主题：%1$s</string>
+    <string name="maa_switch_theme_already_set">当前已是主题：%1$s</string>
+    <string name="maa_switch_theme_locked">主题尚未解锁：%1$s</string>
+    <string name="maa_switch_theme_not_found">未找到主题：%1$s</string>
+    <string name="panel_switch_theme_tip">填写游戏内显示的主页主题名称，语言需与游戏一致。每次随机选择一个候选，重复填写可提高抽取概率；留空则跳过。</string>
+    <string name="panel_switch_theme_candidate">候选主题 %1$d</string>
+    <string name="panel_switch_theme_add">添加候选主题</string>
+    <string name="panel_switch_theme_remove">移除候选主题 %1$d</string>
 </resources>

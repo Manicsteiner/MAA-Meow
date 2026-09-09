@@ -17,6 +17,7 @@ enum class MaaTaskType(val value: String) {
     INFRAST("Infrast"),
     MALL("Mall"),
     AWARD("Award"),
+    SWITCH_THEME("SwitchTheme"),
 
     // 特殊任务
     ROGUELIKE("Roguelike"),

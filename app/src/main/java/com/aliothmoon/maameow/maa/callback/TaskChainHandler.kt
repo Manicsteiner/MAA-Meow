@@ -47,6 +47,7 @@ class TaskChainHandler(
      */
     fun onTaskChainStart(details: JSONObject) {
         val taskId = details.getIntValue("taskid", 0)
+        subTaskHandler.clearThemeTarget(taskId)
         statusTracker.updateStatus(taskId, TaskRunStatus.IN_PROGRESS)
 
         refreshDropsIfNeeded(taskId)
@@ -122,7 +123,9 @@ class TaskChainHandler(
      * TaskChainError (10000): 任务链错误
      */
     fun onTaskChainError(details: JSONObject) {
-        statusTracker.updateStatus(details.getIntValue("taskid", 0), TaskRunStatus.ERROR)
+        val taskId = details.getIntValue("taskid", 0)
+        subTaskHandler.clearThemeTarget(taskId)
+        statusTracker.updateStatus(taskId, TaskRunStatus.ERROR)
 
         val taskchain = details.getString("taskchain") ?: "Unknown"
         val taskName = resolveTaskName(details)
@@ -147,6 +150,7 @@ class TaskChainHandler(
      */
     fun onTaskChainCompleted(details: JSONObject) {
         val taskId = details.getIntValue("taskid", 0)
+        subTaskHandler.clearThemeTarget(taskId)
         statusTracker.updateStatus(taskId, TaskRunStatus.COMPLETED)
         dropsRefresher.onTaskCompleted(taskId)
 

@@ -7,11 +7,7 @@ import com.aliothmoon.maameow.R
 enum class TaskTypeInfo(
     @param:StringRes val nameRes: Int,
     val defaultConfig: () -> TaskParamProvider,
-    /**
-     * 是否出现在新建配置的默认任务链中。
-     * 库存保持需要用户先配好保持计划才有意义，空计划占位无价值，
-     * 故与上游一致：仅通过「添加任务」手动加入。
-     */
+    /** 需要先配置内容的任务仅通过「添加任务」加入 */
     val inDefaultChain: Boolean = true,
 ) {
     WAKE_UP(R.string.task_type_wake_up, { WakeUpConfig() }),
@@ -29,6 +25,11 @@ enum class TaskTypeInfo(
     DEPOT_MAINTAIN(
         R.string.task_type_depot_maintain,
         { DepotMaintainConfig() },
+        inDefaultChain = false,
+    ),
+    SWITCH_THEME(
+        R.string.task_type_switch_theme,
+        { SwitchThemeConfig() },
         inDefaultChain = false,
     );
 

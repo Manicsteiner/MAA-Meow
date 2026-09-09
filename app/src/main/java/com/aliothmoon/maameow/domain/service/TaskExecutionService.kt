@@ -52,6 +52,7 @@ class TaskExecutionService : Service() {
             "StartUp" to R.string.maa_start_up,
             "Depot" to R.string.maa_depot,
             "OperBox" to R.string.maa_oper_box,
+            "SwitchTheme" to R.string.maa_switch_theme,
         )
 
         // 只提供 start 不提供外部 stop：startForegroundService 后若 stopService
