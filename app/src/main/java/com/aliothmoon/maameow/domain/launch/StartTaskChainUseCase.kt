@@ -73,6 +73,7 @@ class StartTaskChainUseCase(
             tasks = plan.params,
             clientType = plan.clientType,
             preflightLogs = plan.logs,
+            fallbacks = plan.fallbacks,
         ) {
             if (scheduleLabel != null) {
                 sessionLogger.appendAndWait(

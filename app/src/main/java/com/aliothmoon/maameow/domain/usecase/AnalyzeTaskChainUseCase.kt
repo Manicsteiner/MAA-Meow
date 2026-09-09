@@ -20,6 +20,7 @@ import com.aliothmoon.maameow.domain.models.ReportOptions
 import com.aliothmoon.maameow.domain.service.FightDropsRefresher
 import com.aliothmoon.maameow.maa.task.MaaTaskParams
 import com.aliothmoon.maameow.maa.task.MaaTaskType
+import com.aliothmoon.maameow.domain.models.TaskCandidate
 import com.aliothmoon.maameow.maa.task.TaskSlot
 import com.aliothmoon.maameow.utils.i18n.UiText
 import kotlinx.coroutines.flow.first
@@ -156,6 +157,8 @@ data class TaskChainPlan(
     val gameAliveBeforeStart: Boolean? = null,
     /** 预检日志，会话开始后由 Composition 回放。 */
     val logs: List<Pair<UiText, LogLevel>> = emptyList(),
+    /** 任务位 → 后备候选（按序）；主任务 append 失败时才用到，目前只有库存保持「仅第一个」会产生 */
+    val fallbacks: Map<TaskSlot, List<TaskCandidate>> = emptyMap(),
 )
 
 enum class AnalyzeTaskChainFailureReason {

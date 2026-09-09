@@ -515,6 +515,7 @@ class BackgroundTaskViewModel(
             tasks = plan.params,
             clientType = plan.clientType,
             preflightLogs = plan.logs,
+            fallbacks = plan.fallbacks,
         )
         if (result is MaaCompositionService.StartResult.Success) {
             achievementReporter.reportTaskStarted(
