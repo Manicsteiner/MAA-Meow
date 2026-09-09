@@ -560,7 +560,7 @@
     <string name="maa_penguin_upload_unknown_times">Unknown stage times</string>
     <string name="maa_penguin_upload_unknown_drop_type">Unknown drop type</string>
     <string name="maa_penguin_upload_unknown_drops">Unknown drops</string>
-    <string name="maa_missing_operators">Operators of the following Operator groups are missing: </string>
+    <string name="maa_missing_operators">No operators in the following groups meet this operation\'s requirements (not owned or attributes below the requirements):</string>
     <string name="maa_copilot_user_additional_name_invalid">Additional custom Operator name invalid: %1$s, please check spelling</string>
     <string name="maa_mission_start">Mission started</string>
     <string name="maa_stone_used">Originite Prime used</string>

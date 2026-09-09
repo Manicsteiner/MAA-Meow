@@ -57,7 +57,7 @@
     <string name="maa_penguin_upload_unknown_times">未识别关卡次数</string>
     <string name="maa_penguin_upload_unknown_drop_type">未识别掉落类型</string>
     <string name="maa_penguin_upload_unknown_drops">未识别掉落物</string>
-    <string name="maa_missing_operators">缺少以下干员组中的干员：</string>
+    <string name="maa_missing_operators">以下干员组中没有符合本次作业要求的干员（未拥有或属性未达标）：</string>
     <string name="maa_copilot_user_additional_name_invalid">追加自定干员名称无效: %1$s，请检查拼写</string>
 
     <!-- subtask_start -->
