@@ -6,14 +6,13 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
-import android.content.pm.ServiceInfo
-import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.aliothmoon.maameow.MaaApplication
 import com.aliothmoon.maameow.MainActivity
 import com.aliothmoon.maameow.R
+import com.aliothmoon.maameow.domain.service.SpecialUseFgsGate
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -120,14 +119,11 @@ class ScheduleExecutionService : Service() {
     }
 
     private fun startAsForeground(notification: Notification) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        try {
+            SpecialUseFgsGate.startForeground(this, NOTIFICATION_ID, notification)
+        } catch (e: SecurityException) {
+            // specialUse 被系统拒绝：尽力继续触发，uid 转空闲后服务可能被系统停掉
+            Timber.w(e, "$TAG: startForeground denied, continue without FGS")
         }
     }
 

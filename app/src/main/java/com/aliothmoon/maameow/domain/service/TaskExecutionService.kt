@@ -5,8 +5,6 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
-import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
 import com.aliothmoon.maameow.R
@@ -74,6 +72,9 @@ class TaskExecutionService : Service() {
     private var boundToken: Long = 0L
     private var observeToken: Long = 0L
 
+    /** startForeground 被系统拒绝后本实例已 stopSelf，排队中的 start 不再重试 */
+    private var foregroundDenied = false
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
@@ -84,7 +85,7 @@ class TaskExecutionService : Service() {
         // ForegroundServiceDidNotStartInTimeException。
         // postForegroundNotification 只负责构建+notify，耗时的断网闸门已在 STARTING 时拿过
         val initial = currentSnapshot()
-        startAsForeground(postForegroundNotification(initial, firstFloat = true))
+        if (!startAsForeground(postForegroundNotification(initial, firstFloat = true))) return
         if (isTerminal(initial.state)) {
             handleTerminalState(boundToken, initial)
             return
@@ -93,11 +94,14 @@ class TaskExecutionService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (foregroundDenied) return START_NOT_STICKY
         bindToken()
         // 系统可能只走 onStartCommand；再保证一次 FGS 提升
         // onCreate 若因终态提前 return 未启动观察，随后竞态进入 STARTING 时须在此补上
         val snapshot = currentSnapshot()
-        startAsForeground(postForegroundNotification(snapshot, firstFloat = false))
+        if (!startAsForeground(postForegroundNotification(snapshot, firstFloat = false))) {
+            return START_NOT_STICKY
+        }
         if (isTerminal(snapshot.state)) {
             handleTerminalState(boundToken, snapshot)
         } else {
@@ -219,15 +223,18 @@ class TaskExecutionService : Service() {
         stopSelf()
     }
 
-    private fun startAsForeground(notification: Notification) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(
-                LiveNotifyIds.PROGRESS,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
-            )
-        } else {
-            startForeground(LiveNotifyIds.PROGRESS, notification)
+    /** 被拒时停服务，onDestroy 撤掉已发出的进度通知；任务本身仍在提权进程继续 */
+    private fun startAsForeground(notification: Notification): Boolean {
+        try {
+            SpecialUseFgsGate.startForeground(this, LiveNotifyIds.PROGRESS, notification)
+            return true
+        } catch (e: SecurityException) {
+            // 预检放行但系统仍拒（如 appop 为 FOREGROUND）；AOSP 抛出前已清 fgRequired，stopSelf 不会触发未启动超时
+            Timber.w(e, "TaskExecutionService: startForeground denied, run without FGS")
+            foregroundDenied = true
+            SpecialUseFgsGate.appendDeniedLog(this, sessionLogger)
+            stopSelf()
+            return false
         }
     }
 

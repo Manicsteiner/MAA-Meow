@@ -2343,6 +2343,8 @@
     <string name="runlog_game_fps_low">游戏画面帧率仅 %1$d FPS，低于 30，自动战斗可能出错；请在游戏设置中开启高帧率模式，并关闭省电模式</string>
     <string name="runlog_game_fps_degraded">游戏画面帧率 %1$d FPS，低于 50，战斗时机可能不准；建议在游戏设置中开启高帧率模式，并关闭省电模式</string>
     <string name="runlog_game_left_virtual_display">游戏窗口已离开虚拟显示器且自动拉回失败(%1$s)，请尝试开启「后台模式强制全屏模式」或改用前台模式</string>
+    <string name="runlog_fgs_special_use_denied">系统拒绝了前台服务权限(FOREGROUND_SERVICE_SPECIAL_USE)，本次无进度通知，切到后台后可能被系统回收</string>
+    <string name="runlog_fgs_special_use_denied_tip">通常是系统或应用管控工具限制了本应用的前台服务；可在 root 或 adb 下执行 %1$s 后重试</string>
 
     <!-- 定时任务锁屏 · PIN -->
     <string name="settings_wake_credential">PIN</string>

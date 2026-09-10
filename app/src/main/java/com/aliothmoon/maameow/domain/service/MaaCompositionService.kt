@@ -128,18 +128,26 @@ class MaaCompositionService(
     }
 
     private fun setRunState(state: MaaExecutionState) {
-        if (state == MaaExecutionState.STARTING) {
-            lastStopOrigin = StopOrigin.USER
-            // 顺带提前拿断网闸门：这里在 IO 线程，留给 FGS 的 startForeground 拿会占主线程
-            liveCoordinator.prepareProgress(liveCoordinator.beginRun())
-        }
-        _state.value = state
         // 仅在 STARTING 拉起前台服务；终态不做外部 stopService —
         // 快速失败时 stopService 可能抢在服务创建之前到达，系统会因
         // startForeground 契约未履行直接杀进程（RemoteServiceException）。
         // 服务自身观察状态流，startForeground 后对 IDLE/ERROR 自行 stopSelf
-        if (state == MaaExecutionState.STARTING) {
+        if (state != MaaExecutionState.STARTING) {
+            _state.value = state
+            return
+        }
+        // specialUse 被系统拒绝时拉起 FGS 必崩，本轮降级为无进度通知运行
+        val withFgs = !SpecialUseFgsGate.isDenied(context)
+        lastStopOrigin = StopOrigin.USER
+        val runToken = liveCoordinator.beginRun()
+        // 顺带提前拿断网闸门：这里在 IO 线程，留给 FGS 的 startForeground 拿会占主线程
+        // 不起 FGS 就没人撤进度通知，闸门不能拿
+        if (withFgs) liveCoordinator.prepareProgress(runToken)
+        _state.value = state
+        if (withFgs) {
             TaskExecutionService.start(context)
+        } else {
+            SpecialUseFgsGate.appendDeniedLog(context, sessionLogger)
         }
     }
 

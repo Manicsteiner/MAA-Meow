@@ -237,6 +237,10 @@ class RemoteServiceImpl : RemoteService.Stub() {
         val p = request.permissions
 
         with(PermissionGrantHelper) {
+            // 结果不进 PermissionStateInfo 免改 AIDL；放开失败由 App 侧预检兜底
+            if (p and PermissionGrantRequest.PERM_FGS_SPECIAL_USE != 0) {
+                grantForegroundServiceSpecialUse(packageName)
+            }
             return PermissionStateInfo(
                 accessibilityPermission = if (p and PermissionGrantRequest.PERM_ACCESSIBILITY != 0) grantAccessibilityService(
                     request.accessibilityServiceId

@@ -2286,6 +2286,8 @@
     <string name="runlog_game_fps_low">Game frame rate is only %1$d FPS (below 30); copilot may misbehave. Enable the high frame rate option in the game settings and turn off battery saver</string>
     <string name="runlog_game_fps_degraded">Game frame rate is %1$d FPS (below 50); combat timing may be off. Enable the high frame rate option in the game settings and turn off battery saver</string>
     <string name="runlog_game_left_virtual_display">Game window left the virtual display and could not be moved back (%1$s). Try enabling \"Force fullscreen in background mode\" or switch to foreground mode</string>
+    <string name="runlog_fgs_special_use_denied">The system denied the foreground service permission (FOREGROUND_SERVICE_SPECIAL_USE); this run has no progress notification and may be killed in the background</string>
+    <string name="runlog_fgs_special_use_denied_tip">Usually the system or an app-control tool is restricting foreground services for this app. Run %1$s via root or adb, then retry</string>
 
     <!-- Scheduled lock · PIN -->
     <string name="settings_wake_credential">PIN</string>
