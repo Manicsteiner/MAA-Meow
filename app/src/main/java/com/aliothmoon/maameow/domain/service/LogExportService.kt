@@ -28,6 +28,7 @@ import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -132,8 +133,19 @@ class LogExportService(
 
             appendRemoteDebugFiles(zos)
 
+            // 提权进程写的文件可能对 App 不可读，逐个跳过，不拖垮整包
+            val skipped = mutableListOf<String>()
             for (file in logFiles) {
-                FileInputStream(file).use { zos.addEntry(file.relativeTo(baseDir).path, it, file.lastModified()) }
+                val name = file.relativeTo(baseDir).path
+                try {
+                    FileInputStream(file).use { zos.addEntry(name, it, file.lastModified()) }
+                } catch (e: IOException) {
+                    Timber.w(e, "Skip unreadable log file: %s", name)
+                    skipped += "$name: ${e.message}"
+                }
+            }
+            if (skipped.isNotEmpty()) {
+                zos.addEntry("export_skipped.txt", skipped.joinToString("\n").byteInputStream())
             }
         }
     }
