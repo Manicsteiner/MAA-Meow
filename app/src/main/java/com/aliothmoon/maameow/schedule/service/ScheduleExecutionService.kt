@@ -11,15 +11,18 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import androidx.core.app.NotificationCompat
+import com.aliothmoon.maameow.MaaApplication
 import com.aliothmoon.maameow.MainActivity
 import com.aliothmoon.maameow.R
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import org.koin.android.ext.android.inject
 import timber.log.Timber
 
@@ -34,6 +37,7 @@ class ScheduleExecutionService : Service() {
     }
 
     private val triggerHandler: ScheduleTriggerHandler by inject()
+    private val scheduleAlarmManager: ScheduleAlarmManager by inject()
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     /** Service 生命周期跟在途触发数绑定，不跟最后一个 startId */
@@ -65,13 +69,21 @@ class ScheduleExecutionService : Service() {
         wakeLocks.add(wakeLock)
         inFlight++
         serviceScope.launch {
+            var startupReady = false
             try {
+                // 通知和唤醒锁已就位，挂起等待不会阻塞主线程
+                withTimeout(STARTUP_WAKE_TIMEOUT_MS) {
+                    (application as MaaApplication).awaitReady()
+                }
+                startupReady = true
                 withContext(Dispatchers.IO) {
                     triggerHandler.handle(strategyId, scheduledTime, retryCount)
                 }
-            } catch (e: CancellationException) {
-                throw e
             } catch (e: Exception) {
+                currentCoroutineContext().ensureActive()
+                if (!startupReady) {
+                    scheduleAlarmManager.scheduleRetry(strategyId, scheduledTime, retryCount)
+                }
                 Timber.e(e, "$TAG: trigger failed: %s", strategyId)
             } finally {
                 wakeLocks.remove(wakeLock)

@@ -19,19 +19,19 @@ import com.aliothmoon.maameow.domain.models.OverlayControlMode
 import com.aliothmoon.maameow.domain.models.RemoteBackend
 import com.aliothmoon.maameow.domain.models.RunMode
 import com.aliothmoon.maameow.domain.models.UnlockCredential
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.util.concurrent.CopyOnWriteArrayList
 
 
+/** 构造不等待读盘；启动时读取 .value 前须先 awaitLoaded */
 class AppSettingsManager internal constructor(
     private val context: Context,
     private val achievementRepository: AchievementRepository,
@@ -103,25 +103,33 @@ class AppSettingsManager internal constructor(
 
     val settings: Flow<AppSettings> = with(AppSettingsSchema) { context.dataStore.flow }
 
-    // 阻塞读取 DataStore 首次值，确保后续 .value 不会是默认值
-    private val initialSettings: AppSettings = runBlocking { settings.first() }
+    private val defaults = AppSettings()
+
+    @Volatile
+    private var initialSettings: AppSettings? = null
+    private val loaded = CompletableDeferred<Unit>()
+    private val settingUpdates = CopyOnWriteArrayList<(AppSettings) -> Unit>()
+
+    /** 首次快照的所有字段发布后才放行业务初始化 */
+    suspend fun awaitLoaded() = loaded.await()
+
+    private fun <T> setting(read: (AppSettings) -> T): StateFlow<T> {
+        val state = MutableStateFlow(read(defaults))
+        settingUpdates += { state.value = read(it) }
+        // 晚于 init 块声明的设置项在此补发
+        initialSettings?.let { state.value = read(it) }
+        return state.asStateFlow()
+    }
 
     suspend fun setSettings(settings: AppSettings) {
         with(AppSettingsSchema) { context.dataStore.update(settings) }
     }
 
     // 悬浮窗模式
-    val overlayControlMode: StateFlow<OverlayControlMode> = settings
-        .map {
-            runCatching { OverlayControlMode.valueOf(it.overlayMode) }
-                .getOrDefault(OverlayControlMode.ACCESSIBILITY)
-        }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            runCatching { OverlayControlMode.valueOf(initialSettings.overlayMode) }
-                .getOrDefault(OverlayControlMode.ACCESSIBILITY)
-        )
+    val overlayControlMode: StateFlow<OverlayControlMode> = setting {
+        runCatching { OverlayControlMode.valueOf(it.overlayMode) }
+            .getOrDefault(OverlayControlMode.ACCESSIBILITY)
+    }
 
     suspend fun setFloatWindowMode(mode: OverlayControlMode) {
         with(AppSettingsSchema) {
@@ -130,17 +138,10 @@ class AppSettingsManager internal constructor(
     }
 
     // 运行模式
-    val runMode: StateFlow<RunMode> = settings
-        .map {
-            runCatching { RunMode.valueOf(it.runMode) }
-                .getOrDefault(RunMode.BACKGROUND)
-        }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            runCatching { RunMode.valueOf(initialSettings.runMode) }
-                .getOrDefault(RunMode.BACKGROUND)
-        )
+    val runMode: StateFlow<RunMode> = setting {
+        runCatching { RunMode.valueOf(it.runMode) }
+            .getOrDefault(RunMode.BACKGROUND)
+    }
 
     suspend fun setRunMode(mode: RunMode) {
         with(AppSettingsSchema) {
@@ -149,25 +150,14 @@ class AppSettingsManager internal constructor(
     }
 
     // 更新源
-    val updateSource: StateFlow<UpdateSource> = settings
-        .map { s ->
-            runCatching {
-                UpdateSource.entries
-                    .find { it.type == s.updateSource.toInt() }
-                    ?: UpdateSource.GITHUB
-            }
-                .getOrDefault(UpdateSource.GITHUB)
+    val updateSource: StateFlow<UpdateSource> = setting { s ->
+        runCatching {
+            UpdateSource.entries
+                .find { it.type == s.updateSource.toInt() }
+                ?: UpdateSource.GITHUB
         }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            runCatching {
-                UpdateSource.entries
-                    .find { it.type == initialSettings.updateSource.toInt() }
-                    ?: UpdateSource.GITHUB
-            }
-                .getOrDefault(UpdateSource.GITHUB)
-        )
+            .getOrDefault(UpdateSource.GITHUB)
+    }
 
     suspend fun setUpdateSource(source: UpdateSource) {
         with(AppSettingsSchema) {
@@ -176,10 +166,7 @@ class AppSettingsManager internal constructor(
     }
 
     // Mirror酱 CDK
-    val mirrorChyanCdk: StateFlow<String> = settings
-        .map { it.mirrorChyanCdk }
-        .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, initialSettings.mirrorChyanCdk)
+    val mirrorChyanCdk: StateFlow<String> = setting { it.mirrorChyanCdk }
 
     suspend fun setMirrorChyanCdk(cdk: String) {
         with(AppSettingsSchema) {
@@ -188,13 +175,7 @@ class AppSettingsManager internal constructor(
     }
 
     // 调试模式
-    val debugMode: StateFlow<Boolean> = settings
-        .map { it.debugMode.toBooleanStrictOrNull() ?: false }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.debugMode.toBooleanStrictOrNull() ?: false
-        )
+    val debugMode: StateFlow<Boolean> = setting { it.debugMode.toBooleanStrictOrNull() ?: false }
 
     suspend fun setDebugMode(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -203,13 +184,7 @@ class AppSettingsManager internal constructor(
     }
 
     // 启动时自动检查更新
-    val autoCheckUpdate: StateFlow<Boolean> = settings
-        .map { it.autoCheckUpdate.toBooleanStrictOrNull() ?: true }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.autoCheckUpdate.toBooleanStrictOrNull() ?: true
-        )
+    val autoCheckUpdate: StateFlow<Boolean> = setting { it.autoCheckUpdate.toBooleanStrictOrNull() ?: true }
 
     suspend fun setAutoCheckUpdate(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -218,13 +193,7 @@ class AppSettingsManager internal constructor(
     }
 
     // 启动时自动下载更新
-    val autoDownloadUpdate: StateFlow<Boolean> = settings
-        .map { it.autoDownloadUpdate.toBooleanStrictOrNull() ?: false }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.autoDownloadUpdate.toBooleanStrictOrNull() ?: false
-        )
+    val autoDownloadUpdate: StateFlow<Boolean> = setting { it.autoDownloadUpdate.toBooleanStrictOrNull() ?: false }
 
     suspend fun setAutoDownloadUpdate(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -233,17 +202,10 @@ class AppSettingsManager internal constructor(
     }
 
     // IPC服务启动模式
-    val startupBackend: StateFlow<RemoteBackend> = settings
-        .map {
-            runCatching { RemoteBackend.valueOf(it.startupBackend) }
-                .getOrDefault(RemoteBackend.SHIZUKU)
-        }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            runCatching { RemoteBackend.valueOf(initialSettings.startupBackend) }
-                .getOrDefault(RemoteBackend.SHIZUKU)
-        )
+    val startupBackend: StateFlow<RemoteBackend> = setting {
+        runCatching { RemoteBackend.valueOf(it.startupBackend) }
+            .getOrDefault(RemoteBackend.SHIZUKU)
+    }
 
     suspend fun setStartupBackend(backend: RemoteBackend) {
         with(AppSettingsSchema) {
@@ -252,10 +214,7 @@ class AppSettingsManager internal constructor(
     }
 
     // MaaCore 数据目录
-    val coreDataLocation: StateFlow<CoreDataLocation> = settings
-        .map { CoreDataLocation.parse(it.coreDataLocation) }
-        .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, CoreDataLocation.parse(initialSettings.coreDataLocation))
+    val coreDataLocation: StateFlow<CoreDataLocation> = setting { CoreDataLocation.parse(it.coreDataLocation) }
 
     suspend fun setCoreDataLocation(location: CoreDataLocation) {
         with(AppSettingsSchema) {
@@ -264,13 +223,7 @@ class AppSettingsManager internal constructor(
     }
 
     // 跳过 Shizuku 检查
-    val skipShizukuCheck: StateFlow<Boolean> = settings
-        .map { it.skipShizukuCheck.toBooleanStrictOrNull() ?: false }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.skipShizukuCheck.toBooleanStrictOrNull() ?: false
-        )
+    val skipShizukuCheck: StateFlow<Boolean> = setting { it.skipShizukuCheck.toBooleanStrictOrNull() ?: false }
 
     suspend fun setSkipShizukuCheck(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -279,13 +232,8 @@ class AppSettingsManager internal constructor(
     }
 
     // Shizuku 管理器快捷入口是否启用
-    val shizukuShortcutEnabled: StateFlow<Boolean> = settings
-        .map { it.shizukuShortcutEnabled.toBooleanStrictOrNull() ?: false }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.shizukuShortcutEnabled.toBooleanStrictOrNull() ?: false
-        )
+    val shizukuShortcutEnabled: StateFlow<Boolean> =
+        setting { it.shizukuShortcutEnabled.toBooleanStrictOrNull() ?: false }
 
     suspend fun setShizukuShortcutEnabled(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -294,10 +242,7 @@ class AppSettingsManager internal constructor(
     }
 
     // Shizuku 管理器入口包名，始终保持为非空包名。
-    val shizukuLaunchPackage: StateFlow<String> = settings
-        .map { it.shizukuLaunchPackage }
-        .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, initialSettings.shizukuLaunchPackage)
+    val shizukuLaunchPackage: StateFlow<String> = setting { it.shizukuLaunchPackage }
 
     suspend fun setShizukuLaunchPackage(packageName: String) {
         val trimmedPackageName = packageName.trim()
@@ -310,13 +255,7 @@ class AppSettingsManager internal constructor(
     }
 
     // 游戏启动时静音
-    val muteOnGameLaunch: StateFlow<Boolean> = settings
-        .map { it.muteOnGameLaunch.toBooleanStrictOrNull() ?: false }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.muteOnGameLaunch.toBooleanStrictOrNull() ?: false
-        )
+    val muteOnGameLaunch: StateFlow<Boolean> = setting { it.muteOnGameLaunch.toBooleanStrictOrNull() ?: false }
 
     suspend fun setMuteOnGameLaunch(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -324,7 +263,8 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val initialMutedGamePackage: String get() = initialSettings.mutedGamePackage
+    val initialMutedGamePackage: String
+        get() = checkNotNull(initialSettings) { "Settings have not loaded" }.mutedGamePackage
 
     internal suspend fun setMutedGamePackage(packageName: String) {
         with(AppSettingsSchema) {
@@ -333,13 +273,7 @@ class AppSettingsManager internal constructor(
     }
 
     // 任务结束时关闭应用
-    val closeAppOnTaskEnd: StateFlow<Boolean> = settings
-        .map { it.closeAppOnTaskEnd.toBooleanStrictOrNull() ?: false }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.closeAppOnTaskEnd.toBooleanStrictOrNull() ?: false
-        )
+    val closeAppOnTaskEnd: StateFlow<Boolean> = setting { it.closeAppOnTaskEnd.toBooleanStrictOrNull() ?: false }
 
     suspend fun setCloseAppOnTaskEnd(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -347,13 +281,7 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val deployWithPause: StateFlow<Boolean> = settings
-        .map { it.deployWithPause.toBooleanStrictOrNull() ?: false }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.deployWithPause.toBooleanStrictOrNull() ?: false
-        )
+    val deployWithPause: StateFlow<Boolean> = setting { it.deployWithPause.toBooleanStrictOrNull() ?: false }
 
     suspend fun setDeployWithPause(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -361,13 +289,7 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val useHardwareScreenOff: StateFlow<Boolean> = settings
-        .map { it.useHardwareScreenOff.toBooleanStrictOrNull() ?: false }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.useHardwareScreenOff.toBooleanStrictOrNull() ?: false
-        )
+    val useHardwareScreenOff: StateFlow<Boolean> = setting { it.useHardwareScreenOff.toBooleanStrictOrNull() ?: false }
 
     suspend fun setUseHardwareScreenOff(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -376,13 +298,7 @@ class AppSettingsManager internal constructor(
     }
 
     // 触摸预览
-    val showTouchPreview: StateFlow<Boolean> = settings
-        .map { it.showTouchPreview.toBooleanStrictOrNull() ?: false }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.showTouchPreview.toBooleanStrictOrNull() ?: false
-        )
+    val showTouchPreview: StateFlow<Boolean> = setting { it.showTouchPreview.toBooleanStrictOrNull() ?: false }
 
     suspend fun setShowTouchPreview(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -391,13 +307,7 @@ class AppSettingsManager internal constructor(
     }
 
     // 画中画
-    val pipOnHome: StateFlow<Boolean> = settings
-        .map { it.pipOnHome.toBooleanStrictOrNull() ?: true }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.pipOnHome.toBooleanStrictOrNull() ?: true
-        )
+    val pipOnHome: StateFlow<Boolean> = setting { it.pipOnHome.toBooleanStrictOrNull() ?: true }
 
     suspend fun setPipOnHome(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -406,17 +316,10 @@ class AppSettingsManager internal constructor(
     }
 
     // 更新渠道
-    val updateChannel: StateFlow<UpdateChannel> = settings
-        .map {
-            runCatching { UpdateChannel.valueOf(it.updateChannel) }
-                .getOrDefault(UpdateChannel.STABLE)
-        }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            runCatching { UpdateChannel.valueOf(initialSettings.updateChannel) }
-                .getOrDefault(UpdateChannel.STABLE)
-        )
+    val updateChannel: StateFlow<UpdateChannel> = setting {
+        runCatching { UpdateChannel.valueOf(it.updateChannel) }
+            .getOrDefault(UpdateChannel.STABLE)
+    }
 
     suspend fun setUpdateChannel(channel: UpdateChannel) {
         with(AppSettingsSchema) {
@@ -429,19 +332,11 @@ class AppSettingsManager internal constructor(
         SYSTEM, WHITE, DARK, PURE_DARK
     }
 
-    val themeMode: StateFlow<ThemeMode> = settings
-        .map {
-            runCatching { ThemeMode.valueOf(it.themeMode) }.getOrDefault(ThemeMode.SYSTEM)
-        }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            runCatching {
-                val modeStr =
-                    if (initialSettings.themeMode == "LIGHT") "WHITE" else initialSettings.themeMode
-                ThemeMode.valueOf(modeStr)
-            }.getOrDefault(ThemeMode.SYSTEM)
-        )
+    val themeMode: StateFlow<ThemeMode> = setting {
+        runCatching {
+            ThemeMode.valueOf(if (it.themeMode == "LIGHT") "WHITE" else it.themeMode)
+        }.getOrDefault(ThemeMode.SYSTEM)
+    }
 
     suspend fun setThemeMode(mode: ThemeMode) {
         with(AppSettingsSchema) {
@@ -456,17 +351,10 @@ class AppSettingsManager internal constructor(
         HIGH(R.string.notification_level_high),
     }
 
-    val eventNotificationLevel: StateFlow<EventNotificationLevel> = settings
-        .map {
-            runCatching { EventNotificationLevel.valueOf(it.eventNotificationLevel) }
-                .getOrDefault(EventNotificationLevel.DEFAULT)
-        }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            runCatching { EventNotificationLevel.valueOf(initialSettings.eventNotificationLevel) }
-                .getOrDefault(EventNotificationLevel.DEFAULT)
-        )
+    val eventNotificationLevel: StateFlow<EventNotificationLevel> = setting {
+        runCatching { EventNotificationLevel.valueOf(it.eventNotificationLevel) }
+            .getOrDefault(EventNotificationLevel.DEFAULT)
+    }
 
     suspend fun setEventNotificationLevel(level: EventNotificationLevel) {
         with(AppSettingsSchema) {
@@ -475,13 +363,7 @@ class AppSettingsManager internal constructor(
     }
 
     // 超级岛断网旁路
-    val liveIslandXmsfBypass: StateFlow<Boolean> = settings
-        .map { it.liveIslandXmsfBypass.toBooleanStrictOrNull() ?: true }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.liveIslandXmsfBypass.toBooleanStrictOrNull() ?: true
-        )
+    val liveIslandXmsfBypass: StateFlow<Boolean> = setting { it.liveIslandXmsfBypass.toBooleanStrictOrNull() ?: true }
 
     suspend fun setLiveIslandXmsfBypass(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -490,17 +372,10 @@ class AppSettingsManager internal constructor(
     }
 
     // 后台虚拟屏分辨率
-    val backgroundResolution: StateFlow<DefaultDisplayConfig.ResolutionPreference> = settings
-        .map {
-            runCatching { DefaultDisplayConfig.ResolutionPreference.valueOf(it.backgroundResolution) }
-                .getOrDefault(DefaultDisplayConfig.ResolutionPreference.P720)
-        }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            runCatching { DefaultDisplayConfig.ResolutionPreference.valueOf(initialSettings.backgroundResolution) }
-                .getOrDefault(DefaultDisplayConfig.ResolutionPreference.P720)
-        )
+    val backgroundResolution: StateFlow<DefaultDisplayConfig.ResolutionPreference> = setting {
+        runCatching { DefaultDisplayConfig.ResolutionPreference.valueOf(it.backgroundResolution) }
+            .getOrDefault(DefaultDisplayConfig.ResolutionPreference.P720)
+    }
 
     suspend fun setBackgroundResolution(pref: DefaultDisplayConfig.ResolutionPreference) {
         with(AppSettingsSchema) {
@@ -516,17 +391,10 @@ class AppSettingsManager internal constructor(
         EN("en"),
     }
 
-    val language: StateFlow<AppLanguage> = settings
-        .map {
-            runCatching { AppLanguage.valueOf(it.language) }
-                .getOrDefault(AppLanguage.SYSTEM)
-        }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            runCatching { AppLanguage.valueOf(initialSettings.language) }
-                .getOrDefault(AppLanguage.SYSTEM)
-        )
+    val language: StateFlow<AppLanguage> = setting {
+        runCatching { AppLanguage.valueOf(it.language) }
+            .getOrDefault(AppLanguage.SYSTEM)
+    }
 
     suspend fun setLanguage(lang: AppLanguage) {
         with(AppSettingsSchema) {
@@ -538,15 +406,9 @@ class AppSettingsManager internal constructor(
     }
 
     // 待展示的更新公告
-    val pendingChangelogVersion: StateFlow<String> = settings
-        .map { it.pendingChangelogVersion }
-        .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, initialSettings.pendingChangelogVersion)
+    val pendingChangelogVersion: StateFlow<String> = setting { it.pendingChangelogVersion }
 
-    val pendingChangelogContent: StateFlow<String> = settings
-        .map { it.pendingChangelogContent }
-        .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, initialSettings.pendingChangelogContent)
+    val pendingChangelogContent: StateFlow<String> = setting { it.pendingChangelogContent }
 
     suspend fun savePendingChangelog(version: String, content: String) {
         with(AppSettingsSchema) {
@@ -557,15 +419,9 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val currentChangelogVersion: StateFlow<String> = settings
-        .map { it.currentChangelogVersion }
-        .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, initialSettings.currentChangelogVersion)
+    val currentChangelogVersion: StateFlow<String> = setting { it.currentChangelogVersion }
 
-    val currentChangelogContent: StateFlow<String> = settings
-        .map { it.currentChangelogContent }
-        .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, initialSettings.currentChangelogContent)
+    val currentChangelogContent: StateFlow<String> = setting { it.currentChangelogContent }
 
     /** 单次 edit 内完成，避免中途崩溃导致两份都丢 */
     suspend fun promotePendingChangelog() {
@@ -584,13 +440,8 @@ class AppSettingsManager internal constructor(
     }
 
     // 虚拟屏启动游戏时强制全屏模式
-    val forceFullscreenOnVirtualDisplay: StateFlow<Boolean> = settings
-        .map { it.forceFullscreenOnVirtualDisplay.toBooleanStrictOrNull() ?: false }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.forceFullscreenOnVirtualDisplay.toBooleanStrictOrNull() ?: false
-        )
+    val forceFullscreenOnVirtualDisplay: StateFlow<Boolean> =
+        setting { it.forceFullscreenOnVirtualDisplay.toBooleanStrictOrNull() ?: false }
 
     suspend fun setForceFullscreenOnVirtualDisplay(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -599,13 +450,7 @@ class AppSettingsManager internal constructor(
     }
 
     // Android 任务配置覆盖开关
-    val tasksOverrideEnabled: StateFlow<Boolean> = settings
-        .map { it.tasksOverrideEnabled.toBooleanStrictOrNull() ?: false }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.tasksOverrideEnabled.toBooleanStrictOrNull() ?: false
-        )
+    val tasksOverrideEnabled: StateFlow<Boolean> = setting { it.tasksOverrideEnabled.toBooleanStrictOrNull() ?: false }
 
     suspend fun setTasksOverrideEnabled(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -613,10 +458,7 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val announcementReadHash: StateFlow<String> = settings
-        .map { it.announcementReadHash }
-        .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, initialSettings.announcementReadHash)
+    val announcementReadHash: StateFlow<String> = setting { it.announcementReadHash }
 
     suspend fun setAnnouncementReadHash(hash: String) {
         with(AppSettingsSchema) {
@@ -627,13 +469,7 @@ class AppSettingsManager internal constructor(
     private fun parseNeedsOnboarding(raw: String): Boolean =
         (raw.toIntOrNull() ?: 0) < ONBOARDING_VERSION
 
-    val needsOnboarding: StateFlow<Boolean> = settings
-        .map { parseNeedsOnboarding(it.onboardingSeenVersion) }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            parseNeedsOnboarding(initialSettings.onboardingSeenVersion)
-        )
+    val needsOnboarding: StateFlow<Boolean> = setting { parseNeedsOnboarding(it.onboardingSeenVersion) }
 
     suspend fun markOnboardingSeen() {
         with(AppSettingsSchema) {
@@ -645,14 +481,7 @@ class AppSettingsManager internal constructor(
     private fun parseUseSystemMonetColor(raw: String): Boolean =
         raw.toBooleanStrictOrNull() ?: true
 
-    val useSystemMonetColor: StateFlow<Boolean> = settings
-        .map { parseUseSystemMonetColor(it.useSystemMonetColor) }
-        .distinctUntilChanged()
-        .stateIn(
-            scope,
-            SharingStarted.Eagerly,
-            parseUseSystemMonetColor(initialSettings.useSystemMonetColor)
-        )
+    val useSystemMonetColor: StateFlow<Boolean> = setting { parseUseSystemMonetColor(it.useSystemMonetColor) }
 
     suspend fun setUseSystemMonetColor(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -661,10 +490,7 @@ class AppSettingsManager internal constructor(
     }
 
     // 页面缩放（0=自动，或 80~110 手动）
-    val fontSizeScale: StateFlow<Int> = settings
-        .map { parseFontSizeScale(it.fontSizeScale) }
-        .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, parseFontSizeScale(initialSettings.fontSizeScale))
+    val fontSizeScale: StateFlow<Int> = setting { parseFontSizeScale(it.fontSizeScale) }
 
     suspend fun setFontSizeScale(scale: Int) {
         with(AppSettingsSchema) {
@@ -679,14 +505,8 @@ class AppSettingsManager internal constructor(
     }
 
     // 是否显示成就解锁时的 Snackbar 提示
-    val showAchievementSnackbar: StateFlow<Boolean> = settings
-        .map { it.showAchievementSnackbar.toBooleanStrictOrNull() ?: true }
-        .distinctUntilChanged()
-        .stateIn(
-            scope,
-            SharingStarted.Eagerly,
-            initialSettings.showAchievementSnackbar.toBooleanStrictOrNull() ?: true
-        )
+    val showAchievementSnackbar: StateFlow<Boolean> =
+        setting { it.showAchievementSnackbar.toBooleanStrictOrNull() ?: true }
 
     suspend fun setShowAchievementSnackbar(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -700,13 +520,8 @@ class AppSettingsManager internal constructor(
     private fun parsePercent(raw: String, default: Int): Int =
         raw.toIntOrNull()?.coerceIn(0, 100) ?: default
 
-    val customBackgroundEnabled: StateFlow<Boolean> = settings
-        .map { it.customBackgroundEnabled.toBooleanStrictOrNull() ?: false }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.customBackgroundEnabled.toBooleanStrictOrNull() ?: false
-        )
+    val customBackgroundEnabled: StateFlow<Boolean> =
+        setting { it.customBackgroundEnabled.toBooleanStrictOrNull() ?: false }
 
     suspend fun setCustomBackgroundEnabled(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -714,10 +529,7 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val customBackgroundToken: StateFlow<String> = settings
-        .map { it.customBackgroundToken }
-        .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, initialSettings.customBackgroundToken)
+    val customBackgroundToken: StateFlow<String> = setting { it.customBackgroundToken }
 
     /** 保存/清除背景时开关与令牌总是成对变更，合并为一次写入避免中间态。 */
     suspend fun setCustomBackgroundState(enabled: Boolean, token: String) {
@@ -729,14 +541,7 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val customBackgroundImageAlpha: StateFlow<Int> = settings
-        .map { parsePercent(it.customBackgroundImageAlpha, 80) }
-        .distinctUntilChanged()
-        .stateIn(
-            scope,
-            SharingStarted.Eagerly,
-            parsePercent(initialSettings.customBackgroundImageAlpha, 80)
-        )
+    val customBackgroundImageAlpha: StateFlow<Int> = setting { parsePercent(it.customBackgroundImageAlpha, 80) }
 
     suspend fun setCustomBackgroundImageAlpha(value: Int) {
         with(AppSettingsSchema) {
@@ -746,14 +551,7 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val customBackgroundScrim: StateFlow<Int> = settings
-        .map { parsePercent(it.customBackgroundScrim, 25) }
-        .distinctUntilChanged()
-        .stateIn(
-            scope,
-            SharingStarted.Eagerly,
-            parsePercent(initialSettings.customBackgroundScrim, 25)
-        )
+    val customBackgroundScrim: StateFlow<Int> = setting { parsePercent(it.customBackgroundScrim, 25) }
 
     suspend fun setCustomBackgroundScrim(value: Int) {
         with(AppSettingsSchema) {
@@ -761,14 +559,7 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val customBackgroundBlur: StateFlow<Int> = settings
-        .map { parsePercent(it.customBackgroundBlur, 0) }
-        .distinctUntilChanged()
-        .stateIn(
-            scope,
-            SharingStarted.Eagerly,
-            parsePercent(initialSettings.customBackgroundBlur, 0)
-        )
+    val customBackgroundBlur: StateFlow<Int> = setting { parsePercent(it.customBackgroundBlur, 0) }
 
     suspend fun setCustomBackgroundBlur(value: Int) {
         with(AppSettingsSchema) {
@@ -778,17 +569,10 @@ class AppSettingsManager internal constructor(
 
     // ───────────────── 唤醒 + 解锁 ─────────────────
 
-    val wakeUnlockType: StateFlow<String> = settings
-        .map {
-            val t = it.wakeUnlockType
-            if (t in WAKE_UNLOCK_TYPES) t else "swipe"
-        }
-        .distinctUntilChanged()
-        .stateIn(
-            scope,
-            SharingStarted.Eagerly,
-            initialSettings.wakeUnlockType.takeIf { it in WAKE_UNLOCK_TYPES } ?: WAKE_TYPE_SWIPE,
-        )
+    val wakeUnlockType: StateFlow<String> = setting {
+        val t = it.wakeUnlockType
+        if (t in WAKE_UNLOCK_TYPES) t else "swipe"
+    }
 
     suspend fun setWakeUnlockType(type: String) {
         if (type !in WAKE_UNLOCK_TYPES) return
@@ -797,10 +581,7 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val wakeCredential: StateFlow<String> = settings
-        .map { it.wakeCredential }
-        .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, initialSettings.wakeCredential)
+    val wakeCredential: StateFlow<String> = setting { it.wakeCredential }
 
     suspend fun setWakeCredential(credential: String) {
         // 注入走 KEYCODE_0..9，仅保留数字
@@ -810,13 +591,7 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val reportToPenguin: StateFlow<Boolean> = settings
-        .map { it.reportToPenguin.toBooleanStrictOrNull() ?: true }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.reportToPenguin.toBooleanStrictOrNull() ?: true,
-        )
+    val reportToPenguin: StateFlow<Boolean> = setting { it.reportToPenguin.toBooleanStrictOrNull() ?: true }
 
     suspend fun setReportToPenguin(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -824,13 +599,7 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val reportToYituliu: StateFlow<Boolean> = settings
-        .map { it.reportToYituliu.toBooleanStrictOrNull() ?: true }
-        .distinctUntilChanged()
-        .stateIn(
-            scope, SharingStarted.Eagerly,
-            initialSettings.reportToYituliu.toBooleanStrictOrNull() ?: true,
-        )
+    val reportToYituliu: StateFlow<Boolean> = setting { it.reportToYituliu.toBooleanStrictOrNull() ?: true }
 
     suspend fun setReportToYituliu(enabled: Boolean) {
         with(AppSettingsSchema) {
@@ -838,14 +607,25 @@ class AppSettingsManager internal constructor(
         }
     }
 
-    val penguinId: StateFlow<String> = settings
-        .map { it.penguinId }
-        .distinctUntilChanged()
-        .stateIn(scope, SharingStarted.Eagerly, initialSettings.penguinId)
+    val penguinId: StateFlow<String> = setting { it.penguinId }
 
     suspend fun setPenguinId(id: String) {
         with(AppSettingsSchema) {
             context.dataStore.edit { it[penguinId] = id.trim() }
+        }
+    }
+
+    // 放在类体末尾，启动收集器时 setting() 已全部注册
+    init {
+        // 单次收集统一更新，避免就绪标记早于各字段的 stateIn
+        scope.launch {
+            settings.collect { snapshot ->
+                if (initialSettings == null) initialSettings = snapshot
+                settingUpdates.forEach { it(snapshot) }
+                loaded.complete(Unit)
+            }
+        }.invokeOnCompletion { cause ->
+            if (cause != null) loaded.completeExceptionally(cause)
         }
     }
 

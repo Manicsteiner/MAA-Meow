@@ -20,6 +20,7 @@ import com.aliothmoon.maameow.schedule.service.ScheduleAlarmManager
 import com.aliothmoon.maameow.utils.CrashHandler
 import com.aliothmoon.maameow.utils.i18n.LocaleBootstrap
 import com.aliothmoon.maameow.utils.log.LogTreeHolder
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,6 +36,7 @@ import org.koin.core.logger.Level
 class MaaApplication : Application() {
 
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val initialization = CompletableDeferred<Unit>()
     private val appSettingsManager: AppSettingsManager by inject()
     private val pathConfig: MaaPathConfig by inject()
     private val crashHandler: CrashHandler by inject()
@@ -49,6 +51,7 @@ class MaaApplication : Application() {
     private val depotRepository: DepotRepository by inject()
     private val operBoxRepository: OperBoxRepository by inject()
 
+    suspend fun awaitReady() = initialization.await()
 
     override fun onCreate() {
         super.onCreate()
@@ -59,9 +62,14 @@ class MaaApplication : Application() {
             modules(appModule, useCaseModule, viewModelModule, floatingWindowModule)
         }
 
-        LocaleBootstrap.applyPersisted(appSettingsManager)
-
-        postCreateApplication()
+        applicationScope.launch(Dispatchers.Main) {
+            appSettingsManager.awaitLoaded()
+            LocaleBootstrap.applyPersisted(appSettingsManager)
+            postCreateApplication()
+            initialization.complete(Unit)
+        }.invokeOnCompletion { cause ->
+            if (cause != null) initialization.completeExceptionally(cause)
+        }
     }
 
     private fun postCreateApplication() {

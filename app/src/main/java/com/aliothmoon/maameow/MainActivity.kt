@@ -22,6 +22,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.withStarted
 import com.aliothmoon.maameow.data.achievement.AchievementEvents
 import com.aliothmoon.maameow.data.achievement.AchievementRepository
 import com.aliothmoon.maameow.data.preferences.AppSettingsManager
@@ -48,6 +49,12 @@ import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : AppCompatActivity(), PipHost {
 
+    private companion object {
+        const val STATE_LAUNCH_DISPATCHED = "launch_dispatched"
+    }
+
+    private var launchDispatched = false
+
     @Volatile
     private var isUiReady: Boolean = false
 
@@ -67,12 +74,20 @@ class MainActivity : AppCompatActivity(), PipHost {
     private val backgroundTaskViewModel: BackgroundTaskViewModel by viewModel()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        delegate.localNightMode = appSettingsManager.themeMode.value.toAppCompatNightMode()
         val splash = installSplashScreen()
         splash.setKeepOnScreenCondition { !isUiReady }
         super.onCreate(savedInstanceState)
-        dispatchScheduledLaunchIntent(intent)
+        launchDispatched = savedInstanceState?.getBoolean(STATE_LAUNCH_DISPATCHED) ?: false
+        if (!launchDispatched) dispatchScheduledLaunchIntent(intent)
         enableEdgeToEdge()
+        lifecycleScope.launch {
+            (application as MaaApplication).awaitReady()
+            delegate.localNightMode = appSettingsManager.themeMode.value.toAppCompatNightMode()
+            initializeUi()
+        }
+    }
+
+    private fun initializeUi() {
         lifecycleScope.launch {
             achievementRepository.report {
                 event = AchievementEvents.APP_LAUNCH
@@ -123,7 +138,14 @@ class MainActivity : AppCompatActivity(), PipHost {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        launchDispatched = false
         dispatchScheduledLaunchIntent(intent)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        // 异步恢复语言和主题可能重建 Activity，已消费的请求不能再执行
+        outState.putBoolean(STATE_LAUNCH_DISPATCHED, launchDispatched)
+        super.onSaveInstanceState(outState)
     }
 
     /** API 28~30 没有 auto-enter，只能在这里手动进画中画 */
@@ -146,8 +168,14 @@ class MainActivity : AppCompatActivity(), PipHost {
         if (LaunchIntentMapper.isShowScheduleIntent(intent)) {
             return
         }
-        LaunchIntentMapper.fromExternalIntent(this, intent)?.let { request ->
-            backgroundTaskViewModel.onExternalLaunch(request)
+        lifecycleScope.launch {
+            (application as MaaApplication).awaitReady()
+            lifecycle.withStarted {
+                LaunchIntentMapper.fromExternalIntent(this@MainActivity, intent)?.let { request ->
+                    backgroundTaskViewModel.onExternalLaunch(request)
+                    if (intent === this@MainActivity.intent) launchDispatched = true
+                }
+            }
         }
     }
 
