@@ -36,7 +36,7 @@ if sys.platform == "win32":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 # ── Config ──────────────────────────────────────────────
-DEFAULT_GITHUB_REPO = "MaaAssistantArknights/MaaAssistantArknights"
+DEFAULT_GITHUB_REPO = "Manicsteiner/MaaAssistantArknights"
 API_BASE = f"https://api.github.com/repos/{DEFAULT_GITHUB_REPO}"
 
 # ABI mapping: release asset keyword -> jniLibs subdirectory
@@ -149,14 +149,23 @@ def get_release_assets(tag: str = None, repo: str = None) -> list:
     base = f"https://api.github.com/repos/{repo}" if repo else API_BASE
     if tag:
         url = f"{base}/releases/tags/{tag}"
+        try:
+            data = fetch_json(url)
+        except urllib.error.HTTPError as e:
+            print(f"[ERROR] Request failed: {e.code} {e.reason}")
+            sys.exit(1)
     else:
-        url = f"{base}/releases/latest"
+        url = f"{base}/releases"
+        try:
+            releases = fetch_json(url)
+            if not releases:
+                print("[ERROR] No releases found")
+                sys.exit(1)
+            data = releases[0]
+        except urllib.error.HTTPError as e:
+            print(f"[ERROR] Request failed: {e.code} {e.reason}")
+            sys.exit(1)
     print(f"[FETCH] Fetching release info: {url}")
-    try:
-        data = fetch_json(url)
-    except urllib.error.HTTPError as e:
-        print(f"[ERROR] Request failed: {e.code} {e.reason}")
-        sys.exit(1)
     tag_name = data.get("tag_name", "unknown")
     print(f"  Tag: {tag_name}")
     return tag_name, data.get("assets", [])
