@@ -73,7 +73,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 /** 滚到底后需停留的秒数，满了才能确认或勾选"不再显示" */
-private const val STAY_SECONDS_REQUIRED = 7
+private const val STAY_SECONDS_REQUIRED = 1
 
 /** 未读完狂点确认：超过该次数放行并解锁成就 */
 private const val STUBBORN_CLICKS_TO_UNLOCK = 20
