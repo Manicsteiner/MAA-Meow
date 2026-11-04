@@ -70,6 +70,7 @@ def build_block(found: dict[str, str], unknown: list[str], base_url: str, tag: s
 
     # 只给一个主链接：几个包并排时手机用户会按「64 位」点到装不上的 x64 包
     lines = []
+    lines.append(f"**此仓库使用仓库持有者个人签名，并有少量额外更改，方便本地调试时使用，无法覆盖原版，不建议他人使用**")
     if universal := found.get(UNIVERSAL):
         lines.append(f"**{link(f'下载 MaaMeow {tag}（{UNIVERSAL_TITLE}）', universal)}**：{UNIVERSAL_NOTE}")
     elif splits:
