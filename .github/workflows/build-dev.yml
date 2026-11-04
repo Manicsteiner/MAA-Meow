@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - dev
+      - build
   pull_request:
     branches:
       - main
@@ -13,7 +14,7 @@ on:
       maa_repo:
         description: 'MAA Core GitHub repo (owner/repo)'
         required: false
-        default: 'MaaAssistantArknights/MaaAssistantArknights'
+        default: 'Manicsteiner/MaaAssistantArknights'
       maa_tag:
         description: 'MAA Core release tag'
         required: false
