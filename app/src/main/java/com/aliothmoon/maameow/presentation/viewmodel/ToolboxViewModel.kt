@@ -75,7 +75,7 @@ data class RecruitCalcConfig(
     val chooseLevel5: Boolean = true,
     val chooseLevel6: Boolean = true,
     val autoSetTime: Boolean = true,
-    val level3Time: Int = 540,
+    val level3Time: Int = 460,
     val level4Time: Int = 540,
     val level5Time: Int = 540,
 )
